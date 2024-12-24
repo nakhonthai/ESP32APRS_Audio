@@ -1,6 +1,6 @@
-# ESP32IGate Simple Project
+# ESP32APRS Simple Project
 
-ESP32IGate is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/Telemetry(TLM) with TNC Built in that is implemented for Espressif ESP32 processor.
+ESP32APRS is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/Telemetry(TLM) with TNC Built in that is implemented for Espressif ESP32 processor.
  
 
 ## Feature
