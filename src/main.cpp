@@ -4391,7 +4391,7 @@ void loop()
                 // if (oledSleepTimeout > 0)
                 //{
                 curTab++;
-                if (curTab > 3)
+                if (curTab > 4)
                     curTab = 0;
                 //}
             }
@@ -4478,6 +4478,9 @@ void loop()
                 break;
             case 3:
                 systemDisp();
+                break;
+            case 4:
+                gpsDisp();
                 break;
             }
         }
@@ -8321,7 +8324,7 @@ void statisticsDisp()
     display.print("STATISTIC");
     display.setFont();
     display.setCursor(108, 7);
-    display.print("1/4");
+    display.print("1/5");
     display.setTextColor(WHITE);
 
     display.setCursor(3, 18);
@@ -8386,7 +8389,7 @@ void pkgLastDisp()
     display.print("STATION");
     display.setFont();
     display.setCursor(108, 7);
-    display.print("2/4");
+    display.print("2/5");
     display.setTextColor(WHITE);
 
     // display.fillRect(0, 16, 128, 10, WHITE);
@@ -8489,7 +8492,7 @@ void pkgCountDisp()
     display.print("TOP PKG");
     display.setFont();
     display.setCursor(108, 7);
-    display.print("3/4");
+    display.print("3/5");
     display.setTextColor(WHITE);
 
     // display.setCursor(3, 18);
@@ -8594,7 +8597,7 @@ void systemDisp()
     display.print("SYSTEM");
     display.setFont();
     display.setCursor(108, 7);
-    display.print("4/4");
+    display.print("4/5");
     display.setTextColor(WHITE);
 
     display.setCursor(3, 18);
@@ -8637,5 +8640,66 @@ void systemDisp()
 
     display.display();
     i2c_busy = false;
+}
+
+void gpsDisp()
+{
+
+    int x;
+    String str;
+
+    display.fillRect(0, 0, 128, 15, WHITE);
+
+    display.drawRect(0, 16, 128, 48, WHITE);
+    display.fillRect(1, 17, 126, 46, BLACK);
+
+    display.setCursor(15, 7);
+    display.setTextSize(1);
+    display.setFont(&FreeSansBold9pt7b);
+    display.setTextColor(BLACK);
+    display.print("GPS INFO");
+    display.setFont();
+    display.setCursor(108, 7);
+    display.print("5/5");
+    display.setTextColor(WHITE);
+
+    display.setCursor(3, 18);
+    display.print("LAT");
+    str = String(gps.location.lat(), 5);
+    x = str.length() * 6;
+    display.setCursor(126 - x, 18);
+    display.print(str);
+
+
+    display.setCursor(3, 26);
+    display.print("LON");
+    str = String(gps.location.lng(), 5);
+    x = str.length() * 6;
+    display.setCursor(126 - x, 26);
+    display.print(str);
+
+    display.setCursor(3, 35);
+    display.print("SAT:");
+    str = String(gps.satellites.value());
+    x = str.length() * 6;
+    display.setCursor(126 - x, 35);
+    display.print(str);
+
+    display.setCursor(3, 44);
+    display.print("Speed:");
+    str = String(gps.speed.kmph(), 0);
+    str += " km/h";
+    x = str.length() * 6;
+    display.setCursor(126 - x, 44);
+    display.print(str);
+
+    display.setCursor(3, 53);
+    display.print("Course:");
+    str = String(gps.course.deg(), 0);
+    x = str.length() * 6;
+    display.setCursor(126 - x, 53);
+    display.print(str);
+
+    display.display();
 }
 #endif

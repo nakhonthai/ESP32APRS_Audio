@@ -355,6 +355,7 @@ bool pkgTxPush(const char *info, size_t len, int dly,uint8_t Ch);
 void dispWindow(String line, uint8_t mode, bool filter);
 void dispTxWindow(txDisp txs);
 void systemDisp();
+void gpsDisp();
 void pkgCountDisp();
 void pkgLastDisp();
 void statisticsDisp();
