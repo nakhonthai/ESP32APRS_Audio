@@ -1,0 +1,28 @@
+{
+    "files.associations": {
+        "span": "cpp",
+        "format": "cpp",
+        "*.tpp": "cpp",
+        "cmath": "cpp",
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "algorithm": "cpp",
+        "compare": "cpp",
+        "tcpip.h": "c",
+        "charconv": "cpp",
+        "functional": "cpp",
+        "ratio": "cpp",
+        "tuple": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "variant": "cpp",
+        "*.tcc": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "vector": "cpp",
+        "system_error": "cpp"
+    }
+}

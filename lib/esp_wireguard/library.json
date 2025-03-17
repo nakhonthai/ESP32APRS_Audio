@@ -1,0 +1,88 @@
+{
+   "name": "esp_wireguard",
+   "version": "0.4.2",
+   "description": "WireGuard implementation for ESPHome",
+   "keywords":[
+      "esphome",
+      "communication",
+      "network",
+      "wireguard",
+      "vpn"
+   ],
+   "repository":{
+      "type": "git",
+      "url": "https://github.com/droscy/esp_wireguard",
+      "branch": "main"
+   },
+   "authors":[
+      {
+         "name": "Simone Rossetto",
+         "email": "simros85@gmail.com",
+         "url": "https://github.com/droscy",
+         "maintainer": true
+      },
+      {
+         "name": "Tomoyuki Sakurai",
+         "email": "y@trombik.org",
+         "url": "https://github.com/trombik"
+      },
+      {
+         "name": "Daniel Hope",
+         "email": "daniel.hope@smartalock.com",
+         "url": "https://github.com/smartalock"
+      },
+      {
+         "name": "Kenta Ida",
+         "email": "fuga@fugafuga.org"
+      },
+      {
+         "name": "Matthew Dempsky"
+      },
+      {
+         "name": "D. J. Bernstein"
+      }
+   ],
+   "license": "BSD-3-Clause",
+   "platforms": [
+      "espressif32",
+      "espressif8266",
+      "libretiny"
+   ],
+   "frameworks":[
+      "espidf",
+      "arduino"
+   ],
+   "dependencies": [
+      {
+        "owner": "esphome",
+        "name": "libsodium",
+        "version": "^1.10018.1"
+      },
+      {
+        "owner": "droscy",
+        "name": "esp_mbedtls_esp8266",
+        "version": "^2.22300.2",
+        "platforms": "espressif8266",
+        "frameworks": "arduino"
+      }
+   ],
+   "headers":[
+      "esp_wireguard.h"
+   ],
+   "export":{
+      "include":[
+         "LICENSE",
+         "README.md",
+         "library.json",
+         "include/*",
+         "src/*"
+      ]
+   },
+   "build":{
+      "includeDir": "include",
+      "srcDir": "src",
+      "flags": [
+        "-Wno-unused-result"
+      ]
+   }
+}

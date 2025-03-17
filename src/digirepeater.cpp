@@ -222,8 +222,8 @@ int digiProcess(AX25Msg &Packet)
         else if (!strncmp(&Packet.rpt_list[idx].call[0], "RFONLY", 6))
         {
             j = 2;
-            // strcpy(&Packet.rpt_list[idx].call[0], &config.digi_mycall[0]);
-            // Packet.rpt_list[idx].ssid = config.digi_ssid;
+            // strcpy(&Packet.rpt_list[idx].call[0], &config.aprs_mycall[0]);
+            // Packet.rpt_list[idx].ssid = config.aprs_ssid;
             Packet.rpt_flags |= (1 << idx);
             break;
         }

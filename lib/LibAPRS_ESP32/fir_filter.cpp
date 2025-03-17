@@ -6,7 +6,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
+#ifdef __XTENSA__
 #include <xtensa/config/core.h>
+#endif
 #include <esp_log.h>
 
 #include "fir_filter.h"
@@ -107,7 +109,7 @@ int16_t *filter_coeff(filter_param_t const *f)
 #ifdef __XTENSA__
     an = (int16_t *)calloc(size * 3 + 1, sizeof(int16_t));
 #else
-    an = calloc(size + 1, sizeof(int16_t));
+    an = (int16_t *)calloc(size + 1, sizeof(int16_t));
 #endif
 
     if (an == NULL) {

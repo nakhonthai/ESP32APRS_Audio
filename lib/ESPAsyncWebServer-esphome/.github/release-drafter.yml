@@ -1,0 +1,33 @@
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+categories:
+  - title: "Breaking Changes"
+    label: "breaking-change"
+  - title: "Dependencies"
+    collapse-after: 1
+    labels:
+      - "dependencies"
+
+version-resolver:
+  major:
+    labels:
+      - "major"
+      - "breaking-change"
+  minor:
+    labels:
+      - "minor"
+      - "new-feature"
+  patch:
+    labels:
+      - "bugfix"
+      - "dependencies"
+      - "documentation"
+      - "enhancement"
+  default: patch
+
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION

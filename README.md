@@ -26,6 +26,14 @@ ESP32APRS is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/
 * support global time zone
 * support web service auth login
 * display received and transmit packet on the LED and display OLED
+* Multiple modems: credit coding from project [vp-digi](https://github.com/sq8vps/vp-digi)
+  * 1200 Bd AFSK Bell 202 (VHF standard)
+  * 300 Bd AFSK Bell 103 (HF standard)
+  * 9600 Bd GFSK G3RUH (UHF standard)
+  * 1200 Bd AFSK V.23
+* Analog-digital busy channel detection (data carrier detection)
+* AX.25 coder/decoder
+* FX.25 (AX.25 with error correction) coder/decoder, fully compatible with [Direwolf](https://github.com/wb2osz/direwolf) and [UZ7HO Soundmodem](http://uz7.ho.ua/packetradio.htm)
 
 ## Hardware screen short
 ![esp32dr_simple](image/ESP32DR_Simple_Test.png) ![esp32dr_sa868](image/ESP32DR_SA868_2.png)
@@ -155,7 +163,7 @@ https://www.espressif.com/en/support/download/other-tools
 1. Install [Visual Studio Code](https://code.visualstudio.com/) and [Python](https://www.python.org/)
 2. Search for the `PlatformIO` plugin in the `VisualStudioCode` extension and install it.
 3. After the installation is complete, you need to restart `VisualStudioCode`
-4. After restarting `VisualStudioCode`, select `File` in the upper left corner of `VisualStudioCode` -> `Open Folder` -> select the `ESP32APRS_T-TWR` directory
+4. After restarting `VisualStudioCode`, select `File` in the upper left corner of `VisualStudioCode` -> `Open Folder` -> select the `ESP32APRS` directory
 5. Click on the `platformio.ini` file, and in the `platformio` column, cancel the sample line that needs to be used, please make sure that only one line is valid
 6. Click the (✔) symbol in the lower left corner to compile
 7. Connect the board to the computer USB
@@ -164,15 +172,29 @@ https://www.espressif.com/en/support/download/other-tools
 
 ## APRS Server service
 
-- APRS SERVER of T2THAI at [aprs.dprns.com:14580](http://aprs.dprns.com:14501)
+- APRS SERVER of T2THAI at [aprs.dprns.com:14580](http://aprs.dprns.com:14501), CBAPRS at [aprs.dprns.com:24580](http://aprs.dprns.com:24501)
 - APRS SERVER of T2THAI ampr host at [aprs.hs5tqa.ampr.org:14580](http://aprs.hs5tqa.ampr.org:14501)
-- APRS MAP SERVICE [http://aprs.nakhonthai.net](http://aprs.nakhonthai.net)
+- APRS MAP SERVICE [http://aprs.dprns.com](http://aprs.dprns.com)
+
+## Developer/Support Information
+
+- Author:	Mr.Somkiat Nakhonthai
+- Callsign:	HS5TQA,Atten,Nakhonthai
+- Country:	Bangkok,Thailand
+- Github:	[https://github.com/nakhonthai](https://github.com/nakhonthai)
+- Youtube:	[https://www.youtube.com/@HS5TQA](https://www.youtube.com/@HS5TQA)
+- TikTok:   [https://www.tiktok.com/@hs5tqa](https://www.tiktok.com/@hs5tqa)
+- Facebook:	[https://www.facebook.com/atten](https://www.facebook.com/atten)
+- Telegram: [https://t.me/APRSTH](https://t.me/APRSTH)
+- TelegramID: @HS5TQA
+- WeChatID: HS5TQA
 
 ## Donate
 
 To support the development of ESP32APRS you can make us a donation using [github sponsors](https://github.com/sponsors/nakhonthai). \
 If you want to donate some hardware to facilitate APRS porting and development, [contact us](https://www.facebook.com/atten). \
-<a href="https://www.paypal.me/hs5tqa"><img src="blue.svg" height="40"></a> 
+<a href="https://www.paypal.me/0hs5tqa0"><img src="https://github.com/nakhonthai/ESP32IGate/raw/master/blue.svg" height="40"></a> 
+
 
 ## ESP32 Flash Download Tools
 https://www.espressif.com/en/support/download/other-tools

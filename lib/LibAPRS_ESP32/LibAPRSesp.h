@@ -35,6 +35,6 @@ void APRS_sendMsg(void *_buffer, size_t length);
 void APRS_msgRetry();
 
 void APRS_printSettings();
-void APRS_sendTNC2Pkt(String raw);
+void APRS_sendTNC2Pkt(const uint8_t *raw, size_t length);
 
 int freeMemory();

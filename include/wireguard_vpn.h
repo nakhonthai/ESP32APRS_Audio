@@ -1,10 +1,33 @@
+#include <esp_wireguard.h>
+#include <esp_event.h>
+#include <esp_wifi.h>
+
+esp_err_t wireguard_setup(wireguard_ctx_t* ctx);
 
 //==============================================================================
 // Wireguard VPN Client demo for LwIP/ESP32
 //==============================================================================
 #ifdef __cplusplus
 extern "C" {
+#else
 #endif // __cplusplus
+
+#include "lwip/tcpip.h"
+
+#ifdef CONFIG_LWIP_TCPIP_CORE_LOCKING
+  #define TCP_MUTEX_LOCK()                                \
+    if (!sys_thread_tcpip(LWIP_CORE_LOCK_QUERY_HOLDER)) { \
+      LOCK_TCPIP_CORE();                                  \
+    }
+
+  #define TCP_MUTEX_UNLOCK()                             \
+    if (sys_thread_tcpip(LWIP_CORE_LOCK_QUERY_HOLDER)) { \
+      UNLOCK_TCPIP_CORE();                               \
+    }
+#else // CONFIG_LWIP_TCPIP_CORE_LOCKING
+  #define TCP_MUTEX_LOCK()
+  #define TCP_MUTEX_UNLOCK()
+#endif // CONFIG_LWIP_TCPIP_CORE_LOCKING
 
 //==============================================================================
 //  Multi-include guard
@@ -31,6 +54,7 @@ extern "C" {
 #define WG_PEER_PORT            51820
 #define WG_PEER_ADDRESS         IPADDR4_INIT_BYTES(203, 150, 19, 23)
 
+
 //==============================================================================
 //  Exported types
 //==============================================================================
@@ -44,7 +68,7 @@ extern "C" {
 //==============================================================================
 bool wireguard_active();
 void wireguard_remove();
-void wireguard_setup();
+void wireguard_setup_old();
 
 #ifdef __cplusplus
 }

@@ -6,9 +6,9 @@
 
 #define debug 0
 
-// #define DEBUG_LOG(...) Serial.printf(__VA_ARGS__)     //DPRINT is a macro, debug print
-#define DEBUG_LOG
-// #define DEBUG_LOG Serial.printf
+// #define //log_d(...) Serial.printf(__VA_ARGS__)     //DPRINT is a macro, debug print
+//#define //log_d
+// #define //log_d Serial.printf
 
 /// Max amount of path elements.
 #define MAX_DIGIS 8
@@ -35,7 +35,7 @@
 #define HINCH_TO_MM 0.254
 
 /// The magic constant.
-#define PI 3.14159265
+// #define PI 3.14159265
 /// Degrees to radians.
 #define DEG2RAD(x) (x / 360 * 2 * PI)
 /// Radians to degrees.
@@ -243,7 +243,7 @@ int ParseAPRS::pbuf_fill_pos(struct pbuf_t *pb, const float lat, const float lng
  */
 int ParseAPRS::get_symbol_from_dstcall_twochar(const char c1, const char c2, char *sym_table, char *sym_code)
 {
-	// hlog(LOG_DEBUG, "\ttwochar %c %c", c1, c2);
+	// hlog(//log_dEBUG, "\ttwochar %c %c", c1, c2);
 	if (c1 == 'B')
 	{
 		if (c2 >= 'B' && c2 <= 'P')
@@ -417,7 +417,7 @@ int ParseAPRS::get_symbol_from_dstcall(struct pbuf_t *pb, char *sym_table, char 
 	if (strncmp(d_start, "GPS", 3) != 0 && strncmp(d_start, "SPC", 3) != 0 && strncmp(d_start, "SYM", 3) != 0)
 		return 0;
 
-	// hlog(LOG_DEBUG, "\ttesting %c %c %c", d_start[3], d_start[4], d_start[5]);
+	// hlog(//log_dEBUG, "\ttesting %c %c %c", d_start[3], d_start[4], d_start[5]);
 	if (!isalnum(d_start[3]) || !isalnum(d_start[4]))
 		return 0;
 
@@ -645,7 +645,7 @@ int ParseAPRS::parse_aprs_nmea(struct pbuf_t *pb, const char *body, const char *
 
 		if (body + 55 > body_end)
 		{
-			DEBUG_LOG("body too short");
+			//log_d("body too short");
 			return 0; /* Too short.. */
 		}
 		latp = body + 7; /* Over the keyword */
@@ -704,8 +704,8 @@ int ParseAPRS::parse_aprs_nmea(struct pbuf_t *pb, const char *body, const char *
 		return 0; /* Well..  Not NMEA frame */
 	}
 
-	// hlog(LOG_DEBUG, "NMEA parsing: %.*s", (int)(body_end - body), body);
-	// hlog(LOG_DEBUG, "     lat=%.10s   lng=%.10s", latp, lngp);
+	// hlog(//log_dEBUG, "NMEA parsing: %.*s", (int)(body_end - body), body);
+	// hlog(//log_dEBUG, "     lat=%.10s   lng=%.10s", latp, lngp);
 
 	i = sscanf(latp, "%2d%f,%c,", &la, &lat, &lac);
 	if (i != 3)
@@ -720,7 +720,7 @@ int ParseAPRS::parse_aprs_nmea(struct pbuf_t *pb, const char *body, const char *
 	if (loc != 'E' && loc != 'W' && loc != 'e' && loc != 'w')
 		return 0; // bad indicator value
 
-	// hlog(LOG_DEBUG, "   lat: %c %2d %7.4f   lng: %c %2d %7.4f",
+	// hlog(//log_dEBUG, "   lat: %c %2d %7.4f   lng: %c %2d %7.4f",
 	//                 lac, la, lat, loc, lo, lng);
 
 	lat = (float)la + lat / 60.0;
@@ -862,7 +862,7 @@ int ParseAPRS::parse_aprs_telem(struct pbuf_t *pb, const char *body, const char 
 		}
 	}
 
-	// DEBUG_LOG("parse_aprs_telem");
+	// //log_d("parse_aprs_telem");
 
 	// pbuf_fill_pos(pb, lat, lng, 0, 0);
 	return 1; // okay
@@ -887,19 +887,19 @@ int ParseAPRS::parse_aprs_mice(struct pbuf_t *pb, const unsigned char *body, con
 	int i;
 	double speed, course_speed, course_speed_tmp, course;
 
-	DEBUG_LOG("parse_aprs_mice: %.*s", pb->packet_len - 2, pb->data);
+	//log_d("parse_aprs_mice: %.*s", pb->packet_len - 2, pb->data);
 
 	/* check packet length */
 	if (body_end - body < 8)
 		return 0;
-	// DEBUG_LOG("-----------------");
-	// DEBUG_LOG(pb->srccall_end);
-	// DEBUG_LOG(pb->dstcall_end_or_ssid);
+	// //log_d("-----------------");
+	// //log_d(pb->srccall_end);
+	// //log_d(pb->dstcall_end_or_ssid);
 	/* check that the destination call exists and is of the right size for mic-e */
 	d_start = pb->srccall_end + 1;
 	if (pb->dstcall_end_or_ssid - d_start != 6)
 	{
-		DEBUG_LOG(".. bad destcall length! ");
+		//log_d(".. bad destcall length! ");
 		return 0; /* eh...? */
 	}
 
@@ -911,18 +911,18 @@ int ParseAPRS::parse_aprs_mice(struct pbuf_t *pb, const unsigned char *body, con
 	for (i = 0; i < 3; i++)
 		if (!((d_start[i] >= '0' && d_start[i] <= '9') || (d_start[i] >= 'A' && d_start[i] <= 'L') || (d_start[i] >= 'P' && d_start[i] <= 'Z')))
 		{
-			DEBUG_LOG(".. bad destcall characters in posits 1..3");
+			//log_d(".. bad destcall characters in posits 1..3");
 			return 0;
 		}
 
 	for (i = 3; i < 6; i++)
 		if (!((d_start[i] >= '0' && d_start[i] <= '9') || (d_start[i] == 'L') || (d_start[i] >= 'P' && d_start[i] <= 'Z')))
 		{
-			DEBUG_LOG(".. bad destcall characters in posits 4..6");
+			//log_d(".. bad destcall characters in posits 4..6");
 			return 0;
 		}
 
-	DEBUG_LOG("\tpassed dstcall format check");
+	//log_d("\tpassed dstcall format check");
 
 	/* validate information field (longitude, course, speed and
 	 * symbol table and code are checked). Not bullet proof..
@@ -932,46 +932,46 @@ int ParseAPRS::parse_aprs_mice(struct pbuf_t *pb, const unsigned char *body, con
 	 */
 	if (body[0] < 0x26 || body[0] > 0x7f)
 	{
-		DEBUG_LOG("..bad infofield column 1");
+		//log_d("..bad infofield column 1");
 		return 0;
 	}
 	if (body[1] < 0x26 || body[1] > 0x61)
 	{
-		DEBUG_LOG("..bad infofield column 2");
+		//log_d("..bad infofield column 2");
 		return 0;
 	}
 	if (body[2] < 0x1c || body[2] > 0x7f)
 	{
-		DEBUG_LOG("..bad infofield column 3");
+		//log_d("..bad infofield column 3");
 		return 0;
 	}
 	if (body[3] < 0x1c || body[3] > 0x7f)
 	{
-		DEBUG_LOG("..bad infofield column 4");
+		//log_d("..bad infofield column 4");
 		return 0;
 	}
 	if (body[4] < 0x1c || body[4] > 0x7d)
 	{
-		DEBUG_LOG("..bad infofield column 5");
+		//log_d("..bad infofield column 5");
 		return 0;
 	}
 	if (body[5] < 0x1c || body[5] > 0x7f)
 	{
-		DEBUG_LOG("..bad infofield column 6");
+		//log_d("..bad infofield column 6");
 		return 0;
 	}
 	if ((body[6] < 0x21 || body[6] > 0x7b) && body[6] != 0x7d)
 	{
-		DEBUG_LOG("..bad infofield column 7");
+		//log_d("..bad infofield column 7");
 		return 0;
 	}
 	if (!valid_sym_table_uncompressed(body[7]))
 	{
-		DEBUG_LOG("..bad symbol table entry on column 8");
+		//log_d("..bad symbol table entry on column 8");
 		return 0;
 	}
 
-	DEBUG_LOG("\tpassed info format check");
+	//log_d("\tpassed info format check");
 
 	/* make a local copy, we're going to modify it */
 	strncpy(dstcall, d_start, 6);
@@ -1020,7 +1020,7 @@ int ParseAPRS::parse_aprs_mice(struct pbuf_t *pb, const unsigned char *body, con
 	}
 	if (dstcall[1] == '_' || dstcall[0] == '_')
 	{
-		DEBUG_LOG("..bad pos-ambiguity on destcall");
+		//log_d("..bad pos-ambiguity on destcall");
 		return 0;
 	} // cannot use posamb here
 
@@ -1030,7 +1030,7 @@ int ParseAPRS::parse_aprs_mice(struct pbuf_t *pb, const unsigned char *body, con
 	if (sscanf(dstcall, "%2u%2u%2u",
 			   &lat_deg, &lat_min, &lat_min_frag) != 3)
 	{
-		DEBUG_LOG("\tsscanf failed");
+		//log_d("\tsscanf failed");
 		return 0;
 	}
 	lat = (float)lat_deg + (float)lat_min / 60.0 + (float)lat_min_frag / 6000.0;
@@ -1083,7 +1083,7 @@ int ParseAPRS::parse_aprs_mice(struct pbuf_t *pb, const unsigned char *body, con
 		lng = (float)lng_deg + 0.5;
 		break;
 	default:
-		DEBUG_LOG(".. posambiguity code BUG!");
+		//log_d(".. posambiguity code BUG!");
 		return 0;
 	}
 
@@ -1153,7 +1153,7 @@ int ParseAPRS::parse_aprs_compressed(struct pbuf_t *pb, const char *body, const 
 	char c1, s1, comptype;
 	char cs;
 
-	DEBUG_LOG("parse_aprs_compressed");
+	//log_d("parse_aprs_compressed");
 
 	/* A compressed position is always 13 characters long.
 	 * Make sure we get at least 13 characters and that they are ok.
@@ -1162,7 +1162,7 @@ int ParseAPRS::parse_aprs_compressed(struct pbuf_t *pb, const char *body, const 
 
 	if ((body_end - body) < 13)
 	{
-		DEBUG_LOG("\ttoo short");
+		//log_d("\ttoo short");
 		return 0; /* too short. */
 	}
 
@@ -1294,11 +1294,11 @@ int ParseAPRS::parse_aprs_uncompressed(struct pbuf_t *pb, const char *body, cons
 	int issouth = 0;
 	int iswest = 0;
 
-	DEBUG_LOG("parse_aprs_uncompressed");
+	//log_d("parse_aprs_uncompressed");
 
 	if (body_end - body < 19)
 	{
-		DEBUG_LOG("\ttoo short");
+		//log_d("\ttoo short");
 		return 0;
 	}
 
@@ -1335,7 +1335,7 @@ int ParseAPRS::parse_aprs_uncompressed(struct pbuf_t *pb, const char *body, cons
 			   &lat_deg, &lat_min, &lat_min_frag, &lat_hemi, &sym_table,
 			   &lng_deg, &lng_min, &lng_min_frag, &lng_hemi, &sym_code) != 10)
 	{
-		DEBUG_LOG("\tsscanf failed");
+		//log_d("\tsscanf failed posbuf=%s",posbuf);
 		return 0;
 	}
 
@@ -1412,12 +1412,12 @@ int ParseAPRS::parse_aprs_object(struct pbuf_t *pb, const char *body, const char
 
 	pb->packettype |= T_OBJECT;
 
-	DEBUG_LOG("parse_aprs_object");
+	//log_d("parse_aprs_object info=%s",body);
 
 	/* check that the object name ends with either * or _ */
 	if (*(body + 9) != '*' && *(body + 9) != '_')
 	{
-		DEBUG_LOG("\tinvalid object kill character");
+		//log_d("\tinvalid object kill character");
 		return 0;
 	}
 
@@ -1425,7 +1425,7 @@ int ParseAPRS::parse_aprs_object(struct pbuf_t *pb, const char *body, const char
 	char tz_end = body[16];
 	if (tz_end != 'z' && tz_end != 'h' && tz_end != '/')
 	{
-		DEBUG_LOG("\tinvalid object timestamp character: '%c'", tz_end);
+		//log_d("\tinvalid object timestamp character: '%c'", tz_end);
 		return 0;
 	}
 
@@ -1436,7 +1436,7 @@ int ParseAPRS::parse_aprs_object(struct pbuf_t *pb, const char *body, const char
 	{
 		if (body[i] < 0x20 || body[i] > 0x7e)
 		{
-			DEBUG_LOG("\tobject name has unprintable characters");
+			//log_d("\tobject name has unprintable characters");
 			return 0; // non-printable
 		}
 		if (body[i] != ' ')
@@ -1445,14 +1445,14 @@ int ParseAPRS::parse_aprs_object(struct pbuf_t *pb, const char *body, const char
 
 	if (namelen < 0)
 	{
-		DEBUG_LOG("\tobject has empty name");
+		//log_d("\tobject has empty name");
 		return 0;
 	}
 
 	pb->srcname = body;
 	pb->srcname_len = namelen + 1;
 
-	DEBUG_LOG("object name: '%.*s'\n", pb->srcname_len, pb->srcname);
+	//log_d("object name: '%.*s'\n", pb->srcname_len, pb->srcname);
 
 	/* Forward the location parsing onwards */
 	if (valid_sym_table_compressed(body[17]))
@@ -1461,7 +1461,7 @@ int ParseAPRS::parse_aprs_object(struct pbuf_t *pb, const char *body, const char
 	if (body[17] >= '0' && body[17] <= '9')
 		return parse_aprs_uncompressed(pb, body + 17, body_end);
 
-	DEBUG_LOG("no valid position in object");
+	//log_d("no valid position in object");
 
 	return 0;
 }
@@ -1479,7 +1479,7 @@ int ParseAPRS::parse_aprs_item(struct pbuf_t *pb, const char *body, const char *
 
 	pb->packettype |= T_ITEM;
 
-	DEBUG_LOG("parse_aprs_item");
+	//log_d("parse_aprs_item");
 
 	/* check item's name - scan for non-printable characters and the
 	 * ending character ! or _
@@ -1488,20 +1488,20 @@ int ParseAPRS::parse_aprs_item(struct pbuf_t *pb, const char *body, const char *
 	{
 		if (body[i] < 0x20 || body[i] > 0x7e)
 		{
-			DEBUG_LOG("\titem name has unprintable characters");
+			//log_d("\titem name has unprintable characters");
 			return 0; /* non-printable */
 		}
 	}
 
 	if (body[i] != '!' && body[i] != '_')
 	{
-		DEBUG_LOG("\titem name ends with neither ! or _");
+		//log_d("\titem name ends with neither ! or _");
 		return 0;
 	}
 
 	if (i < 3 || i > 9)
 	{
-		DEBUG_LOG("\titem name has invalid length");
+		//log_d("\titem name has invalid length");
 		return 0;
 	}
 
@@ -1519,7 +1519,7 @@ int ParseAPRS::parse_aprs_item(struct pbuf_t *pb, const char *body, const char *
 		return parse_aprs_uncompressed(pb, body + i, body_end);
 
 	// parse_aprs_comment(pb, body + 29, (unsigned int)(body_end - body - 29));
-	DEBUG_LOG("\tno valid position in item");
+	//log_d("\tno valid position in item");
 
 	return 0;
 }
@@ -1658,7 +1658,7 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 			int len = (int)(body_end - body - 9);
 			if (len > 0)
 				parse_aprs_comment(pb, body + 9, (unsigned int)len);
-			DEBUG_LOG("MICE\n");
+			//log_d("MICE\n");
 			return rc;
 		}
 		return 0; // bad
@@ -1699,7 +1699,7 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 			{
 				rc = parse_aprs_compressed(pb, body, body_end);
 			}
-			DEBUG_LOG("\n");
+			//log_d("\n");
 			return rc;
 		}
 		else if (poschar >= 0x30 && poschar <= 0x39)
@@ -1710,7 +1710,7 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 			{
 				rc = parse_aprs_uncompressed(pb, body, body_end);
 			}
-			DEBUG_LOG("\n");
+			//log_d("\n");
 			return rc;
 		}
 		return 0;
@@ -1724,7 +1724,7 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 			// Is it OK to declare it as position packet ?
 			rc = parse_aprs_nmea(pb, body, body_end);
 			parse_aprs_comment(pb, body + 10, (unsigned int)(body_end - body - 10));
-			DEBUG_LOG("\n");
+			//log_d("\n");
 			return rc;
 		}
 		return 0;
@@ -1811,7 +1811,7 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 		if (body_end - body > 29)
 		{
 			rc = parse_aprs_object(pb, body, body_end);
-			DEBUG_LOG("\n");
+			//log_d("\n");
 			return rc;
 		}
 		return 0; // too short
@@ -1837,10 +1837,10 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 		return 1; // ok at igate/digi
 
 	case ')':
-		if (body_end - body > 18)
+		if (body_end - body > 10)
 		{
 			rc = parse_aprs_item(pb, body, body_end);
-			DEBUG_LOG("\n");
+			//log_d("\n");
 			return rc;
 		}
 		return 0; // too short
@@ -1853,7 +1853,7 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 		{
 			pb->packettype |= T_TELEMETRY;
 			rc = parse_aprs_telem(pb, body, body_end);
-			// DEBUG_LOG("\n");
+			// //log_d("\n");
 			parse_aprs_comment(pb, body, (unsigned int)(body_end - body));
 			return rc;
 		}
@@ -1899,7 +1899,7 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 			{
 				rc = parse_aprs_compressed(pb, pos_start, body_end);
 				// parse_aprs_comment(pb, body + 19, (unsigned int)(body_end - body - 19));
-				DEBUG_LOG("\n");
+				//log_d("\n");
 			}
 			return rc;
 		}
@@ -1909,7 +1909,7 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 			int rc = 0;
 			if (body_end - pos_start >= 19)
 				rc = parse_aprs_uncompressed(pb, pos_start, body_end);
-			DEBUG_LOG("\n");
+			//log_d("\n");
 			return rc;
 		}
 	}
@@ -1940,18 +1940,18 @@ int ParseAPRS::parse_aprs_message(struct pbuf_t *pb)
 	/* -2 for the CRLF already in place */
 	am->body_len = pb->packet_len - 2 - (pb->info_start - pb->data);
 
-	// DEBUG_LOG("Body: ");
-	// DEBUG_LOG(am->body);
-	// DEBUG_LOG("Len: ");
-	// DEBUG_LOG(am->body_len);
+	// //log_d("Body: ");
+	// //log_d(am->body);
+	// //log_d("Len: ");
+	// //log_d(am->body_len);
 	/* search for { looking backwards from the end of the packet,
 	 * it separates the msgid
 	 */
 	p = am->body + am->body_len - 1;
 	while (p > am->body && *p != '{')
 		p--;
-	// DEBUG_LOG("ACK: ");
-	// DEBUG_LOG(p);
+	// //log_d("ACK: ");
+	// //log_d(p);
 	if (*p == '{')
 	{
 		am->msgid = p + 1;
@@ -2133,7 +2133,10 @@ int ParseAPRS::parse_aprs_wx(struct pbuf_t *pb, char const *input, unsigned int 
 {
 	int flage = 0;
 	static char wind_dir[4], wind_speed[4], wind_gust[4], temperature[4], rain[4], rain24[4], rainMn[4], humidity[3], barometric[6], luminosity[4], uv[3];
+	char snow[3], soil_temp[4], soil_hum[4], water_temp[4], water_tds[5], water_level[4], pm25[4], pm100[4], co2[5], ch2o[5], tvoc[5];
 	bool luminosityAbove = false;
+	bool co2Above = false;
+	bool ch2oAbove = false;
 	char buf_5b[6];
 	int len, retval = 1;
 	char *rest = NULL, *tmp_str;
@@ -2154,7 +2157,6 @@ int ParseAPRS::parse_aprs_wx(struct pbuf_t *pb, char const *input, unsigned int 
 	/* Look for wind and temperature. Remaining bytes are copied to report var. */
 	rest = (char *)input;
 	rest_len = input_len;
-
 	// Serial.print(rest);
 	if (rest[3] == '/')
 	{
@@ -2168,113 +2170,163 @@ int ParseAPRS::parse_aprs_wx(struct pbuf_t *pb, char const *input, unsigned int 
 	}
 	else
 	{
+		if(rest_len>3){
 		if (tmp_str = strchr(rest, 'c'))
 		{
-			memcpy(wind_dir, tmp_str + 1, 3);
-			wind_dir[3] = 0;
-			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
-			rest = tmp_str;
-			rest_len = tmp_us;
-			flage++;
+			if (strlen(tmp_str) > 3)
+			{
+				memcpy(wind_dir, tmp_str + 1, 3);
+				wind_dir[3] = 0;
+				tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+				rest = tmp_str;
+				rest_len = tmp_us;
+				flage++;
+			}
 		}
 		if (tmp_str = strchr(rest, 's'))
 		{
-			memcpy(wind_speed, tmp_str + 1, 3);
-			wind_speed[3] = 0;
-			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
-			rest = tmp_str;
-			rest_len = tmp_us;
+			if (strlen(tmp_str) > 3)
+			{
+				memcpy(wind_speed, tmp_str + 1, 3);
+				wind_speed[3] = 0;
+				tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+				rest = tmp_str;
+				rest_len = tmp_us;
+			}
+		}
 		}
 	}
 
-	if (tmp_str = strchr(rest, 'g'))
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'g')))
 	{
-		memcpy(wind_gust, tmp_str + 1, 3);
-		wind_gust[3] = 0;
-		tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
-		rest = tmp_str;
-		rest_len = tmp_us;
-		flage++;
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(wind_gust, tmp_str + 1, 3);
+			wind_gust[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
 	}
 
-	if (tmp_str = strchr(rest, 't'))
+	if ((rest_len>3) && (tmp_str = strchr(rest, 't')))
 	{
-		memcpy(temperature, tmp_str + 1, 3);
-		temperature[3] = 0;
-		tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
-		rest = tmp_str;
-		rest_len = tmp_us;
-		flage++;
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(temperature, tmp_str + 1, 3);
+			temperature[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
 	}
 
-	if (tmp_str = strchr(rest, 'r'))
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'r')))
 	{
-		memcpy(rain, tmp_str + 1, 3);
-		rain[3] = 0;
-		tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
-		rest = tmp_str;
-		rest_len = tmp_us;
-		flage++;
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(rain, tmp_str + 1, 3);
+			rain[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
 	}
 
-	if (tmp_str = strchr(rest, 'p'))
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'p')))
 	{
-		memcpy(rain24, tmp_str + 1, 3);
-		rain24[3] = 0;
-		tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
-		rest = tmp_str;
-		rest_len = tmp_us;
-		flage++;
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(rain24, tmp_str + 1, 3);
+			rain24[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
 	}
-	if (tmp_str = strchr(rest, 'P'))
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'P')))
 	{
-		memcpy(rainMn, tmp_str + 1, 3);
-		rainMn[3] = 0;
-		tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
-		rest = tmp_str;
-		rest_len = tmp_us;
-		flage++;
-	}
-
-	if (tmp_str = strchr(rest, 'h'))
-	{
-		memcpy(humidity, tmp_str + 1, 2);
-		humidity[2] = 0;
-		tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 3, &tmp_us);
-		rest = tmp_str;
-		rest_len = tmp_us;
-		flage++;
-	}
-	if (tmp_str = strchr(rest, 'b'))
-	{
-		memcpy(barometric, tmp_str + 1, 5);
-		barometric[5] = 0;
-		tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 6, &tmp_us);
-		rest = tmp_str;
-		rest_len = tmp_us;
-		flage++;
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(rainMn, tmp_str + 1, 3);
+			rainMn[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
 	}
 
+	if ((rest_len>2) && (tmp_str = strchr(rest, 'h')))
+	{
+		if (strlen(tmp_str) > 2)
+		{
+			memcpy(humidity, tmp_str + 1, 2);
+			humidity[2] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 3, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+	if ((rest_len>5) && (tmp_str = strchr(rest, 'b')))
+	{
+		if (strlen(tmp_str) > 5)
+		{
+			memcpy(barometric, tmp_str + 1, 5);
+			barometric[5] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 6, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+
+	if(rest_len>3){
 	if (tmp_str = strchr(rest, 'l'))
 	{
-		memcpy(luminosity, tmp_str + 1, 3);
-		if (is_number(luminosity))
+		if (strlen(tmp_str) > 3)
 		{
-			luminosityAbove = true;
-			luminosity[3] = 0;
-			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
-			rest = tmp_str;
-			rest_len = tmp_us;
-			flage++;
+			memcpy(luminosity, tmp_str + 1, 3);
+			if (is_number(luminosity))
+			{
+				luminosityAbove = true;
+				luminosity[3] = 0;
+				tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+				rest = tmp_str;
+				rest_len = tmp_us;
+				flage++;
+			}
 		}
 	}
-	if (tmp_str = strchr(rest, 'L'))
+	else if (tmp_str = strchr(rest, 'L'))
 	{
-		memcpy(luminosity, tmp_str + 1, 3);
-		if (is_number(luminosity))
+		if (strlen(tmp_str) > 3)
 		{
-			luminosityAbove = false;
-			luminosity[3] = 0;
+			memcpy(luminosity, tmp_str + 1, 3);
+			if (is_number(luminosity))
+			{
+				luminosityAbove = false;
+				luminosity[3] = 0;
+				tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+				rest = tmp_str;
+				rest_len = tmp_us;
+				flage++;
+			}
+		}
+	}
+	}
+
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'S')))
+	{
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(snow, tmp_str + 1, 3);
+			snow[3] = 0;
 			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
 			rest = tmp_str;
 			rest_len = tmp_us;
@@ -2282,14 +2334,160 @@ int ParseAPRS::parse_aprs_wx(struct pbuf_t *pb, char const *input, unsigned int 
 		}
 	}
 
-	if (tmp_str = strchr(rest, 'u'))
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'm')))
 	{
-		memcpy(uv, tmp_str + 1, 2);
-		uv[2] = 0;
-		tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 3, &tmp_us);
-		rest = tmp_str;
-		rest_len = tmp_us;
-		flage++;
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(soil_temp, tmp_str + 1, 3);
+			soil_temp[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'M')))
+	{
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(soil_hum, tmp_str + 1, 3);
+			soil_hum[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'w')))
+	{
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(water_temp, tmp_str + 1, 3);
+			water_temp[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+
+	if ((rest_len>4) && (tmp_str = strchr(rest, 'W')))
+	{
+		if (strlen(tmp_str) > 4)
+		{
+			memcpy(water_tds, tmp_str + 1, 4);
+			water_tds[4] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 5, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'v')))
+	{
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(water_level, tmp_str + 1, 3);
+			water_level[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'o')))
+	{
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(pm25, tmp_str + 1, 3);
+			pm25[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'O')))
+	{
+		if (strlen(tmp_str) > 3)
+		{
+			memcpy(pm100, tmp_str + 1, 3);
+			pm100[3] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 4, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+
+	if ((rest_len>4) && (tmp_str = strchr(rest, 'X')))
+	{
+		if (strlen(tmp_str) > 4)
+		{
+			memcpy(luminosity, tmp_str + 1, 4);
+			co2Above = true;
+			co2[4] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 5, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+	else if ((rest_len>3) && (tmp_str = strchr(rest, 'x')))
+	{
+		if (strlen(tmp_str) > 4)
+		{
+			memcpy(luminosity, tmp_str + 1, 4);
+			co2Above = false;
+			co2[4] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 5, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+
+	if ((rest_len>4) && (tmp_str = strchr(rest, 'F')))
+	{
+		if (strlen(tmp_str) > 4)
+		{
+			memcpy(ch2o, tmp_str + 1, 4);
+			ch2o[4] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 5, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'T')))
+	{
+		if (strlen(tmp_str) > 4)
+		{
+			memcpy(tvoc, tmp_str + 1, 4);
+			tvoc[4] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 5, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
+	}
+
+	if ((rest_len>3) && (tmp_str = strchr(rest, 'u')))
+	{
+		if (strlen(tmp_str) > 2)
+		{
+			memcpy(uv, tmp_str + 1, 2);
+			uv[2] = 0;
+			tmp_str = parse_remove_part(rest, rest_len, tmp_str - rest, tmp_str - rest + 3, &tmp_us);
+			rest = tmp_str;
+			rest_len = tmp_us;
+			flage++;
+		}
 	}
 
 	// packet->format = fapPOS_WX;
@@ -2356,6 +2554,77 @@ int ParseAPRS::parse_aprs_wx(struct pbuf_t *pb, char const *input, unsigned int 
 			pb->wx_report.luminosity += 1000;
 		}
 	}
+
+	if (is_number(snow))
+	{
+		pb->wx_report.flags |= W_SNOW;
+		pb->wx_report.snow = atoi(snow);
+	}
+
+	if (is_number(soil_temp))
+	{
+		pb->wx_report.flags |= W_SOIL_TEMP;
+		pb->wx_report.soil_temp = FAHRENHEIT_TO_CELCIUS(atof(soil_temp));
+	}
+
+	if (is_number(soil_hum))
+	{
+		pb->wx_report.flags |= W_SOIL_HUM;
+		pb->wx_report.soil_moisture = (float)atoi(soil_hum) / 10;
+	}
+
+	if (is_number(water_temp))
+	{
+		pb->wx_report.flags |= W_WATER_TEMP;
+		pb->wx_report.water_temp = FAHRENHEIT_TO_CELCIUS(atof(water_temp));
+	}
+
+	if (is_number(water_tds))
+	{
+		pb->wx_report.flags |= W_WATER_TDS;
+		pb->wx_report.water_tds = atoi(water_tds);
+	}
+
+	if (is_number(water_level))
+	{
+		pb->wx_report.flags |= W_WATER_LVL;
+		pb->wx_report.water_level = atoi(water_level);
+	}
+
+	if (is_number(pm25))
+	{
+		pb->wx_report.flags |= W_PM25;
+		pb->wx_report.pm25 = atoi(pm25);
+	}
+
+	if (is_number(pm100))
+	{
+		pb->wx_report.flags |= W_PM100;
+		pb->wx_report.pm100 = atoi(pm100);
+	}
+
+	if (is_number(co2))
+	{
+		pb->wx_report.flags |= W_PAR;
+		pb->wx_report.co2 = atoi(co2);
+		if (co2Above)
+		{
+			pb->wx_report.co2 *= 10;
+		}
+	}
+
+	if (is_number(ch2o))
+	{
+		pb->wx_report.flags |= W_CH2O;
+		pb->wx_report.ch2o = atoi(ch2o);
+	}
+
+	if (is_number(tvoc))
+	{
+		pb->wx_report.flags |= W_TVOC;
+		pb->wx_report.tvoc = atoi(tvoc);
+	}
+
 	/* UV Index. */
 	if (is_number(uv))
 	{
@@ -2386,7 +2655,7 @@ int ParseAPRS::parse_aprs_comment(struct pbuf_t *pb, char const *input, unsigned
 
 	if (input_len < 1)
 		return 0;
-	//log_d("COMMENT DATA[%d]: %s", input_len, input);
+	// //log_d("COMMENT DATA[%d]: %s", input_len, input);
 
 	if (input_len >= 7)
 	{
@@ -2496,7 +2765,7 @@ int ParseAPRS::parse_aprs_comment(struct pbuf_t *pb, char const *input, unsigned
 		/* Check for optional altitude anywhere in the comment, take the first occurrence. */
 		if (res = strstr(rest, "/A="))
 		{
-			//log_d("Found Alt : %s", res);
+			// //log_d("Found Alt : %s", res);
 			/* Save altitude, if not already there. */
 			memcpy(altitude, res + 3, 6);
 			altitude[6] = 0;
@@ -2540,14 +2809,18 @@ int ParseAPRS::parse_aprs_comment(struct pbuf_t *pb, char const *input, unsigned
 	/*fapint_parse_comment_telemetry(packet, &rest, &rest_len);*/
 
 	/* If there's something left, save it as a comment. */
-	rest_len = strlen(rest);
+	//rest_len = strnlen(rest,(&input[input_len]-rest));
+	rest_len = &input[input_len]-rest;
 
 	if (rest_len > 0)
 	{
 		pb->comment = rest;
 		pb->comment_len = rest_len;
 		// pb->comment[rest_len] = 0;
-		//log_d("Comment: %s", rest);
+		// //log_d("Comment: %s", rest);
+	}else{
+		rest_len=0;
+		pb->comment_len = 0;
 	}
 	return rest_len;
 }

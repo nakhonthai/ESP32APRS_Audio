@@ -100,6 +100,17 @@
 #define W_BAR	(1 << 8)
 #define W_PAR	(1 << 9)
 #define W_UV	(1 << 10)
+#define W_SNOW	(1 << 11)
+#define W_SOIL_TEMP	(1 << 12)
+#define W_SOIL_HUM	(1 << 13)
+#define W_WATER_TEMP	(1 << 14)
+#define W_WATER_TDS	(1 << 15)
+#define W_WATER_LVL	(1 << 16)
+#define W_PM25	(1 << 17)
+#define W_PM100	(1 << 18)
+#define W_CO2	(1 << 19)
+#define W_CH2O	(1 << 20)
+#define W_TVOC	(1 << 21)
 
 #define O_TEMP	(1 << 0)
 #define O_HS	(1 << 1)
@@ -110,7 +121,7 @@
 /// Weather report type.
 typedef struct
 {
-	uint16_t flags;		/* bitmask: one or more of W_* */
+	uint32_t flags;		/* bitmask: one or more of W_* */
 
 	/// Wind gust in m/s.
 	double wind_gust;
@@ -141,6 +152,18 @@ typedef struct
 	/// Luminosity in watts per square meter.
 	unsigned int luminosity;
 	unsigned char uv;
+
+	uint16_t snow;          // Snowfall (in mm.) in the last 24 hours
+    float soil_temp;        // Soil Temperature (Celsius)
+    float soil_moisture; // Soil Moisture (0-40%VWC)
+    float water_temp;       // Water Temperature (Celsius)
+    uint16_t water_tds;     // Water TDS(Total Dissolved Solids) 0-1000ppm
+    uint16_t water_level;   // Water Level (in mm.)
+    uint16_t pm25;          // Ordure PM 2.5 (0~1000μg/m³)
+    uint16_t pm100;         // Ordure PM 10 (0~1000μg/m³)
+    uint32_t co2;           // Co2 (ppm)
+    uint16_t ch2o;           // F,f Formaldehyde(CH2O) F=0-9999,f,1000-2000 μg/m³
+    uint16_t tvoc;         // (0~2000μg/m³)
 
 	/// Show depth increasement from last day, in millimeters.
 	//double* snow_24h;

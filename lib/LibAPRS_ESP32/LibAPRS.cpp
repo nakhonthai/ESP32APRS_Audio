@@ -4,9 +4,11 @@
 // extern "C" {
 // //#include "user_interface.h"
 // }uint32_t freemem = system_get_free_heap_size();
-Afsk modem;
+//Afsk modem;
 AX25Ctx AX25;
 extern void aprs_msg_callback(struct AX25Msg *msg);
+
+//extern Afsk *AFSK_modem;
 
 #define countof(a) sizeof(a) / sizeof(a[0])
 
@@ -53,13 +55,14 @@ bool message_autoAck = false;
 
 void APRS_init()
 {
-    AFSK_init(&modem);
-    ax25_init(&AX25, aprs_msg_callback);
+    //AFSK_init();
+    //Ax25Init(aprs_msg_callback);
+    //ax25_init(&AX25, aprs_msg_callback);
 }
 
 void APRS_poll(void)
 {
-    ax25_poll(&AX25);
+    //ax25_poll(&AX25);
 }
 
 void APRS_setCallsign(char *call, int ssid)
@@ -326,15 +329,47 @@ void APRS_sendPkt(void *_buffer, size_t length)
     path[2] = path1;
     path[3] = path2;
 
-    ax25_sendVia(&AX25, path, countof(path), buffer, length);
+    //ax25_sendVia(&AX25, path, countof(path), buffer, length);
 }
 
-void APRS_sendTNC2Pkt(String raw)
+void APRS_sendTNC2Pkt(const uint8_t *raw, size_t length)
 {
+    uint8_t data[300];
+    int size=0;
     ax25frame frame;
-    // Serial.println(raw);
-    ax25_encode(frame, (char *)raw.c_str(), raw.length());
-    ax25sendFrame(&AX25, &frame);
+    ax25_encode(frame, (char *)raw, length);
+    size=hdlcFrame(data, 300, &AX25, &frame);
+    log_d("TX HDLC Fram size=%d",size);
+    void *handle = NULL;
+    if(size>0){
+        if(NULL != (handle = Ax25WriteTxFrame(data,size))){
+         //Ax25TransmitCheck();
+        }
+    }
+    //ax25sendFrame(&AX25, &frame);
+
+    // ax25frame *frame = (ax25frame *)calloc(1, sizeof(ax25frame));
+    // if (frame)
+    // {
+    //     if (ax25_encode(*frame, (char *)raw, length))
+    //     {
+    //         size_t max_len = length + 10;
+    //         uint8_t *hdlc = (uint8_t *)calloc(max_len, sizeof(uint8_t));
+    //         if (hdlc)
+    //         {
+    //             memset(hdlc, 0, max_len);
+    //             int len = hdlcFrame(hdlc, max_len, &AX25, frame);
+    //             for (int i = 0; i < len; i++)
+    //                 afsk_putchar(hdlc[i]);
+    //             // for(int i=0;i<len;i++) log_d("[%d]0x%0x",i,frame_ax25[i]);
+    //             //ax25_sendBuf(hdlc, len);
+    //             //AFSK_txStart(AFSK_modem);
+    //             free(hdlc);
+    //         }
+    //     }
+    //     free(frame);
+    //     // Serial.println("ax25 send sussesed...");
+    // }
 }
 
 // Dynamic RAM usage of this function is 30 bytes

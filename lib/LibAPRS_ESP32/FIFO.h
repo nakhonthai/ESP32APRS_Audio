@@ -5,23 +5,16 @@
 #include <Arduino.h>
 #include <stddef.h>
 
+#define RB_ATOMIC_START {
+#define RB_ATOMIC_END }
 
-// #define xt_rsil(level) (__extension__({uint32_t state; __asm__ __volatile__("rsil %0," __STRINGIFY(level) : "=a" (state)); state;}))
-// #define xt_wsr_ps(state)  __asm__ __volatile__("wsr %0,ps; isync" :: "a" (state) : "memory")
-
-// #define RB_ATOMIC_START do { uint32_t _savedIS = xt_rsil(1) ;
-// #define RB_ATOMIC_END xt_wsr_ps(_savedIS) ;} while(0);
-
-#define RB_ATOMIC_START while(f->lock){ delay(1);} f->lock=true;
-#define RB_ATOMIC_END f->lock=false;
 
 typedef struct FIFOBuffer
 {
-  bool lock;
-  unsigned char *begin;
-  unsigned char *end;
-  unsigned char * volatile head;
-  unsigned char * volatile tail;
+  uint16_t *begin;
+  uint16_t *end;
+  uint16_t *head;
+  uint16_t *tail;
 } FIFOBuffer;
 
 inline bool fifo_isempty(const FIFOBuffer *f) {
@@ -32,39 +25,44 @@ inline bool fifo_isfull(const FIFOBuffer *f) {
   return ((f->head == f->begin) && (f->tail == f->end)) || (f->tail == f->head - 1);
 }
 
-inline void fifo_push(FIFOBuffer *f, unsigned char c) {
+inline void fifo_push(FIFOBuffer *f, uint16_t c) {
   *(f->tail) = c;
   
-  if (f->tail == f->end) {
+  if (f->tail >= f->end) {
     f->tail = f->begin;
   } else {
     f->tail++;
   }
 }
 
-inline unsigned char fifo_pop(FIFOBuffer *f) {
-  if(f->head == f->end) {
+inline uint16_t fifo_pop(FIFOBuffer *f) {
+  uint16_t c;
+  if(f->head >= f->end) {
     f->head = f->begin;
     return *(f->end);
-  } else {
-    return *(f->head++);
+  } else { 
+    c=*(f->head);
+    if(!(f->head==f->tail)) f->head++;
+    return c;
   }
 }
 
 inline void fifo_flush(FIFOBuffer *f) {
-  f->head = f->tail;
-  f->lock=false;
+  //f->head = f->tail;
+  f->head = f->tail = f->begin;
 }
 
-inline bool fifo_isempty_locked(FIFOBuffer *f) {
+inline bool fifo_isempty_locked(const FIFOBuffer *f) {
   bool result;
   RB_ATOMIC_START
+  {
     result = fifo_isempty(f);
+  }
   RB_ATOMIC_END
   return result;
 }
 
-inline bool fifo_isfull_locked(FIFOBuffer *f) {
+inline bool fifo_isfull_locked(const FIFOBuffer *f) {
   bool result;
   RB_ATOMIC_START
   {
@@ -74,7 +72,7 @@ inline bool fifo_isfull_locked(FIFOBuffer *f) {
   return result;
 }
 
-inline void fifo_push_locked(FIFOBuffer *f, unsigned char c) {
+inline void fifo_push_locked(FIFOBuffer *f, uint16_t c) {
   RB_ATOMIC_START
   {
     fifo_push(f, c);
@@ -82,8 +80,8 @@ inline void fifo_push_locked(FIFOBuffer *f, unsigned char c) {
   RB_ATOMIC_END
 }
 
-inline unsigned char fifo_pop_locked(FIFOBuffer *f) {
-  unsigned char c;
+inline uint16_t fifo_pop_locked(FIFOBuffer *f) {
+  uint16_t c;
   RB_ATOMIC_START
   {
     c = fifo_pop(f);
@@ -92,10 +90,9 @@ inline unsigned char fifo_pop_locked(FIFOBuffer *f) {
   return c;
 }
 
-inline void fifo_init(FIFOBuffer *f, unsigned char *buffer, size_t size) {
+inline void fifo_init(FIFOBuffer *f, uint16_t *buffer, size_t size) {
   f->head = f->tail = f->begin = buffer;
   f->end = buffer + size -1;
-  f->lock=false;
 }
 
 inline size_t fifo_len(FIFOBuffer *f) {

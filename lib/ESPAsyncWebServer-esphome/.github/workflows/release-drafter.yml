@@ -1,0 +1,35 @@
+name: Release Drafter
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  release-drafter:
+    name: Release Drafter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter@v6
+        id: drafter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/checkout@v4
+
+      - name: Set library.json version
+        run: |
+          sed -i "s/\"version\": .*/\"version\": \"${{ steps.drafter.outputs.resolved_version }}\",/g" library.json
+
+      - name: Commit changes
+        run: |
+          if ! git diff --quiet; then
+            git config --global user.name "esphomebot"
+            git config --global user.email "68923041+esphomebot@users.noreply.github.com"
+            git commit -am "Bump version to ${{ steps.drafter.outputs.resolved_version }}"
+            git push
+          fi
