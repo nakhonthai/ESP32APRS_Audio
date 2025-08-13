@@ -11,7 +11,7 @@
 #include "hal/adc_hal.h"
 #include "hal/adc_hal_common.h"
 #endif
-#include "cppQueue.h"
+//#include "cppQueue.h"
 #include "fir_filter.h"
 
 #include "driver/sdm.h"
@@ -29,7 +29,11 @@
 
 #include "esp_dsp.h"
 #include <dsps_fir.h>
+#ifdef CONFIG_IDF_TARGET_ESP32C3
+#include <esp32c3/rom/crc.h>
+#else
 #include "esp32/rom/crc.h"
+#endif
 
 #include "modem.h"
 
@@ -108,6 +112,77 @@ Adafruit_NeoPixel *strip;
 extern float markFreq;  // mark frequency
 extern float spaceFreq; // space freque
 extern float baudRate;  // baudrate
+
+
+/****************** Ring Buffer gen from DeepSeek *********************/
+#define BUFFER_SIZE 1500
+typedef struct {
+    int16_t buffer[BUFFER_SIZE]; // Buffer to store int16_t data
+    int head;                    // Index for the next write
+    int tail;                    // Index for the next read
+    int count;                   // Number of elements in the buffer
+    bool lock;
+} RingBuffer;
+
+// Initialize the ring buffer
+void RingBuffer_Init(RingBuffer *rb) {
+    rb->head = 0;
+    rb->tail = 0;
+    rb->count = 0;
+    rb->lock = false;
+}
+
+// Check if the buffer is full
+bool RingBuffer_IsFull(const RingBuffer *rb) {
+    return rb->count == BUFFER_SIZE;
+}
+
+// Check if the buffer is empty
+bool RingBuffer_IsEmpty(const RingBuffer *rb) {
+    return rb->count == 0;
+}
+
+// Add an element to the buffer (push)
+bool RingBuffer_Push(RingBuffer *rb, int16_t data) {
+    if (RingBuffer_IsFull(rb)) {
+        return false; // Buffer is full
+    }
+    rb->lock = true;
+    if(rb->head >= BUFFER_SIZE || rb->head < 0) rb->head = 0; // Check if head exceeds buffer size
+    rb->buffer[rb->head] = data;
+    rb->head = (rb->head + 1) % BUFFER_SIZE; // Wrap around using modulo
+    rb->count++;
+    rb->lock = false;
+    return true;
+}
+
+// Remove an element from the buffer (pop)
+bool RingBuffer_Pop(RingBuffer *rb, int16_t *data) {
+    if (RingBuffer_IsEmpty(rb)) {
+        return false; // Buffer is empty
+    }
+    int to=0;
+    while(rb->lock) // Wait until the buffer is not locked
+    {
+      delay(1); // Avoid busy-waiting, adjust as needed
+      if(to++ > 100) return false; // Timeout after 1 second
+    }
+    if(rb->tail >= BUFFER_SIZE || rb->tail < 0) rb->tail = 0; // Check if tail exceeds buffer size
+    *data = rb->buffer[rb->tail];
+    rb->tail = (rb->tail + 1) % BUFFER_SIZE; // Wrap around using modulo
+    rb->count--;
+    return true;
+}
+
+// Get the number of elements in the buffer
+int RingBuffer_Size(const RingBuffer *rb) {
+    return rb->count;
+}
+
+RingBuffer fifo; // Declare a ring buffer
+
+
+/******************************************************************** */
 
 // #define MARK_INC (uint16_t)(DIV_ROUND(SIN_LEN * (uint32_t)1200, CONFIG_AFSK_DAC_SAMPLERATE))
 // #define SPACE_INC (uint16_t)(DIV_ROUND(SIN_LEN * (uint32_t)2200, CONFIG_AFSK_DAC_SAMPLERATE))
@@ -384,11 +459,11 @@ uint16_t CountOnesFromInteger(uint16_t value)
 #define IMPLEMENTATION FIFO
 #define ADC_SAMPLES_COUNT (BLOCK_SIZE / 2)
 
-#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
-cppQueue adcq(sizeof(int16_t), 768, IMPLEMENTATION, true); // Instantiate queue
-#else
-cppQueue adcq(sizeof(int16_t), 768 * 2, IMPLEMENTATION, true); // Instantiate queue
-#endif
+// #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+// cppQueue adcq(sizeof(int16_t), 768, IMPLEMENTATION, true); // Instantiate queue
+// #else
+// cppQueue adcq(sizeof(int16_t), 768 * 2, IMPLEMENTATION, true); // Instantiate queue
+// #endif
 
 int8_t adcEn = 0;
 int8_t dacEn = 0;
@@ -548,6 +623,16 @@ void AFSK_TimerEnable(bool sts)
 static const char *TAG = "--(TAG ADC DMA)--";
 #if defined(CONFIG_IDF_TARGET_ESP32)
 #define ADC_OUTPUT_TYPE ADC_DIGI_OUTPUT_FORMAT_TYPE1
+void IRAM_ATTR sample_adc_isr()
+{
+  if (!hw_afsk_dac_isr)
+  {
+    //portENTER_CRITICAL_ISR(&timerMux); // ISR start
+    int16_t adc=analogReadMilliVolts(adc_pins[0]);
+    RingBuffer_Push(&fifo, adc);
+    //portEXIT_CRITICAL_ISR(&timerMux); // ISR end
+  }
+}
 #else
 #define ADC_OUTPUT_TYPE ADC_DIGI_OUTPUT_FORMAT_TYPE2
 #endif
@@ -557,20 +642,22 @@ static const char *TAG = "--(TAG ADC DMA)--";
 
 // hw_timer_t *timer = NULL;
 
+
+
 bool adcStopFlag = false;
 void AFSK_TimerEnable(bool sts)
 {
   // if (xSemaphoreTake(xI2CSemaphore, (TickType_t)DEFAULT_SEMAPHORE_TIMEOUT) == pdTRUE)
   // {
   // vTaskSuspendAll ();
-  adcq.flush();
+  //adcq.flush();
   if (sts == true)
   {
     //   timerAlarmEnable(timer);
     if (AdcHandle != NULL)
     {
       adc_continuous_start(AdcHandle);
-      HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 1);
+      //HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 1);
     }
     adcEn = 0;
   }
@@ -579,10 +666,10 @@ void AFSK_TimerEnable(bool sts)
 
     //   timerAlarmDisable(timer);
     if (AdcHandle != NULL)
-    {
-      log_d("SAR DIV=%d LEN=%d", SYSCON.saradc_ctrl.sar_clk_div, SYSCON.saradc_ctrl.sar1_patt_len);
-      HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 0);
-      SYSCON.saradc_ctrl.sar1_patt_p_clear = 1;
+    {      
+      //log_d("SAR DIV=%d LEN=%d", SYSCON.saradc_ctrl.sar_clk_div, SYSCON.saradc_ctrl.sar1_patt_len);
+      //HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 0);
+      //SYSCON.saradc_ctrl.sar1_patt_p_clear = 1;
       adc_continuous_stop(AdcHandle);
       // adcStopFlag = true;
     }
@@ -594,6 +681,7 @@ void AFSK_TimerEnable(bool sts)
 #endif
 
 hw_timer_t *timer_dac = NULL;
+hw_timer_t *timer_adc = NULL;
 
 SemaphoreHandle_t xI2CSemaphore;
 
@@ -671,7 +759,7 @@ void setPtt(bool state)
   else
   {
     setTransmit(false);
-    adcq.flush();
+    //adcq.flush();
     if (_ptt_active)
     {
       pinMode(_ptt_pin, OUTPUT);
@@ -700,7 +788,7 @@ void afskSetModem(uint8_t val, bool bpf,uint16_t timeSlot,uint16_t preamble,uint
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     SAMPLERATE = 9600;
 #elif defined(CONFIG_IDF_TARGET_ESP32)
-    SAMPLERATE = 28800;
+    SAMPLERATE = 19200;
 #else
     SAMPLERATE = 38400;
 #endif
@@ -713,7 +801,7 @@ void afskSetModem(uint8_t val, bool bpf,uint16_t timeSlot,uint16_t preamble,uint
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     SAMPLERATE = 9600;
 #elif defined(CONFIG_IDF_TARGET_ESP32)
-    SAMPLERATE = 19200;
+    SAMPLERATE = 28800;
 #else
     SAMPLERATE = 38400;
 #endif
@@ -726,7 +814,7 @@ void afskSetModem(uint8_t val, bool bpf,uint16_t timeSlot,uint16_t preamble,uint
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     SAMPLERATE = 9600;
 #elif defined(CONFIG_IDF_TARGET_ESP32)
-    SAMPLERATE = 19200;
+    SAMPLERATE = 28800;
 #else
     SAMPLERATE = 38400;
 #endif
@@ -784,8 +872,8 @@ void afskSetPWR(int8_t val, bool act)
   _pwr_active = act;
 }
 
-uint32_t ret_num;
-uint8_t *resultADC;
+//uint32_t ret_num;
+//uint8_t *resultADC;
 
 typedef struct
 {
@@ -800,12 +888,13 @@ volatile SemaphoreHandle_t timerSemaphore;
 int16_t adcPush;
 //static TaskHandle_t s_task_handle;
 // adc_oneshot_unit_handle_t adc1_handle;
-bool IRAM_ATTR s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_continuous_evt_data_t *edata, void *user_data)
+static bool s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_continuous_evt_data_t *edata, void *user_data)
 {
   //BaseType_t mustYield = pdFALSE;
   //Notify that ADC continuous driver has done enough number of conversions
   //vTaskNotifyGiveFromISR(s_task_handle, &mustYield);
-  portENTER_CRITICAL_ISR(&timerMux);
+  //portENTER_CRITICAL_ISR(&timerMux);
+  fifo.lock = true;
   for (uint32_t k = 0; k < edata->size; k += SOC_ADC_DIGI_RESULT_BYTES)
   {
     adc_digi_output_data_t *p = (adc_digi_output_data_t *)&edata->conv_frame_buffer[k];
@@ -819,20 +908,28 @@ bool IRAM_ATTR s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_con
       continue;
     adcPush = (int)p->type2.data;
 #endif
-    // if(adcq.isFull())
-    // {
-    //   log_d("ADC Queue is full");
-    //   adcq.flush();
-    //   break;
-    // }else{
-    adcq.push(&adcPush);
-    //}
-  }
-  portEXIT_CRITICAL_ISR(&timerMux);
+
+    if(fifo.head >= BUFFER_SIZE || fifo.head < 0) fifo.head = 0; // Check if head exceeds buffer size
+    fifo.buffer[fifo.head] = adcPush;
+    fifo.head = (fifo.head + 1) % BUFFER_SIZE; // Wrap around using modulo
+    fifo.count++;    
+//RingBuffer_Push(&fifo, adcPush);
+  }  
+  fifo.lock = false;
+  //portEXIT_CRITICAL_ISR(&timerMux);
   // vTaskDelay(TMP102_UPDATE_CICLE_MS / portTICK_PERIOD_MS);
   //return (mustYield == pdTRUE);
   return true;
 }
+// static TaskHandle_t s_task_handle;
+// static bool IRAM_ATTR s_conv_done_cb(adc_continuous_handle_t handle, const adc_continuous_evt_data_t *edata, void *user_data)
+// {
+//     BaseType_t mustYield = pdFALSE;
+//     //Notify that ADC continuous driver has done enough number of conversions
+//     vTaskNotifyGiveFromISR(s_task_handle, &mustYield);
+
+//     return (mustYield == pdTRUE);
+// }
 
 void adc_continue_init(void)
 {
@@ -968,18 +1065,27 @@ void adc_continue_init(void)
       log_d("Creating ADC_UNIT_%d cerve cali handle", 1);
 //
 #endif
+ 
+      //s_task_handle = xTaskGetCurrentTaskHandle();
+
       if (Err != ESP_OK)
         ESP_LOGI(TAG, "=====> AdMeasure : Fail to create the Curve Fitting Scheme.");
       else
       {
-        /* On démarre l'ADC : */
-        // SYSCON.saradc_ctrl2.meas_num_limit = 0;
-        adc_continuous_start(AdcHandle);
-        // adc_continuous_stop(AdcHandle);
-        // SYSCON.saradc_ctrl2.meas_num_limit = 0;
-        // HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 0);
-        log_d("ADC Continuous has been start");
-        adcStopFlag = false;
+        //if(_sql_pin < 0){
+          /* On démarre l'ADC : */
+          // SYSCON.saradc_ctrl2.meas_num_limit = 0;
+          adc_continuous_start(AdcHandle);
+          // adc_continuous_stop(AdcHandle);
+          // SYSCON.saradc_ctrl2.meas_num_limit = 0;
+          // HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 0);
+          log_d("ADC Continuous has been start");
+          adcStopFlag = false;
+
+                 // }else{
+        //   adc_continuous_stop(AdcHandle);
+        //   adcStopFlag = true; // Stop ADC if SQL pin is set
+        // }
       }
     }
   }
@@ -996,7 +1102,11 @@ static void sigmadelta_init(void)
       .channel = SIGMADELTA_CHANNEL_0,
       .sigmadelta_duty = 127,
       .sigmadelta_prescale = 96,
+      #ifdef CONFIG_IDF_TARGET_ESP32C3
+      .sigmadelta_gpio = GPIO_NUM_1, // GPIO1 is used for ESP32C3
+      #else 
       .sigmadelta_gpio = GPIO_NUM_26,
+      #endif
   };
   sigmadelta_config(&sigmadelta_cfg);
 }
@@ -1016,16 +1126,23 @@ void AFSK_hw_init(void)
   {
     pinMode(_led_rx_pin, OUTPUT);
   }
+  if(_led_strip_pin > -1)
+  {
+    strip = new Adafruit_NeoPixel(1, _led_strip_pin, NEO_GRB + NEO_KHZ800);
+  }
 
   if (_pwr_pin > -1)
     digitalWrite(_pwr_pin, !_pwr_active);
+
+    RingBuffer_Init(&fifo);
 
 #ifdef I2S_INTERNAL
   //  Initialize the I2S peripheral
   I2S_Init(I2S_MODE_DAC_BUILT_IN, I2S_BITS_PER_SAMPLE_16BIT);
 #else
-  adc_continue_init();
-  
+
+adc_continue_init();
+
 // Initialize FIR filter
 // resample_fir.coeffs = (float *)resample_coeffs;
 // resample_fir.delay = filter_state;
@@ -1056,6 +1173,7 @@ void AFSK_hw_init(void)
   // Repeat the alarm (third parameter) with unlimited count = 0 (fourth parameter).
   timerAlarm(timer_dac, (uint64_t)20000000 / CONFIG_AFSK_DAC_SAMPLERATE, true, 0);
   timerStop(timer_dac);
+
 
   //   ESP_LOGI(TAG, "Create timer handle");
   //   gptimer_handle_t gptimer = NULL;
@@ -1193,6 +1311,10 @@ extern float dBV;
 long mVsum = 0;
 int mVsumCount = 0;
 uint8_t dcd_cnt = 0;
+bool sqlActiveOld = false;
+#define READ_LEN 256
+//uint32_t ret_num = 0;
+//uint8_t resultADC[READ_LEN] = {0};
 
 void AFSK_Poll(bool SA818, bool RFPower)
 {
@@ -1209,15 +1331,23 @@ void AFSK_Poll(bool SA818, bool RFPower)
 
   if (_sql_pin > -1)
   {                                                 // Set SQL pin active
-    if ((digitalRead(_sql_pin) ^ _sql_active) == 0) // signal active with sql_active
+    if ((digitalRead(_sql_pin) ^ _sql_active) == 0){ // signal active with sql_active
       sqlActive = true;
-    else
+      // if(sqlActiveOld == false){
+      //   AFSK_TimerEnable(true); // Start ADC if SQL pin is set
+      // }    
+    } else {
       sqlActive = false;
+      // if(sqlActiveOld == true){
+      //     AFSK_TimerEnable(false); // Stop ADC if SQL pin is not set
+      // }
+    }
   }
   else
   {
     sqlActive = true;
   }
+  sqlActiveOld = sqlActive;
 
   if (hw_afsk_dac_isr)
   {
@@ -1319,6 +1449,7 @@ void AFSK_Poll(bool SA818, bool RFPower)
   }
   else
   {
+    
     if (audio_buffer != NULL)
     {
       tcb_t *tp = &tcb;
@@ -1341,17 +1472,46 @@ void AFSK_Poll(bool SA818, bool RFPower)
           adc = (int)pcm_in[i];
           x++;
 #else
-      while (adcq.getCount() >= BLOCK_SIZE)
+// ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+// size_t resNum = BLOCK_SIZE * SOC_ADC_DIGI_RESULT_BYTES;
+//       uint8_t *resultADC = (uint8_t *)malloc(resNum);
+//       if(resultADC){
+//        esp_err_t ret = adc_continuous_read(AdcHandle, resultADC, resNum, &ret_num, 0);
+//             if (ret == ESP_OK) {
+//                 for (int i = 0; i < ret_num; i += SOC_ADC_DIGI_RESULT_BYTES) {
+//                   adc_digi_output_data_t *p = (adc_digi_output_data_t*)&resultADC[i];
+//                   #if defined(CONFIG_IDF_TARGET_ESP32)
+//                       if (p->type1.channel > 0)
+//                         continue;
+//                       adcPush = (int16_t)p->type1.data;
+//                   #else
+//                       if ((p->type2.channel > 0) || (p->type2.unit > 0))
+//                         continue;
+//                       adcPush = (int)p->type2.data;
+//                   #endif
+//                   RingBuffer_Push(&fifo, adcPush);
+//                 }
+//               }
+//               free(resultADC);
+//       }
+      //while (adcq.getCount() >= BLOCK_SIZE)
+      while(RingBuffer_Size(&fifo) >= BLOCK_SIZE)
       {
         //digitalWrite(4, HIGH);
         
         mVsum = 0;
         mVsumCount = 0;
+        //portENTER_CRITICAL_ISR(&timerMux);
         for (x = 0; x < BLOCK_SIZE; x++)
         {
           // while(adcq_lock) delay(1);
-          if (!adcq.pop(&adc)) // Pull queue buffer
+          //if (!adcq.pop(&adc)) // Pull queue buffer
+          
+          bool ret = RingBuffer_Pop(&fifo, &adc);          
+          if (!ret)
             break;
+          // if (!RingBuffer_Pop(&fifo, &adc))
+          //   break;          
 
 #endif       
           tp->avg_sum += adc - tp->avg_buf[tp->avg_idx];
@@ -1381,6 +1541,7 @@ void AFSK_Poll(bool SA818, bool RFPower)
           float sample = adcVal / 2048.0f * agc_gain;
           audio_buffer[x] = sample;
         }
+        //portEXIT_CRITICAL_ISR(&timerMux);
         // Update AGC gain
         update_agc(audio_buffer, BLOCK_SIZE);
         adc_cali_raw_to_voltage(AdcCaliHandle, tp->avg, &offset);

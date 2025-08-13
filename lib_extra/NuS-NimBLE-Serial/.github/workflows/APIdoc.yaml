@@ -1,0 +1,66 @@
+name: Publish API documentation
+
+# This workflow is based on D'oxygen for static site generation.
+# However, there are many reusable GitHub Actions in the marketplace
+# for this purpose. I choose a random one.
+# Other workflow steps follow the official guide at the time of writing.
+
+on:
+  # IMPORTANT NOTE: (Please, read)
+  # API documentation is deployed to an automatically-generated environment
+  # called "github-pages" (see the "deploy" job below).
+  # This environment is protected by default in a way that only the 'main'
+  # branch is able to be deployed.
+  # Any trigger not matching the 'main' branch will work, but the workflow
+  # will always fail for security reasons.
+  # For example, the following trigger will not success...
+  #
+  # push:
+  #  tags:
+  #    - '[0-9]+.[0-9]+.[0-9]+'
+  #
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'src/*.hpp'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Generate static HTML files
+    runs-on: 'ubuntu-latest'
+    steps:
+
+      - name: Checkout repository contents
+        uses: actions/checkout@v4
+
+      - name: Run D'oxygen
+        uses: mattnotmitt/doxygen-action@v1.9.4
+        with:
+          working-directory: 'extras'
+          doxyfile-path: 'Doxyfile'
+          # NOTE: output directory is configured in Doxyfile.
+          # Should point to:
+          # '${{ github.workspace }}/doc'
+
+      - name: Upload static files as artifact
+        id: deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '${{ github.workspace }}/doc/html/'
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

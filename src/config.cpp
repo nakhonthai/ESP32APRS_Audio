@@ -465,6 +465,39 @@ bool saveConfiguration(const char *filename, const Configuration &config)
         sensor.add(config.sensor[i].unit);
     }
 
+     // PPP Modem
+    doc["pppEn"] = config.ppp_enable;
+    doc["pppAPN"] = config.ppp_apn;
+    doc["pppRST"] = config.ppp_rst_gpio;
+    doc["pppRSTAct"] = config.ppp_rst_active;
+    doc["pppTX"] = config.ppp_tx_gpio;
+    doc["pppRX"] = config.ppp_rx_gpio;
+    doc["pppRTS"] = config.ppp_rts_gpio;
+    doc["pppDTR"] = config.ppp_dtr_gpio;
+    doc["pppCTS"] = config.ppp_cts_gpio;
+    doc["pppRI"] = config.ppp_ri_gpio;
+    doc["pppPWR"] = config.ppp_pwr_gpio;
+    doc["pppPWRAct"] = config.ppp_pwr_active;
+    doc["pppRSTDelay"] = config.ppp_rst_delay;
+    doc["pppPin"] = config.ppp_pin;
+    doc["pppSerial"] = config.ppp_serial;
+    doc["pppSerialBaudrate"] = config.ppp_serial_baudrate;
+    doc["pppModel"] = config.ppp_model;
+    doc["pppFlow"] = config.ppp_flow_ctrl;
+    doc["pppGNSS"] = config.ppp_gnss;
+
+    doc["mqttEnable"] = config.en_mqtt;
+    doc["mqttHost"] = config.mqtt_host;
+    doc["mqttTopic"] = config.mqtt_topic;
+    doc["mqttSub"] = config.mqtt_subscribe;
+    doc["mqttPort"] = config.mqtt_port;
+
+    doc["trkMicEType"] = config.trk_mice_type;
+    doc["trkTlmInv"] = config.trk_tlm_interval;
+    doc["digiTlmInv"] = config.digi_tlm_interval;
+    doc["igateTlmInv"] = config.igate_tlm_interval;
+    doc["hostName"] = config.host_name;
+
     // Serialize JSON to file
     File file = LITTLEFS.open(filename, FILE_WRITE);
     if (file)
@@ -901,6 +934,39 @@ bool loadConfiguration(const char *filename, Configuration &config)
             strlcpy(config.sensor[i].parm, doc["Sensor"][(i * 11) + 9] | "", sizeof(config.sensor[i].parm));
             strlcpy(config.sensor[i].unit, doc["Sensor"][(i * 11) + 10] | "", sizeof(config.sensor[i].unit));
         }
+
+        // PPP Modem
+        config.ppp_enable = doc["pppEn"];
+        strlcpy(config.ppp_apn, doc["pppAPN"] | "", sizeof(config.ppp_apn));
+        strlcpy(config.ppp_pin, doc["pppPin"] | "", sizeof(config.ppp_pin));
+        config.ppp_rst_gpio = doc["pppRST"];
+        config.ppp_rst_active = doc["pppRSTAct"];
+        config.ppp_rst_delay = doc["pppRSTDelay"];
+        config.ppp_tx_gpio = doc["pppTX"];
+        config.ppp_rx_gpio = doc["pppRX"];
+        config.ppp_rts_gpio = doc["pppRTS"];
+        config.ppp_dtr_gpio = doc["pppDTR"];
+        config.ppp_cts_gpio = doc["pppCTS"];
+        config.ppp_ri_gpio = doc["pppRI"];
+        config.ppp_pwr_gpio = doc["pppPWR"];
+        config.ppp_pwr_active = doc["pppPWRAct"];   
+        config.ppp_serial = doc["pppSerial"];
+        config.ppp_serial_baudrate = doc["pppSerialBaudrate"];
+        config.ppp_model = doc["pppModel"];
+        config.ppp_flow_ctrl = doc["pppFlowCtrl"];
+        config.ppp_gnss = doc["pppGNSS"];
+
+        config.en_mqtt = doc["mqttEnable"];
+        strlcpy(config.mqtt_host, doc["mqttHost"] | "", sizeof(config.mqtt_host));
+        strlcpy(config.mqtt_topic, doc["mqttTopic"] | "", sizeof(config.mqtt_topic));
+        strlcpy(config.mqtt_subscribe, doc["mqttSub"] | "", sizeof(config.mqtt_subscribe));
+        config.mqtt_port = doc["mqttPort"];
+
+        config.trk_mice_type = doc["trkMicEType"];
+        config.trk_tlm_interval = doc["trkTlmInv"];
+        config.digi_tlm_interval = doc["digiTlmInv"];
+        config.igate_tlm_interval = doc["igateTlmInv"];
+        strlcpy(config.host_name, doc["hostName"] | "", sizeof(config.host_name));
 
         // Close the file (Curiously, File's destructor doesn't close the file)
         // f.close();

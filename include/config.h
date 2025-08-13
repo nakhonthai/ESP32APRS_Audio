@@ -17,7 +17,7 @@
 #define COMMENT_SIZE 25
 #define STATUS_SIZE 50
 
-#define WX_SENSOR_NUM 23
+#define WX_SENSOR_NUM 26
 
 #define ACTIVATE_OFF 0				// Packet is disable all packet
 #define ACTIVATE_TRACKER (1 << 0)		// packet is an object
@@ -298,7 +298,7 @@ typedef struct Config_Struct
 	bool vpn;
 	bool modem;
 	uint16_t wg_port;
-	char wg_peer_address[16];
+	char wg_peer_address[32];
 	char wg_local_address[16];
 	char wg_netmask_address[16];
 	char wg_gw_address[16];
@@ -422,6 +422,40 @@ typedef struct Config_Struct
 	bool wx_sensor_enable[WX_SENSOR_NUM];
 	bool wx_sensor_avg[WX_SENSOR_NUM];
 	uint8_t wx_sensor_ch[WX_SENSOR_NUM];
+
+	bool ppp_enable = false;
+	char ppp_apn[32];
+	char ppp_pin[8];
+	int8_t ppp_rst_gpio = -1;
+	int8_t ppp_tx_gpio = -1;
+	int8_t ppp_rx_gpio = -1;
+	int8_t ppp_rts_gpio = -1;
+	int8_t ppp_cts_gpio = -1;
+	int8_t ppp_dtr_gpio = -1;
+	int8_t ppp_ri_gpio = -1;
+	bool ppp_rst_active = 0;
+	uint16_t ppp_rst_delay = 1000;
+	int8_t ppp_pwr_gpio = -1;
+	bool ppp_pwr_active = 0;
+	uint8_t ppp_serial = 1;
+	unsigned long ppp_serial_baudrate = 115200;
+	uint8_t ppp_model = 0;
+	uint8_t ppp_flow_ctrl = 0;
+	bool ppp_gnss = false;
+
+	//MQTT Config
+	bool en_mqtt;
+	char mqtt_host[63];
+	char mqtt_topic[63];
+	char mqtt_subscribe[63];
+	uint16_t mqtt_port;
+
+	uint8_t trk_mice_type;
+	uint8_t trk_tlm_interval;
+	uint8_t digi_tlm_interval;
+	uint8_t igate_tlm_interval;
+	uint8_t wx_tlm_interval;
+	char host_name[32];	
 
 } Configuration;
 

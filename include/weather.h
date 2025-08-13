@@ -15,33 +15,37 @@
 #include "sensor.h"
 //#include <ModbusMaster.h>
 
-//Format: c...s...g...t...r...p...P...h..b.....L...S...m...M...w...W....v...d...D...x....F....T....u..n...
+//Format: c...s...g...t...r...p...P...h..b.....L...S...m...M...w...W....v...d...D...x....F....o....u..n...
 //#define WX_SENSOR_NUM 23
 
 #define WX_NONE 0
 #define WX_WIND_DIR (1 << 0)       // c Wind Direction (in degrees)
 #define WX_WIND_SPD (1 << 1)       // s Wind Speed (mhp)
 #define WX_WIND_GUST (1 << 2)      // g Wind Gust	(peak wind speed in mph in the last 5 minutes)
-#define WX_TEMP (1 << 3)           // t Temperature (Fahenheit)
+#define WX_TEMP (1 << 3)           // t Temperature (Fahenheit) ,T.... 9999/50=199.96F (93.31C),-999/50=-19.98 (-28.87C)
 #define WX_RAIN (1 << 4)           // r Rain collector (in hundredths of an inch) last hour
 #define WX_RAIN24HR (1 << 5)       // p Rain collector (in hundredths of an inch) Last 24 Hr
 #define WX_RAIN_GMT (1 << 6)       // P Rain collector (in hundredths of an inch) Sine Midnight (GMT+0)
-#define WX_HUMIDITY (1 << 7)       // h Humidity
+#define WX_HUMIDITY (1 << 7)       // h Humidity,H... 999/100=99.9%RH
 #define WX_BARO (1 << 8)           // b Barometric Pressure (in thenths of millibars/tenths of hPascal)
 #define WX_LUMINOSITY (1 << 9)     // L,l Luminosity (in watts per square meter) L=0-999,l=1000-1999
 #define WX_SNOW (1 << 10)          // S Snowfall (in inches) in the last 24 hours
-#define WX_SOIL_TEMP (1 << 11)     // m Soil temperature (Fahenheit)
+#define WX_SOIL_TEMP (1 << 11)     // m Soil temperature (Fahenheit) m.... 9999/50=199.96F (93.31C),-999/50=-19.98 (-28.87C)
 #define WX_SOIL_MOISTURE (1 << 12) // M Soil Moisture (0-40%VWC)
-#define WX_WATER_TEMP (1 << 13)    // w Water (Fahenheit)
+#define WX_WATER_TEMP (1 << 13)    // w Water (Fahenheit) w.... 9999/50=199.96F (93.31C),-999/50=-19.98 (-28.87C)
 #define WX_WATER_TDS (1 << 14)     // W Water TDS(Total Dissolved Solids) 0-1000ppm
 #define WX_WATER_LEVEL (1 << 15)   // v Water Level (in hundredths of an inch)
 #define WX_PM25 (1 << 16)          // d Dust PM 2.5 0~1000μg/m³
 #define WX_PM100 (1 << 17)         // D Dust PM 10 ,0~1000μg/m³
 #define WX_CO2 (1 << 18)           // X,x Co2 (PPM) x=0-9999,X=10-99990(x10)
 #define WX_CH2O (1<<19)             //F,f Formaldehyde(CH2O) F=0-9999,f,1000-2000 μg/m³
-#define WX_TVOC (1<<20)             // T
-#define WX_UV (1<<21)               //UV Index
+#define WX_TVOC (1<<20)             //o TVOC (0~2000μg/m³)
+#define WX_UV (1<<21)               //u UV Index
 #define WX_SOUND (1<<22)            //n noise of sound Level dB
+#define WX_VBAT (1<<23)
+#define WX_IBAT (1<<24)
+#define WX_VSOLAR (1<<25)
+
 
 typedef struct Weather_Struct
 {
@@ -84,6 +88,7 @@ bool getCSV2Wx(String stream);
 void getSensor(uint32_t type, float *val, int i);
 void getSensor(uint32_t type, uint16_t *val, int i);
 void getSensor(uint32_t type, uint32_t *val, int i);
+int getWxJson(char *strData);
 // bool getM70xModbus(ModbusMaster &node);
 // bool getM70xModbus(ModbusMaster &node, uint32_t sensor);
 

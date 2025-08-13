@@ -59,23 +59,6 @@
 #define WG_ADDRSTRLEN  INET_ADDRSTRLEN
 #endif
 
-#include "lwip/tcpip.h"
-
-#ifdef CONFIG_LWIP_TCPIP_CORE_LOCKING
-  #define TCP_MUTEX_LOCK()                                \
-    if (!sys_thread_tcpip(LWIP_CORE_LOCK_QUERY_HOLDER)) { \
-      LOCK_TCPIP_CORE();                                  \
-    }
-
-  #define TCP_MUTEX_UNLOCK()                             \
-    if (sys_thread_tcpip(LWIP_CORE_LOCK_QUERY_HOLDER)) { \
-      UNLOCK_TCPIP_CORE();                               \
-    }
-#else // CONFIG_LWIP_TCPIP_CORE_LOCKING
-  #define TCP_MUTEX_LOCK()
-  #define TCP_MUTEX_UNLOCK()
-#endif // CONFIG_LWIP_TCPIP_CORE_LOCKING
-
 static struct netif wg_netif_struct = {0};
 static struct netif *wg_netif = NULL;
 static struct wireguardif_peer peer = {0};
@@ -180,7 +163,7 @@ static esp_err_t esp_wireguard_netif_create(const wireguard_config_t *config)
         err = ESP_ERR_INVALID_ARG;
         goto fail;
     }
-   
+
     /* Register the new WireGuard network interface with lwIP */
     wg_netif = netif_add(
             &wg_netif_struct,
@@ -189,7 +172,6 @@ static esp_err_t esp_wireguard_netif_create(const wireguard_config_t *config)
             ip_2_ip4(&gateway),
             &wg, &wireguardif_init,
             &ip_input);
-
     if (wg_netif == NULL) {
         ESP_LOGE(TAG, "netif_add: failed");
         err = ESP_FAIL;
@@ -208,11 +190,11 @@ esp_err_t esp_wireguard_init(wireguard_config_t *config, wireguard_ctx_t *ctx)
 {
     esp_err_t err = ESP_FAIL;
 
-    // if (!config || !ctx) {
-    //     err = ESP_ERR_INVALID_ARG;
-    //     goto fail;
-    // }
-    TCP_MUTEX_LOCK();
+    if (!config || !ctx) {
+        err = ESP_ERR_INVALID_ARG;
+        goto fail;
+    }
+
     /* start async hostname resolution */
     if(dns_gethostbyname(
             config->endpoint,
@@ -221,11 +203,9 @@ esp_err_t esp_wireguard_init(wireguard_config_t *config, wireguard_ctx_t *ctx)
             config) == ERR_ARG) {
         ESP_LOGE(TAG, "init: dns client not initialized or invalid hostname");
         err = ESP_ERR_INVALID_STATE;
-        TCP_MUTEX_UNLOCK();
         goto fail;
     }
-    TCP_MUTEX_UNLOCK();
-    ESP_LOGI(TAG, "VPN Server %s to IP (%s)",ctx->config->endpoint, ipaddr_ntoa(&(ctx->config->endpoint_ip))); 
+
     err = wireguard_platform_init();
     if (err != ESP_OK) {
 #if !defined(LIBRETINY)
@@ -255,8 +235,6 @@ esp_err_t esp_wireguard_connect(wireguard_ctx_t *ctx)
     }
 
     if (ctx->netif == NULL) {
-        ESP_LOGI(TAG, "netif_creating");
-        TCP_MUTEX_LOCK();
         err = esp_wireguard_netif_create(ctx->config);
         if (err != ESP_OK) {
 #if !defined(LIBRETINY)
@@ -264,12 +242,10 @@ esp_err_t esp_wireguard_connect(wireguard_ctx_t *ctx)
 #else // !defined(LIBRETINY)
             ESP_LOGE(TAG, "netif_create: %d", err);
 #endif // !defined(LIBRETINY)
-            TCP_MUTEX_UNLOCK();
             goto fail;
         }
         ctx->netif = wg_netif;
         ctx->netif_default = netif_default;
-        TCP_MUTEX_UNLOCK();
     }
 
     /* start another async hostname resolution in case the first was executed too early */
@@ -278,9 +254,7 @@ esp_err_t esp_wireguard_connect(wireguard_ctx_t *ctx)
             &(ctx->config->endpoint_ip),
             (dns_found_callback)&esp_wireguard_dns_query_callback,
             ctx->config);
-    
-    ESP_LOGI(TAG, "VPN Server %s to IP (%s)",ctx->config->endpoint, ipaddr_ntoa(&(ctx->config->endpoint_ip)));            
-    ESP_LOGI(TAG, "lwip err: %d", lwip_err);
+
     switch(lwip_err) {
         case ERR_OK:
             ESP_LOGV(TAG, "connect: endpoint ip ready (%s)", ipaddr_ntoa(&(ctx->config->endpoint_ip)));

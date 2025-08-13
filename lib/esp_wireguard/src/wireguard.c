@@ -383,14 +383,15 @@ struct wireguard_keypair *get_peer_keypair_for_idx(struct wireguard_peer *peer, 
 static uint32_t wireguard_generate_unique_index(struct wireguard_device *device) {
 	// We need a random 32-bit number but make sure it's not already been used in the context of this device
 	uint32_t result;
-	uint8_t buf[4];
+	//uint8_t buf[10];
 	int x;
 	struct wireguard_peer *peer;
 	bool existing;
 	do {
 		do {
-			wireguard_random_bytes(buf, 4);
-			result = U8TO32_LITTLE(buf);
+			//wireguard_random_bytes(buf, 8);
+			//result = U8TO32_LITTLE(buf);
+			result = esp_random(); // Generate a random uint32_t value
 		} while ((result == 0) || (result == 0xFFFFFFFF)); // Don't allow 0 or 0xFFFFFFFF as valid values
 
 		existing = false;

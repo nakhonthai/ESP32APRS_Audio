@@ -41,7 +41,7 @@ LITTLEFSImpl::LITTLEFSImpl()
 
 bool LITTLEFSImpl::exists(const char* path)
 {
-    File f = open(path, "r",false);
+    File f = LITTLEFS.open(path, "r",false);
     return (f == true);
 }
 

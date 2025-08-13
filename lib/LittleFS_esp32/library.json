@@ -18,5 +18,11 @@
   "platforms": "espressif32",
   "build": {
     "libCompatMode": 2
-  }  
+  },
+  "dependencies": [
+      {
+        "type": "git",
+        "url": "https://github.com/joltwallet/esp_littlefs.git"
+      }
+   ]  
 }

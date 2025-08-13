@@ -21,7 +21,7 @@
 #include "WebAuthentication.h"
 #include <libb64/cencode.h>
 #ifdef ESP32
-//#define MBEDTLS_MD5_ALT
+#define MBEDTLS_MD5_ALT
 #include "mbedtls/md5.h"
 #else
 #include "md5.h"

@@ -57,13 +57,6 @@
         "owner": "esphome",
         "name": "libsodium",
         "version": "^1.10018.1"
-      },
-      {
-        "owner": "droscy",
-        "name": "esp_mbedtls_esp8266",
-        "version": "^2.22300.2",
-        "platforms": "espressif8266",
-        "frameworks": "arduino"
       }
    ],
    "headers":[

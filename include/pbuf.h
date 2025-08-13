@@ -143,9 +143,7 @@ typedef struct
 	double rain_midnight;
 
 	/// Relative humidity percentage.
-	unsigned int humidity;
-	/// Relative inside humidity percentage.
-	unsigned int humidity_in;
+	double humidity;
 
 	/// Air pressure in millibars.
 	double pressure;

@@ -855,7 +855,7 @@ bool getSensor(int cfgIdx)
     case PORT_M701:
         if (config.modbus_channel == 1)
         {
-            modbus.begin(config.sensor[cfgIdx].address, Serial);
+            modbus.begin(config.sensor[cfgIdx].address, Serial0);
         }
         else if (config.modbus_channel == 2)
         {
@@ -877,7 +877,7 @@ bool getSensor(int cfgIdx)
     case PORT_M702:
         if (config.modbus_channel == 1)
         {
-            modbus.begin(config.sensor[cfgIdx].address, Serial);
+            modbus.begin(config.sensor[cfgIdx].address, Serial0);
         }
         else if (config.modbus_channel == 2)
         {
@@ -899,7 +899,7 @@ bool getSensor(int cfgIdx)
     case PORT_PZEM:
         if (config.modbus_channel == 1)
         {
-            modbus.begin(config.sensor[cfgIdx].address, Serial);
+            modbus.begin(config.sensor[cfgIdx].address, Serial0);
         }
         else if (config.modbus_channel == 2)
         {

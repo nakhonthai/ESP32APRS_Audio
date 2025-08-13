@@ -11,8 +11,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#define VERSION "1.4"
-#define VERSION_BUILD 'a'
+#define VERSION "1.5"
+#define VERSION_BUILD ' '
 
 #include <Arduino.h>
 #include <AX25.h>
@@ -86,12 +86,12 @@
 
 #ifdef BOARD_HAS_PSRAM
 #define TLMLISTSIZE 100
-#define PKGLISTSIZE 20
-#define PKGTXSIZE 100
+#define PKGLISTSIZE 30
+#define PKGTXSIZE 10
 #else
 #define TLMLISTSIZE 5
 #define PKGLISTSIZE 20
-#define PKGTXSIZE 3
+#define PKGTXSIZE 5
 #endif
 
 #define LOG_NONE 0
@@ -140,6 +140,72 @@
 #elif defined(APRS_LORA_DONGLE)
 #define ST7735_LED_K_Pin 16
 #endif
+
+// APRS data type identifiers
+#define RADIOLIB_APRS_DATA_TYPE_POSITION_NO_TIME_NO_MSG "!"
+#define RADIOLIB_APRS_DATA_TYPE_GPS_RAW "$"
+#define RADIOLIB_APRS_DATA_TYPE_ITEM ")"
+#define RADIOLIB_APRS_DATA_TYPE_TEST ","
+#define RADIOLIB_APRS_DATA_TYPE_POSITION_TIME_NO_MSG "/"
+#define RADIOLIB_APRS_DATA_TYPE_MSG ":"
+#define RADIOLIB_APRS_DATA_TYPE_OBJECT ";"
+#define RADIOLIB_APRS_DATA_TYPE_STATION_CAPABILITES "<"
+#define RADIOLIB_APRS_DATA_TYPE_POSITION_NO_TIME_MSG "="
+#define RADIOLIB_APRS_DATA_TYPE_STATUS ">"
+#define RADIOLIB_APRS_DATA_TYPE_QUERY "?"
+#define RADIOLIB_APRS_DATA_TYPE_POSITION_TIME_MSG "@"
+#define RADIOLIB_APRS_DATA_TYPE_TELEMETRY "T"
+#define RADIOLIB_APRS_DATA_TYPE_MAIDENHEAD_BEACON "["
+#define RADIOLIB_APRS_DATA_TYPE_WEATHER_REPORT "_"
+#define RADIOLIB_APRS_DATA_TYPE_USER_DEFINED "{"
+#define RADIOLIB_APRS_DATA_TYPE_THIRD_PARTY "}"
+
+/*!
+  \defgroup mic_e_message_types Mic-E message types.
+  \{
+*/
+
+/*! \brief Mic-E "Off duty" message. */
+#define RADIOLIB_APRS_MIC_E_TYPE_OFF_DUTY 0b00000111
+
+/*! \brief Mic-E "En route" message. */
+#define RADIOLIB_APRS_MIC_E_TYPE_EN_ROUTE 0b00000110
+
+/*! \brief Mic-E "In service" message. */
+#define RADIOLIB_APRS_MIC_E_TYPE_IN_SERVICE 0b00000101
+
+/*! \brief Mic-E "Returning" message. */
+#define RADIOLIB_APRS_MIC_E_TYPE_RETURNING 0b00000100
+
+/*! \brief Mic-E "Commited" message. */
+#define RADIOLIB_APRS_MIC_E_TYPE_COMMITTED 0b00000011
+
+/*! \brief Mic-E special message. */
+#define RADIOLIB_APRS_MIC_E_TYPE_SPECIAL 0b00000010
+
+/*! \brief Mic-E priority message. */
+#define RADIOLIB_APRS_MIC_E_TYPE_PRIORITY 0b00000001
+
+/*! \brief Mic-E emergency message. */
+#define RADIOLIB_APRS_MIC_E_TYPE_EMERGENCY 0b00000000
+
+/*!
+  \}
+*/
+
+// magic offset applied to encode extra bits in the Mic-E destination field
+#define RADIOLIB_APRS_MIC_E_DEST_BIT_OFFSET 25
+
+// Mic-E data types
+#define RADIOLIB_APRS_MIC_E_GPS_DATA_CURRENT '`'
+#define RADIOLIB_APRS_MIC_E_GPS_DATA_OLD '\''
+
+// Mic-E telemetry flags
+#define RADIOLIB_APRS_MIC_E_TELEMETRY_LEN_2 '`'
+#define RADIOLIB_APRS_MIC_E_TELEMETRY_LEN_5 '\''
+
+// alias for unused altitude in Mic-E
+#define RADIOLIB_APRS_MIC_E_ALTITUDE_UNUSED -1000000
 
 #ifdef __cplusplus
 extern "C" {
@@ -256,7 +322,7 @@ typedef struct txQueue_struct
 	long timeStamp;
 	int Delay;
 	size_t length;
-	char Info[250];
+	char Info[350];
 } txQueueType;
 
 typedef struct txDispStruct
@@ -265,6 +331,20 @@ typedef struct txDispStruct
 	char name[12];
 	char info[50];
 } txDisp;
+
+typedef struct pppStruct
+{
+	char manufacturer[30];
+	char model[20];
+	char imei[20];
+	char oper[20];	
+	char imsi[20];
+	uint32_t ip;
+	uint32_t dns;
+	uint32_t gateway;
+	uint32_t netmask;	
+	int rssi;
+} pppType;
 
 #ifdef OLED
 const unsigned char LOGO[] PROGMEM =
@@ -315,7 +395,8 @@ const char WX_PORT[7][11] = {"NONE", "UART0_CSV", "UART1_CSV", "UART2_CSV", "MOD
 const char MODEM_TYPE[4][17] = {"AFSK_300", "AFSK_1200","AFSK_1200v23","GFSK9600(G3RUH)"};
 const char FX25_MODE[3][6] = {"NONE","RX","RX+TX"};
 const char PWR_MODE[3][10] = {"MODE A", "MODE B","MODE C"};
-const char WX_SENSOR[23][19]={"Wind Course","Wind Speed","Wind Gust","Temperature","Rain 1hr","Rain 24hr","Rain Midnight","Humidity","Barometric","Luminosity","Snow","Soil Temperature","Soil Humidity","Water Temperature","Water TDS","Water Level","PM 2.5","PM 10","Co2","CH2O","TVOC","UV","SOUND"};
+const char WX_SENSOR[26][19]={"Wind Course","Wind Speed","Wind Gust","Temperature","Rain 1hr","Rain 24hr","Rain Midnight","Humidity","Barometric","Luminosity","Snow","Soil Temperature","Soil Humidity","Water Temperature","Water TDS","Water Level","PM 2.5","PM 10","Co2","CH2O","TVOC","UV","SOUND","VBAT","IBAT","VSOLAR"};
+const char MIC_E_MSG[8][10] = {"Emergency", "Priority", "Special", "Committed", "Returning", "InService", "En Route", "Off Duty"};
 
 uint8_t checkSum(uint8_t *ptr, size_t count);
 //void saveEEPROM();
@@ -362,6 +443,10 @@ String getTimeStamp();
 void DD_DDDDDtoDDMMSS(float DD_DDDDD, int *DD, int *MM, int *SS);
 String getPath(int idx);
 void GPS_INIT();
+void gpsDisp();
+void radioDisp();
+void wifiDisp();
+void sensorDisp();
 void convertSecondsToDHMS(char *dmhs,unsigned long totalSeconds);
 
 #endif

@@ -1,0 +1,73 @@
+############################################
+# Syntax Coloring Map For NuS-NimBLE-Serial
+############################################
+
+############################################
+# Data types (KEYWORD1)
+############################################
+
+NordicUARTPacket	KEYWORD1
+NordicUARTSerial	KEYWORD1
+NordicUARTService	KEYWORD1
+NuATCommandCallback_t	KEYWORD1
+NuATCommandCallbacks	KEYWORD1
+NuATCommandParameters_t	KEYWORD1
+NuATCommandParser	KEYWORD1
+NuATCommandProcessor	KEYWORD1
+NuATCommandResult_t	KEYWORD1
+NuATErrorCallback_t	KEYWORD1
+NuATNotACommandLineCallback_t	KEYWORD1
+NuATParser	KEYWORD1
+NuATParsingResult_t	KEYWORD1
+NuATSyntaxError_t	KEYWORD1
+NuCLIParser	KEYWORD1
+NuCLIParsingResult_t	KEYWORD1
+NuCommandLine_t	KEYWORD1
+NuShellCommandProcessor	KEYWORD1
+
+############################################
+# Methods and Functions (KEYWORD2)
+############################################
+
+allowLowerCase	KEYWORD2
+available	KEYWORD2
+begin	KEYWORD2
+connect	KEYWORD2
+disconnect	KEYWORD2
+end	KEYWORD2
+execute	KEYWORD2
+forceUpperCaseCommandName	KEYWORD2
+isConnected	KEYWORD2
+maxCommandLineLength	KEYWORD2
+on	KEYWORD2
+onError	KEYWORD2
+onExecute	KEYWORD2
+onNotACommandLine	KEYWORD2
+onParseError	KEYWORD2
+onQuery	KEYWORD2
+onSet	KEYWORD2
+onTest	KEYWORD2
+onUnknown	KEYWORD2
+peek	KEYWORD2
+print	KEYWORD2
+printATResponse	KEYWORD2
+printf	KEYWORD2
+read	KEYWORD2
+readBytes	KEYWORD2
+send	KEYWORD2
+setATCallbacks	KEYWORD2
+setBufferSize	KEYWORD2
+setCallbacks	KEYWORD2
+setShellCommandCallbacks	KEYWORD2
+start	KEYWORD2
+stopOnFirstFailure	KEYWORD2
+write	KEYWORD2
+
+############################################
+# Constants (LITERAL1)
+############################################
+
+NuSerial	LITERAL1
+NuPacket	LITERAL1
+NuATCommands	LITERAL1
+NuShellCommands	LITERAL1

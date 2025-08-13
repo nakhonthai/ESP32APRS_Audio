@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #include "KISS.h"
-#include "ax25.h"
+#include "AX25.h"
 
 size_t ctxbufflen;
 size_t frame_len = 0;
@@ -11,6 +11,8 @@ uint8_t *ctxbuffer;
 
 static uint8_t serialBuffer[AX25_MAX_FRAME_LEN]; // Buffer for holding incoming serial data
 AX25Ctx testkiss;
+extern AX25Ctx AX25;
+extern void aprs_msg_callback(struct AX25Msg *msg);
 
 bool IN_FRAME;
 bool ESCAPE;
@@ -50,6 +52,35 @@ int kiss_wrapper(uint8_t *pkg, uint8_t *buf, size_t len)
     return size;
 }
 
+int kiss_wrapper(uint8_t *pkg)
+{
+    uint8_t *ptr = pkg;
+    int size = 0;
+    *ptr++ = FEND;
+    *ptr++ = 0x00;
+    for (unsigned i = 0; i < ctxbufflen; i++)
+    {
+        uint8_t b = ctxbuffer[i];
+        if (b == FEND)
+        {
+            *ptr++ = FESC;
+            *ptr++ = TFEND;
+        }
+        else if (b == FESC)
+        {
+            *ptr++ = FESC;
+            *ptr++ = TFESC;
+        }
+        else
+        {
+            *ptr++ = b;
+        }
+    }
+    *ptr++ = FEND;
+    size = ptr - pkg;
+    return size;
+}
+
 void kiss_serial(uint8_t sbyte)
 {
 
@@ -57,6 +88,11 @@ void kiss_serial(uint8_t sbyte)
     {
         IN_FRAME = false;
         Ax25WriteTxFrame(serialBuffer, frame_len);
+        log_d("[KISS] Received packet! %d Byte", frame_len);
+        // ax25_init(&AX25, aprs_msg_callback);
+        // AX25.frame_len = frame_len;
+        // memcpy(AX25.buf, serialBuffer, frame_len);
+        // ax25_decode(&AX25);
     }
     else if (sbyte == FEND)
     {
