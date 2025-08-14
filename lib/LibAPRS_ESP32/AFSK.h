@@ -355,25 +355,6 @@ typedef struct TCB { // TNC Control Block
     uint8_t data_byte;
     uint8_t data_bit_cnt;
 
-#ifdef FX25_ENABLE
-    // FX.25 variables
-    uint8_t fx25_state;
-    uint64_t fx25_tag;
-    uint8_t fx25_data[FX25_DATA_LEN];
-    int fx25_data_cnt;
-    uint8_t fx25_data_byte;
-    uint8_t fx25_data_bit_cnt;
-    fx25tag_t const *fx25_tagp;
-    // FX.25 parameter
-    uint8_t fx25_parity; // 0: AX.25, >= 2: FX.25 number of parity bytes
-    // AX.25 packet decode time
-    uint32_t decode_time;
-    // FX.25 Statistics
-    uint16_t fx25_cnt_tag;
-    uint16_t fx25_cnt_fx25;
-    uint16_t fx25_cnt_fcs_err;
-#endif
-
     // decode bit
     uint8_t pval;
     uint8_t nrzi;
@@ -452,7 +433,7 @@ void setTransmit(bool val);
 bool getReceive();
 void afskSetModem(uint8_t val, bool bpf,uint16_t timeSlot,uint16_t preamble,uint8_t fx25Mode);
 void setPtt(bool state);
-void IRAM_ATTR LED_Status(uint8_t red, uint8_t green, uint8_t blue);
+void IRAM_ATTR LED_Status2(uint8_t red, uint8_t green, uint8_t blue);
 
 
 #endif

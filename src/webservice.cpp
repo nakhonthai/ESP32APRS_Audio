@@ -39,6 +39,7 @@ AsyncEventSource lastheard_events("/eventHeard");
 
 String webString;
 
+extern unsigned long waitISRetry;
 extern int8_t adcEn;
 extern int8_t dacEn;
 extern unsigned long upTimeStamp;
@@ -227,16 +228,20 @@ void handle_css(AsyncWebServerRequest *request)
 
 void handle_jquery(AsyncWebServerRequest *request)
 {
+	#if defined(CONFIG_IDF_TARGET_ESP32)
 	adcEn=-1;
 	dacEn=-1;
 	delay(100);
+	#endif
 	AsyncWebServerResponse *response = request->beginResponse_P(200, String(F("application/javascript")), (const uint8_t *)jquery_3_7_1_min_js_gz, jquery_3_7_1_min_js_gz_len);
 	response->addHeader(String(F("Content-Encoding")), String(F("gzip")));
 	response->setContentLength(jquery_3_7_1_min_js_gz_len);
 	request->send(response);
+	#if defined(CONFIG_IDF_TARGET_ESP32)
 	delay(200);
 	adcEn=1;
 	dacEn=0;
+	#endif
 }
 
 void handle_dashboard(AsyncWebServerRequest *request)
@@ -5018,6 +5023,7 @@ void handle_igate(AsyncWebServerRequest *request)
 			}
 		}
 
+		//waitISRetry = millis() + 10000; // Retry connect 5Sec
 		config.igate_en = aprsEn;
 		config.rf2inet = rf2inetEn;
 		config.inet2rf = inet2rfEn;

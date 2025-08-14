@@ -73,6 +73,14 @@
 
 #define EEPROM_SIZE 4096
 
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)
+#ifdef __XTENSA__
+#define BOOT_PIN 9
+#else
+#define BOOT_PIN 0
+#endif
+#endif
+
 #include <Wire.h>
 #ifndef __XTENSA__
 TwoWire Wire1 = TwoWire(1);
@@ -139,9 +147,43 @@ ModbusMaster modbus;
 // #define MODEM_PWRKEY 5
 // #define MODEM_TX 17
 // #define MODEM_RX 16
+#include <Adafruit_NeoPixel.h>
+Adafruit_NeoPixel *strip=NULL;
 
+#ifdef STRIP_PIN
+#define LED_TX -1
+#define LED_RX -1
+// portMUX_TYPE ledMux = portMUX_INITIALIZER_UNLOCKED;
+void IRAM_ATTR LED_Status(uint8_t r, uint8_t g, uint8_t b)
+{
+    // portENTER_CRITICAL_ISR(&ledMux);          // ISR start
+    strip->setPixelColor(0, strip->Color(r, g, b));
+    strip->show();
+    // portEXIT_CRITICAL_ISR(&ledMux);
+}
+#else
 #define LED_TX 4
 #define LED_RX 2
+void LED_Status(uint8_t r, uint8_t g, uint8_t b)
+{
+    // portENTER_CRITICAL_ISR(&ledMux);          // ISR start
+    if (LED_TX > -1)
+    {
+        if (r > 0)
+            digitalWrite(LED_TX, HIGH);
+        else
+            digitalWrite(LED_TX, LOW);
+    }
+    if (LED_RX > -1)
+    {
+        if (g > 0)
+            digitalWrite(LED_RX, HIGH);
+        else
+            digitalWrite(LED_RX, LOW);
+    }
+    // portEXIT_CRITICAL_ISR(&ledMux);
+}
+#endif
 
 #define PPP_APN "internet"
 #define PPP_USER ""
@@ -1368,7 +1410,7 @@ void defaultConfig()
     config.modem_type = 1;
 
 #ifdef ESP32C3_MINI
-    config.wifi_power = 74;
+    //config.wifi_power = 74;
     config.rf_tx_gpio = -1;
     config.rf_rx_gpio = -1;
     config.rf_sql_gpio = -1;
@@ -3212,6 +3254,12 @@ void setup()
     //     Serial.println("Factory Default");
     //     defaultConfig();
     // }
+    #ifdef STRIP_PIN
+    strip = new Adafruit_NeoPixel(1, STRIP_PIN, NEO_GRB + NEO_KHZ800);    
+    #endif
+
+    LED_Status(255,255,255);
+
     if (!LITTLEFS.exists("/default.cfg"))
     {
         log_d("Factory Default");
@@ -3224,18 +3272,18 @@ void setup()
             defaultConfig();
     }
 
+    LED_Status(255,255,255);
+
     if (config.i2c1_enable)
     {
         Wire1.begin(config.i2c1_sda_pin, config.i2c1_sck_pin, config.i2c1_freq);
     }
 
 #ifdef OLED
-    if (config.i2c_enable)
-    {
-        i2c_busy = true;
-        Wire.begin(config.i2c_sda_pin, config.i2c_sck_pin, config.i2c_freq);
         if (config.oled_enable)
         {
+            i2c_busy = true;
+            Wire.begin(config.i2c_sda_pin, config.i2c_sck_pin, config.i2c_freq);
 // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
 // display.begin(SSD1306_SWITCHCAPVCC, 0x3C, false); // initialize with the I2C addr 0x3C (for the 128x64)
 #ifdef SH1106
@@ -3265,46 +3313,49 @@ void setup()
             display.setCursor(65, 5);
             display.print("Copy@2022");
             display.display();
-
+            LED_Status(255,0,0);
             delay(1000);
-            digitalWrite(LED_TX, HIGH);
+            //digitalWrite(LED_TX, HIGH);            
             display.fillRect(49, 49, 50, 8, 0);
             display.setCursor(70, 50);
             display.print("3 Sec");
             display.display();
+            LED_Status(0,255,0);
             delay(1000);
-            digitalWrite(LED_RX, HIGH);
+            //digitalWrite(LED_RX, HIGH);            
             display.fillRect(49, 49, 50, 8, 0);
             display.setCursor(70, 50);
             display.print("2 Sec");
             display.display();
+            LED_Status(0,0,255);
             delay(1000);
             display.fillRect(49, 49, 50, 8, 0);
             display.setCursor(70, 50);
-            display.print("1 Sec");
+            display.print("1 Sec");            
             display.display();
-            i2c_busy = false;
-            delay(1000);
+            LED_Status(0,0,0);
+            i2c_busy = false;            
         }
         else
         {
+            LED_Status(200,0,0);
             delay(1000);
-            digitalWrite(LED_TX, HIGH);
+            LED_Status(0,200,0);
             delay(1000);
-            digitalWrite(LED_RX, HIGH);
+            LED_Status(0,0,200);
             delay(1000);
         }
-    }
 #else
     if (config.i2c_enable)
     {
-        // Wire.begin(config.i2c_sda_pin, config.i2c_sck_pin, config.i2c_freq);
+        Wire.begin(config.i2c_sda_pin, config.i2c_sck_pin, config.i2c_freq);
     }
-    delay(1000);
-    digitalWrite(LED_TX, HIGH);
-    delay(1000);
-    digitalWrite(LED_RX, HIGH);
-    delay(1000);
+    LED_Status(200,0,0);
+            delay(1000);
+            LED_Status(0,200,0);
+            delay(1000);
+            LED_Status(0,0,200);
+            delay(1000);
 #endif
 
     if (digitalRead(BOOT_PIN) == LOW)
@@ -3320,15 +3371,12 @@ void setup()
         while (digitalRead(BOOT_PIN) == LOW)
         {
             delay(500);
-            digitalWrite(LED_TX, LOW);
-            digitalWrite(LED_RX, LOW);
+            LED_Status(0,0,0);
             delay(500);
-            digitalWrite(LED_TX, HIGH);
-            digitalWrite(LED_RX, HIGH);
+            LED_Status(255,255,255);
         }
     }
-    digitalWrite(LED_TX, LOW);
-    digitalWrite(LED_RX, LOW);
+    LED_Status(0,0,0);
 
     // if (config.counter0_enable)
     // {
@@ -3441,8 +3489,8 @@ void setup()
     }
     log_d("Start Task");
 #ifdef __XTENSA__
-    if (config.wifi_mode != 0)
-    {
+    //if (config.wifi_mode != 0)
+    //{
         xTaskCreatePinnedToCore(
             taskNetwork,        /* Function to implement the task */
             "taskNetwork",      /* Name of the task */
@@ -3451,35 +3499,35 @@ void setup()
             1,                  /* Priority of the task */
             &taskNetworkHandle, /* Task handle. */
             1);                 /* Core where the task should run */
-    }
+    //}
 
     xTaskCreatePinnedToCore(
         taskAPRSPoll,        /* Function to implement the task */
         "taskAPRSPoll",      /* Name of the task */
-        2048,                /* Stack size in words */
+        4096,                /* Stack size in words */
         NULL,                /* Task input parameter */
-        6,                   /* Priority of the task */
+        1,                   /* Priority of the task */
         &taskAPRSPollHandle, /* Task handle. */
         0);                  /* Core where the task should run */
 #else
-    if (config.wifi_mode != 0)
-    {
+    //if (config.wifi_mode != 0)
+    //{
         xTaskCreatePinnedToCore(
             taskNetwork,        /* Function to implement the task */
             "taskNetwork",      /* Name of the task */
             12000,              /* Stack size in words */
             NULL,               /* Task input parameter */
-            5,                  /* Priority of the task */
+            3,                  /* Priority of the task */
             &taskNetworkHandle, /* Task handle. */
             0);                 /* Core where the task should run */
-    }
+    //}
 
     xTaskCreatePinnedToCore(
         taskAPRSPoll,        /* Function to implement the task */
         "taskAPRSPoll",      /* Name of the task */
         2048,                /* Stack size in words */
         NULL,                /* Task input parameter */
-        6,                   /* Priority of the task */
+        1,                   /* Priority of the task */
         &taskAPRSPollHandle, /* Task handle. */
         0);                  /* Core where the task should run */
 #endif
@@ -3489,7 +3537,7 @@ void setup()
         "taskAPRS",      /* Name of the task */
         4096,            /* Stack size in words */
         NULL,            /* Task input parameter */
-        1,               /* Priority of the task */
+        2,               /* Priority of the task */
         &taskAPRSHandle, /* Task handle. */
         0);              /* Core where the task should run */
 
@@ -3500,7 +3548,7 @@ void setup()
             "taskGPS",      /* Name of the task */
             3072,           /* Stack size in words */
             NULL,           /* Task input parameter */
-            2,              /* Priority of the task */
+            4,              /* Priority of the task */
             &taskGPSHandle, /* Task handle. */
             0);             /* Core where the task should run */
     }
@@ -3512,7 +3560,7 @@ void setup()
             "taskSerial",      /* Name of the task */
             2048,              /* Stack size in words */
             NULL,              /* Task input parameter */
-            3,                 /* Priority of the task */
+            5,                 /* Priority of the task */
             &taskSerialHandle, /* Task handle. */
             0);                /* Core where the task should run */
     }
@@ -3534,7 +3582,7 @@ void setup()
             "taskSensor",      /* Name of the task */
             4096,              /* Stack size in words */
             NULL,              /* Task input parameter */
-            4,                 /* Priority of the task */
+            6,                 /* Priority of the task */
             &taskSensorHandle, /* Task handle. */
             0);                /* Core where the task should run */
     }
@@ -4209,14 +4257,13 @@ String igate_position(double lat, double lon, double alt, String comment)
 {
     String tnc2Raw = "";
     int lat_dd, lat_mm, lat_ss, lon_dd, lon_mm, lon_ss;
-    char strtmp[500], loc[100];
+    char loc[100];
     char lon_ew = 'E';
     char lat_ns = 'N';
     if (lat < 0)
         lat_ns = 'S';
     if (lon < 0)
         lon_ew = 'W';
-    memset(strtmp, 0, sizeof(strtmp));
     memset(loc, 0, sizeof(loc));
     DD_DDDDDtoDDMMSS(lat, &lat_dd, &lat_mm, &lat_ss);
     DD_DDDDDtoDDMMSS(lon, &lon_dd, &lon_mm, &lon_ss);
@@ -4254,11 +4301,18 @@ String igate_position(double lat, double lon, double alt, String comment)
             sprintf(loc, "!%02d%02d.%02d%c%c%03d%02d.%02d%c%c", lat_dd, lat_mm, lat_ss, lat_ns, config.igate_symbol[0], lon_dd, lon_mm, lon_ss, lon_ew, config.igate_symbol[1]);
         }
     }
-    if (config.aprs_ssid == 0)
-        sprintf(strtmp, "%s>APE32A", config.aprs_mycall);
-    else
-        sprintf(strtmp, "%s-%d>APE32A", config.aprs_mycall, config.aprs_ssid);
-    tnc2Raw = String(strtmp);
+    char *strtmp = (char *)calloc(300, sizeof(char));
+    if (strtmp)
+    {
+        memset(strtmp, 0, 300);
+        if (config.aprs_ssid == 0)
+            sprintf(strtmp, "%s>APE32A", config.aprs_mycall);
+        else
+            sprintf(strtmp, "%s-%d>APE32A", config.aprs_mycall, config.aprs_ssid);
+        tnc2Raw = String(strtmp);
+        free(strtmp);
+    }
+
     if (config.igate_path < 5)
     {
         if (config.igate_path > 0)
@@ -4280,14 +4334,13 @@ String digi_position(double lat, double lon, double alt, String comment)
 {
     String tnc2Raw = "";
     int lat_dd, lat_mm, lat_ss, lon_dd, lon_mm, lon_ss;
-    char strtmp[500], loc[100];
+    char loc[100];
     char lon_ew = 'E';
     char lat_ns = 'N';
     if (lat < 0)
         lat_ns = 'S';
     if (lon < 0)
         lon_ew = 'W';
-    memset(strtmp, 0, sizeof(strtmp));
     memset(loc, 0, sizeof(loc));
     DD_DDDDDtoDDMMSS(lat, &lat_dd, &lat_mm, &lat_ss);
     DD_DDDDDtoDDMMSS(lon, &lon_dd, &lon_mm, &lon_ss);
@@ -4306,11 +4359,18 @@ String digi_position(double lat, double lon, double alt, String comment)
     {
         sprintf(loc, "!%02d%02d.%02d%c%c%03d%02d.%02d%c%c", lat_dd, lat_mm, lat_ss, lat_ns, config.digi_symbol[0], lon_dd, lon_mm, lon_ss, lon_ew, config.digi_symbol[1]);
     }
-    if (config.digi_ssid == 0)
-        sprintf(strtmp, "%s>APE32A", config.digi_mycall);
-    else
-        sprintf(strtmp, "%s-%d>APE32A", config.digi_mycall, config.digi_ssid);
-    tnc2Raw = String(strtmp);
+    char *strtmp = (char *)calloc(300, sizeof(char));
+    if (strtmp)
+    {
+        memset(strtmp, 0, 300);
+        if (config.digi_ssid == 0)
+            sprintf(strtmp, "%s>APE32A", config.digi_mycall);
+        else
+            sprintf(strtmp, "%s-%d>APE32A", config.digi_mycall, config.digi_ssid);
+        tnc2Raw = String(strtmp);
+        free(strtmp);
+    }
+
     if (config.digi_path < 5)
     {
         if (config.digi_path > 0)
@@ -4425,14 +4485,13 @@ String wx_report(double lat, double lon, double alt, String comment)
 {
     String tnc2Raw = "";
     int lat_dd, lat_mm, lat_ss, lon_dd, lon_mm, lon_ss;
-    char strtmp[500], loc[100];
+    char loc[300];
     char lon_ew = 'E';
     char lat_ns = 'N';
     if (lat < 0)
         lat_ns = 'S';
     if (lon < 0)
         lon_ew = 'W';
-    memset(strtmp, 0, sizeof(strtmp));
     memset(loc, 0, sizeof(loc));
     DD_DDDDDtoDDMMSS(lat, &lat_dd, &lat_mm, &lat_ss);
     DD_DDDDDtoDDMMSS(lon, &lon_dd, &lon_mm, &lon_ss);
@@ -4479,11 +4538,20 @@ String wx_report(double lat, double lon, double alt, String comment)
             sprintf(loc, "!%02d%02d.%02d%c/%03d%02d.%02d%c_", lat_dd, lat_mm, lat_ss, lat_ns, lon_dd, lon_mm, lon_ss, lon_ew);
         }
     }
-    if (config.wx_ssid == 0)
-        sprintf(strtmp, "%s>APE32A", config.wx_mycall);
-    else
-        sprintf(strtmp, "%s-%d>APE32A", config.wx_mycall, config.wx_ssid);
-    tnc2Raw = String(strtmp);
+    char *strtmp = (char *)calloc(500, sizeof(char));
+    if (strtmp)
+    {
+        memset(strtmp, 0, 500);
+
+
+        if (config.wx_ssid == 0)
+            sprintf(strtmp, "%s>APE32A", config.wx_mycall);
+        else
+            sprintf(strtmp, "%s-%d>APE32A", config.wx_mycall, config.wx_ssid);
+        tnc2Raw = String(strtmp);
+        free(strtmp);
+    }
+
     if (config.wx_path < 5)
     {
         if (config.wx_path > 0)
@@ -4825,7 +4893,7 @@ void loop()
     {
         // esp_task_wdt_reset();
         timeCheck = millis() + 1000;
-        if (ESP.getFreeHeap() < 60000)
+        if (ESP.getFreeHeap() < 30000)
             esp_restart();
         // Serial.println(String(ESP.getFreeHeap()));
     }
@@ -6438,7 +6506,7 @@ void taskAPRS(void *pvParameters)
                 //                     pkgTxPush(rawP, rawData.length(), 0);
 
 #if defined OLED || defined ST7735_160x80
-                pushTxDisp(TXCH_RF, name, sts);
+                if(config.oled_enable) pushTxDisp(TXCH_RF, name, sts);
 #endif
                 //                     free(rawP);
                 //                 }
@@ -6812,7 +6880,7 @@ void taskAPRS(void *pvParameters)
 //                             memcpy(rawP, rawData.c_str(), rawData.length());
 //                             pkgTxPush(rawP, rawData.length(), 0);
 #if defined OLED || defined ST7735_160x80
-                        pushTxDisp(TXCH_RF, "TX IGATE", sts);
+                       if(config.oled_enable) pushTxDisp(TXCH_RF, "TX IGATE", sts);
 #endif
                         //                             free(rawP);
                         //                         }
@@ -7069,7 +7137,7 @@ void taskAPRS(void *pvParameters)
 //                             memcpy(rawP, rawData.c_str(), rawData.length());
 //                             pkgTxPush(rawP, rawData.length(), 0);
 #if defined OLED || defined ST7735_160x80
-                        pushTxDisp(TXCH_RF, "TX DIGI POS", sts);
+                        if(config.oled_enable) pushTxDisp(TXCH_RF, "TX DIGI POS", sts);
 #endif
                         //                             free(rawP);
                         //                         }
@@ -7141,7 +7209,7 @@ void taskAPRS(void *pvParameters)
                         // pkgTxPush(rawP, digiPkg.length(), digiDelay, RF_CHANNEL);
                         sprintf(sts, "--src call--\n%s\nDelay: %dms.", incomingPacket.src.call, digiDelay);
 #if defined OLED || defined ST7735_160x80
-                        pushTxDisp(TXCH_DIGI, "DIGI REPEAT", sts);
+                        if(config.oled_enable) pushTxDisp(TXCH_DIGI, "DIGI REPEAT", sts);
 #endif
                         // free(rawP);
                     }
@@ -7195,7 +7263,7 @@ void taskAPRS(void *pvParameters)
 //                         pkgTxPush(rawP, rawData.length(), 0);
 #ifdef OLED
                     sprintf(sts, "--src call--\n%s\nDelay: %dms.", config.wx_mycall, (config.wx_interval * 1000));
-                    pushTxDisp(TXCH_RF, "WX REPORT", sts);
+                    if(config.oled_enable) pushTxDisp(TXCH_RF, "WX REPORT", sts);
 #endif
                     //                         free(rawP);
                     //                     }
@@ -7590,8 +7658,6 @@ void taskNetwork(void *pvParameters)
         WiFi.setHostname("ESP32APRS_Audio");
         if (wifiMulti.run() == WL_CONNECTED)
         {
-            log_d("Wi-Fi CONNECTED!");
-            log_d("IP address: %s", WiFi.localIP().toString().c_str());
             NTP_Timeout = millis() + 2000;
         }
     }
@@ -7861,7 +7927,7 @@ void taskNetwork(void *pvParameters)
                                                     char sts[50];
                                                     sprintf(sts, "--SRC CALL--\n%s\n", src_call.c_str());
 #if defined OLED || defined ST7735_160x80
-                                                    pushTxDisp(TXCH_3PTY, "TX INET->RF", sts);
+                                                    if(config.oled_enable) pushTxDisp(TXCH_3PTY, "TX INET->RF", sts);
 #endif
                                                     status.inet2rf++;
                                                     igateTLM.INET2RF++;

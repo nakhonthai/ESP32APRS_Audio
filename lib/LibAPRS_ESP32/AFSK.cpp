@@ -15,7 +15,7 @@
 #include "fir_filter.h"
 
 #include "driver/sdm.h"
-#include "driver/gptimer.h"
+//#include "driver/gptimer.h"
 
 #include <hal/misc.h>
 #include <soc/syscon_struct.h>
@@ -24,8 +24,6 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "driver/sigmadelta.h"
-
-#include "driver/gptimer.h"
 
 #include "esp_dsp.h"
 #include <dsps_fir.h>
@@ -109,14 +107,14 @@ uint8_t r_old = 0, g_old = 0, b_old = 0;
 unsigned long rgbTimeout = 0;
 
 #include <Adafruit_NeoPixel.h>
-Adafruit_NeoPixel *strip;
+extern Adafruit_NeoPixel *strip;
 
 extern float markFreq;  // mark frequency
 extern float spaceFreq; // space freque
 extern float baudRate;  // baudrate
 
 /****************** Ring Buffer gen from DeepSeek *********************/
-#define BUFFER_SIZE 768
+#define BUFFER_SIZE 800
 typedef struct {
     int16_t buffer[BUFFER_SIZE]; // Buffer to store int16_t data
     int head;                    // Index for the next write
@@ -149,7 +147,7 @@ bool RingBuffer_Push(RingBuffer *rb, int16_t data) {
         return false; // Buffer is full
     }
     rb->lock = true;
-    //if(rb->head >= BUFFER_SIZE || rb->head < 0) rb->head = 0; // Check if head exceeds buffer size
+    if(rb->head >= BUFFER_SIZE || rb->head < 0) rb->head = 0; // Check if head exceeds buffer size
     rb->buffer[rb->head] = data;
     rb->head = (rb->head + 1) % BUFFER_SIZE; // Wrap around using modulo
     rb->count++;
@@ -168,7 +166,7 @@ bool RingBuffer_Pop(RingBuffer *rb, int16_t *data) {
       delay(1); // Avoid busy-waiting, adjust as needed
       if(to++ > 100) return false; // Timeout after 1 second
     }
-    //if(rb->tail >= BUFFER_SIZE || rb->tail < 0) rb->tail = 0; // Check if tail exceeds buffer size
+    if(rb->tail >= BUFFER_SIZE || rb->tail < 0) rb->tail = 0; // Check if tail exceeds buffer size
     *data = rb->buffer[rb->tail];
     rb->tail = (rb->tail + 1) % BUFFER_SIZE; // Wrap around using modulo
     rb->count--;
@@ -240,7 +238,7 @@ RingBuffer fifo; // Declare a ring buffer
 // }
 // #endif
 
-void LED_Status(uint8_t r, uint8_t g, uint8_t b)
+void LED_Status2(uint8_t r, uint8_t g, uint8_t b)
 {
   // portENTER_CRITICAL_ISR(&ledMux);          // ISR start
   if (r == r_old && g == g_old && b == b_old)
@@ -755,7 +753,7 @@ void setPtt(bool state)
       pinMode(_ptt_pin, OUTPUT_OPEN_DRAIN);
       digitalWrite(_ptt_pin, LOW);
     }
-    LED_Status(255, 0, 0);
+    LED_Status2(255, 0, 0);
   }
   else
   {
@@ -771,7 +769,7 @@ void setPtt(bool state)
       pinMode(_ptt_pin, OUTPUT_OPEN_DRAIN);
       digitalWrite(_ptt_pin, HIGH);
     }
-    LED_Status(0, 0, 0);
+    LED_Status2(0, 0, 0);
   }
 }
 
@@ -894,7 +892,7 @@ static bool s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_contin
   //BaseType_t mustYield = pdFALSE;
   //Notify that ADC continuous driver has done enough number of conversions
   //vTaskNotifyGiveFromISR(s_task_handle, &mustYield);
-  //portENTER_CRITICAL_ISR(&timerMux);
+  portENTER_CRITICAL_ISR(&timerMux);
   fifo.lock = true;
   for (uint32_t k = 0; k < edata->size; k += SOC_ADC_DIGI_RESULT_BYTES)
   {
@@ -910,14 +908,14 @@ static bool s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_contin
     adcPush = (int)p->type2.data;
 #endif
 
-    //if(fifo.head >= BUFFER_SIZE || fifo.head < 0) fifo.head = 0; // Check if head exceeds buffer size
+    if(fifo.head >= BUFFER_SIZE || fifo.head < 0) fifo.head = 0; // Check if head exceeds buffer size
     fifo.buffer[fifo.head] = adcPush;
     fifo.head = (fifo.head + 1) % BUFFER_SIZE; // Wrap around using modulo
     fifo.count++;    
 //RingBuffer_Push(&fifo, adcPush);
   }  
   fifo.lock = false;
-  //portEXIT_CRITICAL_ISR(&timerMux);
+  portEXIT_CRITICAL_ISR(&timerMux);
   // vTaskDelay(TMP102_UPDATE_CICLE_MS / portTICK_PERIOD_MS);
   //return (mustYield == pdTRUE);
   return true;
@@ -1129,6 +1127,7 @@ void AFSK_hw_init(void)
   }
   if(_led_strip_pin > -1)
   {
+    if(strip == NULL)
     strip = new Adafruit_NeoPixel(1, _led_strip_pin, NEO_GRB + NEO_KHZ800);
   }
 

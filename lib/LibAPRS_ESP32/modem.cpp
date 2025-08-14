@@ -312,11 +312,11 @@ static void setDcd(bool state)
 {
 	if (state)
 	{
-		LED_Status(0, 255, 0);
+		LED_Status2(0, 255, 0);
 	}
 	else
 	{
-		LED_Status(0, 0, 0);
+		LED_Status2(0, 0, 0);
 	}
 }
 
