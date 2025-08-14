@@ -227,10 +227,16 @@ void handle_css(AsyncWebServerRequest *request)
 
 void handle_jquery(AsyncWebServerRequest *request)
 {
+	adcEn=-1;
+	dacEn=-1;
+	delay(100);
 	AsyncWebServerResponse *response = request->beginResponse_P(200, String(F("application/javascript")), (const uint8_t *)jquery_3_7_1_min_js_gz, jquery_3_7_1_min_js_gz_len);
 	response->addHeader(String(F("Content-Encoding")), String(F("gzip")));
 	response->setContentLength(jquery_3_7_1_min_js_gz_len);
 	request->send(response);
+	delay(200);
+	adcEn=1;
+	dacEn=0;
 }
 
 void handle_dashboard(AsyncWebServerRequest *request)
@@ -543,17 +549,18 @@ void handle_symbol(AsyncWebServerRequest *request)
 		}
 	}
 
-	char *web = (char *)calloc(25000, sizeof(char));
+	char *web = (char *)calloc(22000, sizeof(char));
 	if (web)
 	{
-		memset(web, 0, 25000);
+		memset(web, 0, 22000);
 		strcat(web, "<table border=\"1\" align=\"center\">\n");
 		strcat(web, "<tr><th colspan=\"16\">Table '/'</th></tr>\n");
 		strcat(web, "<tr>\n");
+		char lnk[200];
 		for (i = 33; i < 129; i++)
 		{
-			//<td><img onclick="window.opener.setValue(113,2);" src="http://aprs.dprns.com/symbols/icons/113-2.png"></td>
-			char lnk[128];
+			memset(lnk,0,sizeof(lnk));
+			//<td><img onclick="window.opener.setValue(113,2);" src="http://aprs.dprns.com/symbols/icons/113-2.png"></td>			
 			if (sel == -1)
 				sprintf(lnk, "<td><img onclick=\"window.opener.setValue(%d,1);\" src=\"http://aprs.dprns.com/symbols/icons/%d-1.png\"></td>", i, i);
 			else
@@ -570,7 +577,7 @@ void handle_symbol(AsyncWebServerRequest *request)
 		strcat(web, "<tr>\n");
 		for (i = 33; i < 129; i++)
 		{
-			char lnk[128];
+			memset(lnk,0,sizeof(lnk));
 			if (sel == -1)
 				sprintf(lnk, "<td><img onclick=\"window.opener.setValue(%d,2);\" src=\"http://aprs.dprns.com/symbols/icons/%d-2.png\"></td>", i, i);
 			else

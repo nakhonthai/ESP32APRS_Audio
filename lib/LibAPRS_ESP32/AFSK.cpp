@@ -75,6 +75,8 @@ static const adc_unit_t unit = ADC_UNIT_1;
 void sample_dac_isr();
 bool hw_afsk_dac_isr = false;
 
+bool holdADC = false;
+
 // static filter_t bpf;
 // static filter_t lpf;
 // static filter_t hpf;
@@ -113,9 +115,8 @@ extern float markFreq;  // mark frequency
 extern float spaceFreq; // space freque
 extern float baudRate;  // baudrate
 
-
 /****************** Ring Buffer gen from DeepSeek *********************/
-#define BUFFER_SIZE 1500
+#define BUFFER_SIZE 768
 typedef struct {
     int16_t buffer[BUFFER_SIZE]; // Buffer to store int16_t data
     int head;                    // Index for the next write
@@ -148,7 +149,7 @@ bool RingBuffer_Push(RingBuffer *rb, int16_t data) {
         return false; // Buffer is full
     }
     rb->lock = true;
-    if(rb->head >= BUFFER_SIZE || rb->head < 0) rb->head = 0; // Check if head exceeds buffer size
+    //if(rb->head >= BUFFER_SIZE || rb->head < 0) rb->head = 0; // Check if head exceeds buffer size
     rb->buffer[rb->head] = data;
     rb->head = (rb->head + 1) % BUFFER_SIZE; // Wrap around using modulo
     rb->count++;
@@ -167,7 +168,7 @@ bool RingBuffer_Pop(RingBuffer *rb, int16_t *data) {
       delay(1); // Avoid busy-waiting, adjust as needed
       if(to++ > 100) return false; // Timeout after 1 second
     }
-    if(rb->tail >= BUFFER_SIZE || rb->tail < 0) rb->tail = 0; // Check if tail exceeds buffer size
+    //if(rb->tail >= BUFFER_SIZE || rb->tail < 0) rb->tail = 0; // Check if tail exceeds buffer size
     *data = rb->buffer[rb->tail];
     rb->tail = (rb->tail + 1) % BUFFER_SIZE; // Wrap around using modulo
     rb->count--;
@@ -909,7 +910,7 @@ static bool s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_contin
     adcPush = (int)p->type2.data;
 #endif
 
-    if(fifo.head >= BUFFER_SIZE || fifo.head < 0) fifo.head = 0; // Check if head exceeds buffer size
+    //if(fifo.head >= BUFFER_SIZE || fifo.head < 0) fifo.head = 0; // Check if head exceeds buffer size
     fifo.buffer[fifo.head] = adcPush;
     fifo.head = (fifo.head + 1) % BUFFER_SIZE; // Wrap around using modulo
     fifo.count++;    

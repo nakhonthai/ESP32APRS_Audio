@@ -1838,9 +1838,15 @@ void defaultConfig()
     }
 
 #ifdef OLED
+#ifdef ESP32C3_MINI
+    config.i2c_enable = true;
+    config.i2c_sda_pin = 5;
+    config.i2c_sck_pin = 6;
+#else
     config.i2c_enable = true;
     config.i2c_sda_pin = 21;
     config.i2c_sck_pin = 22;
+#endif
 #else
     config.i2c_enable = false;
     config.i2c_sda_pin = -1;
@@ -3450,9 +3456,9 @@ void setup()
     xTaskCreatePinnedToCore(
         taskAPRSPoll,        /* Function to implement the task */
         "taskAPRSPoll",      /* Name of the task */
-        4096,                /* Stack size in words */
+        2048,                /* Stack size in words */
         NULL,                /* Task input parameter */
-        2,                   /* Priority of the task */
+        6,                   /* Priority of the task */
         &taskAPRSPollHandle, /* Task handle. */
         0);                  /* Core where the task should run */
 #else
@@ -3471,9 +3477,9 @@ void setup()
     xTaskCreatePinnedToCore(
         taskAPRSPoll,        /* Function to implement the task */
         "taskAPRSPoll",      /* Name of the task */
-        4096,                /* Stack size in words */
+        2048,                /* Stack size in words */
         NULL,                /* Task input parameter */
-        4,                   /* Priority of the task */
+        6,                   /* Priority of the task */
         &taskAPRSPollHandle, /* Task handle. */
         0);                  /* Core where the task should run */
 #endif
@@ -3481,7 +3487,7 @@ void setup()
     xTaskCreatePinnedToCore(
         taskAPRS,        /* Function to implement the task */
         "taskAPRS",      /* Name of the task */
-        8192,            /* Stack size in words */
+        4096,            /* Stack size in words */
         NULL,            /* Task input parameter */
         1,               /* Priority of the task */
         &taskAPRSHandle, /* Task handle. */
@@ -3528,7 +3534,7 @@ void setup()
             "taskSensor",      /* Name of the task */
             4096,              /* Stack size in words */
             NULL,              /* Task input parameter */
-            1,                 /* Priority of the task */
+            4,                 /* Priority of the task */
             &taskSensorHandle, /* Task handle. */
             0);                /* Core where the task should run */
     }
