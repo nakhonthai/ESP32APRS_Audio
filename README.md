@@ -1,3 +1,5 @@
+# Arduino core for the ESP32, ESP32-C3, ESP32-C6 and ESP32-S3
+
 # ESP32APRS Simple Project
 
 ESP32APRS is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/Telemetry(TLM) with TNC Built in that is implemented for Espressif ESP32 processor.
@@ -12,7 +14,7 @@ ESP32APRS is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/
 * Support APRS tracker (TRACKER)
 * Support GNSS External mod select UART0-2 and TCP Client
 * Support TNC External mod select UART0-2 and Yaesu packet
-* Support APRS IGATE/DIGI/WX with fix position for move position from GNSS
+* Support APRS IGATE/DIGI/WX/Telemetry with fix position for move position from GNSS
 * Using ESP-Arduino development on Visual studio code + Platform IO
 * Support AFSK 1600/1800Hz 300bps AFSK (For HF radio)
 * Support AFSK Bell202 1200bps (For VHF/UHF radio)
@@ -25,17 +27,18 @@ ESP32APRS is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/
 * support VPN wireguard
 * support global time zone
 * support web service auth login
-* display received and transmit packet on the LED and display OLED
+* display received and transmit packet on the LED and display OLED or led color strip
 * Multiple modems: credit coding from project [vp-digi](https://github.com/sq8vps/vp-digi)
-  * 1200 Bd AFSK Bell 202 (VHF standard)
-  * 300 Bd AFSK Bell 103 (HF standard)
-  * 9600 Bd GFSK G3RUH (UHF standard)
-  * 1200 Bd AFSK V.23
+  * 1200bps AFSK Bell 202 (VHF standard)
+  * 300bps AFSK Bell 103 (HF standard)
+  * 9600bps GFSK G3RUH (UHF standard)
+  * 1200bps AFSK V.23
 * Analog-digital busy channel detection (data carrier detection)
 * AX.25 coder/decoder
 * FX.25 (AX.25 with error correction) coder/decoder, fully compatible with [Direwolf](https://github.com/wb2osz/direwolf) and [UZ7HO Soundmodem](http://uz7.ho.ua/packetradio.htm)
 
 ## Hardware screen short
+![esp32c3aprs_radio](image/ESP32C3APRS_Radio.jpg) ![esp32c3aprs_oled](image/ESP32C3APRS_OLED.jpg)
 ![esp32dr_simple](image/ESP32DR_Simple_Test.png) ![esp32dr_sa868](image/ESP32DR_SA868_2.png)
 ![esp32dr_sa868_pcb](doc/ESP32DR_SA868/ESP32DR_SA868_Block.png)
 
