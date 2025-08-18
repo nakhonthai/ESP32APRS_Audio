@@ -203,6 +203,7 @@ https://www.espressif.com/en/support/download/other-tools
 
 - ESP32TNC project by amedes [ESP32TNC](https://github.com/amedes/ESP32TNC)
 - APRS Library by markqvist [LibAPRS](https://github.com/markqvist/LibAPRS)
+- vp-digi project by sq8vps [vp-digi](https://github.com/sq8vps/vp-digi)
 
 ## HITH
 This project implement by APRS text (TNC2 Raw) only,It not support null string(0x00) in the package.
