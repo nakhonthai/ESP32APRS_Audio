@@ -1,4 +1,4 @@
-# Arduino core for the ESP32, ESP32-C3, ESP32-C6 and ESP32-S3
+## Arduino core for the ESP32, ESP32-C3, ESP32-C6 and ESP32-S3
 
 # ESP32APRS Simple Project
 
@@ -27,6 +27,8 @@ ESP32APRS is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/
 * support VPN wireguard
 * support global time zone
 * support web service auth login
+* support BLUETOOTH SPP/BLE
+* support PPPoS (PPP Over Serial GSM network)
 * display received and transmit packet on the LED and display OLED or led color strip
 * Multiple modems: credit coding from project [vp-digi](https://github.com/sq8vps/vp-digi)
   * 1200bps AFSK Bell 202 (VHF standard)
