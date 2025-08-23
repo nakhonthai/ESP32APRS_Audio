@@ -1942,6 +1942,8 @@ void defaultConfig()
     config.igate_tlm_interval = 0;
     config.wx_tlm_interval = 0;
     sprintf(config.host_name, "ESP32APRS_Audio");
+
+    config.fx25_mode = 2; //Used modem mode FX.25 RX+TX
 }
 
 unsigned long NTP_Timeout;
