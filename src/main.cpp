@@ -1465,7 +1465,7 @@ void defaultConfig()
     config.igate_lon = 100.4930;
     config.igate_alt = 0;
     config.igate_interval = 600;
-    sprintf(config.igate_symbol, "Lz");
+    sprintf(config.igate_symbol, "A&");
     memset(config.igate_object, 0, sizeof(config.igate_object));
     memset(config.igate_phg, 0, sizeof(config.igate_phg));
     config.igate_path = 8;
@@ -1491,7 +1491,7 @@ void defaultConfig()
     config.digi_delay = 0;
     config.digiFilter = FILTER_OBJECT | FILTER_ITEM | FILTER_MESSAGE | FILTER_MICE | FILTER_POSITION | FILTER_WX;
 
-    sprintf(config.digi_symbol, "L#");
+    sprintf(config.digi_symbol, "A#");
     memset(config.digi_phg, 0, sizeof(config.digi_phg));
     sprintf(config.digi_comment, "");
     sprintf(config.digi_status, "https://github.com/nakhonthai/ESP32APRS_Audio");
