@@ -10,6 +10,7 @@
 #ifdef CONFIG_IDF_TARGET_ESP32
 #include "hal/adc_hal.h"
 #include "hal/adc_hal_common.h"
+#define ADC_SAMPLE
 #endif
 //#include "cppQueue.h"
 #include "fir_filter.h"
@@ -82,6 +83,9 @@ bool holdADC = false;
 // Afsk *AFSK_modem;
 // extern Afsk modem;
 
+hw_timer_t *timer_dac = NULL;
+hw_timer_t *timer_adc = NULL;
+
 static int Vref = 950;
 
 #define FILTER_TAPS 8 // Number of taps in the FIR filter
@@ -114,7 +118,7 @@ extern float spaceFreq; // space freque
 extern float baudRate;  // baudrate
 
 /****************** Ring Buffer gen from DeepSeek *********************/
-#define BUFFER_SIZE 800
+#define BUFFER_SIZE 1600
 typedef struct {
     int16_t buffer[BUFFER_SIZE]; // Buffer to store int16_t data
     int head;                    // Index for the next write
@@ -404,6 +408,38 @@ volatile bool adc_coversion_done = false;
 adc_continuous_data_t *result = NULL;
 
 // adc_attenuation_t cfg_adc_atten = ADC_0db;
+#ifdef ADC_SAMPLE
+adc_attenuation_t cfg_adc_atten = ADC_0db;
+void afskSetADCAtten(uint8_t val)
+{
+  adc_atten = val;
+  if (adc_atten == 0)
+  {
+    cfg_adc_atten = ADC_0db;
+    Vref = 950;
+  }
+  else if (adc_atten == 1)
+  {
+    cfg_adc_atten = ADC_2_5db;
+    Vref = 1250;
+  }
+  else if (adc_atten == 2)
+  {
+    cfg_adc_atten = ADC_6db;
+    Vref = 1750;
+  }
+  else if (adc_atten == 3)
+  {
+    cfg_adc_atten = ADC_11db;
+    Vref = 2450;
+  }
+  else if (adc_atten == 4)
+  {
+    cfg_adc_atten = ADC_ATTENDB_MAX;
+    Vref = 3300;
+  }
+}
+#else
 adc_atten_t cfg_adc_atten = ADC_ATTEN_DB_0;
 void afskSetADCAtten(uint8_t val)
 {
@@ -434,6 +470,7 @@ void afskSetADCAtten(uint8_t val)
     Vref = 3300;
   }
 }
+#endif
 
 uint8_t CountOnesFromInteger(uint8_t value)
 {
@@ -613,6 +650,8 @@ void AFSK_TimerEnable(bool sts)
 
 #else
 
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+
 // static bool check_valid_data(const adc_digi_output_data_t *data);
 
 // #define GET_UNIT(x) ((x >> 3) & 0x1)
@@ -620,16 +659,25 @@ void AFSK_TimerEnable(bool sts)
 // static uint16_t adc2_chan_mask = 0;
 // static adc_channel_t channel[1] = {(adc_channel_t)ADC_CHANNEL_0};
 static const char *TAG = "--(TAG ADC DMA)--";
-#if defined(CONFIG_IDF_TARGET_ESP32)
+#if defined(ADC_SAMPLE)
 #define ADC_OUTPUT_TYPE ADC_DIGI_OUTPUT_FORMAT_TYPE1
 void IRAM_ATTR sample_adc_isr()
 {
   if (!hw_afsk_dac_isr)
   {
-    //portENTER_CRITICAL_ISR(&timerMux); // ISR start
+    fifo.lock=true;
+    digitalWrite(15,HIGH);
+    portENTER_CRITICAL_ISR(&timerMux); // ISR start
     int16_t adc=analogReadMilliVolts(adc_pins[0]);
-    RingBuffer_Push(&fifo, adc);
-    //portEXIT_CRITICAL_ISR(&timerMux); // ISR end
+
+    //RingBuffer_Push(&fifo, adc);
+    //if(fifo.head >= BUFFER_SIZE || fifo.head < 0) fifo.head = 0; // Check if head exceeds buffer size
+    fifo.buffer[fifo.head] = adc;
+    fifo.head = (fifo.head + 1) % BUFFER_SIZE; // Wrap around using modulo
+    fifo.count++;
+    portEXIT_CRITICAL_ISR(&timerMux); // ISR end
+    digitalWrite(15,LOW);
+    fifo.lock=false;
   }
 }
 #else
@@ -655,8 +703,13 @@ void AFSK_TimerEnable(bool sts)
     //   timerAlarmEnable(timer);
     if (AdcHandle != NULL)
     {
+      #ifdef ADC_SAMPLE
+      RingBuffer_IsEmpty(&fifo);
+      timerStart(timer_adc);
+      #else
       adc_continuous_start(AdcHandle);
       //HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 1);
+      #endif
     }
     adcEn = 0;
   }
@@ -665,12 +718,16 @@ void AFSK_TimerEnable(bool sts)
 
     //   timerAlarmDisable(timer);
     if (AdcHandle != NULL)
-    {      
+    {
+       #ifdef ADC_SAMPLE
+      timerStop(timer_adc);
+      #else      
       //log_d("SAR DIV=%d LEN=%d", SYSCON.saradc_ctrl.sar_clk_div, SYSCON.saradc_ctrl.sar1_patt_len);
       //HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 0);
       //SYSCON.saradc_ctrl.sar1_patt_p_clear = 1;
       adc_continuous_stop(AdcHandle);
       // adcStopFlag = true;
+      #endif
     }
     adcEn = 0;
   }
@@ -679,14 +736,10 @@ void AFSK_TimerEnable(bool sts)
 }
 #endif
 
-hw_timer_t *timer_dac = NULL;
-hw_timer_t *timer_adc = NULL;
-
 SemaphoreHandle_t xI2CSemaphore;
 
 #define DEFAULT_SEMAPHORE_TIMEOUT 10
 
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 void DAC_TimerEnable(bool sts)
 {
@@ -787,7 +840,7 @@ void afskSetModem(uint8_t val, bool bpf,uint16_t timeSlot,uint16_t preamble,uint
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     SAMPLERATE = 9600;
 #elif defined(CONFIG_IDF_TARGET_ESP32)
-    SAMPLERATE = 19200;
+    SAMPLERATE = 9600;
 #else
     SAMPLERATE = 38400;
 #endif
@@ -798,9 +851,9 @@ void afskSetModem(uint8_t val, bool bpf,uint16_t timeSlot,uint16_t preamble,uint
   {
     ModemConfig.modem = MODEM_1200;
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
-    SAMPLERATE = 9600;
+    SAMPLERATE = 19200;
 #elif defined(CONFIG_IDF_TARGET_ESP32)
-    SAMPLERATE = 28800;
+    SAMPLERATE = 9600;
 #else
     SAMPLERATE = 38400;
 #endif
@@ -811,9 +864,9 @@ void afskSetModem(uint8_t val, bool bpf,uint16_t timeSlot,uint16_t preamble,uint
   {
     ModemConfig.modem = MODEM_1200_V23;
 #if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
-    SAMPLERATE = 9600;
+    SAMPLERATE = 19200;
 #elif defined(CONFIG_IDF_TARGET_ESP32)
-    SAMPLERATE = 28800;
+    SAMPLERATE = 9600;
 #else
     SAMPLERATE = 38400;
 #endif
@@ -930,6 +983,8 @@ static bool s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_contin
 //     return (mustYield == pdTRUE);
 // }
 
+#ifndef ADC_SAMPLE
+
 void adc_continue_init(void)
 {
   adc_channel_t channel;
@@ -1013,8 +1068,7 @@ void adc_continue_init(void)
           return false;
         }
       }
-#endif
-
+#endif //I2C
 // adc_cali_line_fitting_config_t cali_config = {
 //       .unit_id = ADC_UNIT_1,
 //       .bitwidth = ADC_BITWIDTH_12,
@@ -1090,6 +1144,7 @@ void adc_continue_init(void)
   }
 }
 #endif
+#endif //I2C
 
 /*
  * Configure and initialize the sigma delta modulation
@@ -1141,7 +1196,21 @@ void AFSK_hw_init(void)
   I2S_Init(I2S_MODE_DAC_BUILT_IN, I2S_BITS_PER_SAMPLE_16BIT);
 #else
 
+#ifdef ADC_SAMPLE
+  pinMode(15,OUTPUT);
+  analogReadResolution(12);
+  analogSetAttenuation(cfg_adc_atten);
+  timer_adc = timerBegin(20000000);
+  // Attach onTimer function to our timer.
+  timerAttachInterrupt(timer_adc, &sample_adc_isr); // Attaches the handler function to the timer
+  // Set alarm to call onTimer function every second (value in microseconds).
+  // Repeat the alarm (third parameter) with unlimited count = 0 (fourth parameter).
+  timerAlarm(timer_adc, (uint64_t)20000000 / SAMPLERATE, true, 0);
+  timerStart(timer_adc);
+  
+#else
 adc_continue_init();
+#endif
 
 // Initialize FIR filter
 // resample_fir.coeffs = (float *)resample_coeffs;
@@ -1333,14 +1402,14 @@ void AFSK_Poll(bool SA818, bool RFPower)
   {                                                 // Set SQL pin active
     if ((digitalRead(_sql_pin) ^ _sql_active) == 0){ // signal active with sql_active
       sqlActive = true;
-      // if(sqlActiveOld == false){
-      //   AFSK_TimerEnable(true); // Start ADC if SQL pin is set
-      // }    
+      //  if(sqlActiveOld == false){
+      //    AFSK_TimerEnable(true); // Start ADC if SQL pin is set
+      //  }    
     } else {
       sqlActive = false;
-      // if(sqlActiveOld == true){
-      //     AFSK_TimerEnable(false); // Stop ADC if SQL pin is not set
-      // }
+      //  if(sqlActiveOld == true){
+      //      AFSK_TimerEnable(false); // Stop ADC if SQL pin is not set
+      //  }
     }
   }
   else
@@ -1521,7 +1590,7 @@ void AFSK_Poll(bool SA818, bool RFPower)
           tp->avg = tp->avg_sum / TCB_AVG_N;
 
           // carrier detect
-          adcVal = (int)adc - tp->avg;
+          adcVal = (int)adc - (int)tp->avg;
           int m = 1;
           if ((RESAMPLE_RATIO > 1) || (ModemConfig.modem == MODEM_9600))
           {
@@ -1530,7 +1599,11 @@ void AFSK_Poll(bool SA818, bool RFPower)
 
           if (x % m == 0)
           {
+            #ifdef ADC_SAMPLE
+            mV=adc;
+            #else
             adc_cali_raw_to_voltage(AdcCaliHandle, adc, &mV);
+            #endif
             mV -= offset;
             // mVsum += powl(mV, 2); // VRMS = √(1/n)(V1^2 +V2^2 + … + Vn^2)
             // mV = (adcVal * Vref) >> 12;
@@ -1538,13 +1611,17 @@ void AFSK_Poll(bool SA818, bool RFPower)
             mVsumCount++;
           }
 
-          float sample = adcVal / 2048.0f * agc_gain;
+          float sample = (float)adcVal / 2048.0f * agc_gain;
           audio_buffer[x] = sample;
         }
         //portEXIT_CRITICAL_ISR(&timerMux);
         // Update AGC gain
         update_agc(audio_buffer, BLOCK_SIZE);
+        #ifdef ADC_SAMPLE
+            offset=tp->avg;
+        #else
         adc_cali_raw_to_voltage(AdcCaliHandle, tp->avg, &offset);
+        #endif
 
         if (mVsumCount > 0)
         {
@@ -1563,7 +1640,7 @@ void AFSK_Poll(bool SA818, bool RFPower)
           }
           // Tool conversion dBv <--> Vrms at http://sengpielaudio.com/calculator-db-volt.htm
           // dBV = 20.0F * log10(Vrms);
-          // log_d("Audio dc_offset=%d mVrms=%d", offset, mVrms);
+          //log_d("Audio dc_offset=%d mVrms=%d", offset, mVrms);
         }
 
         if ((dcd_cnt > 3)||(ModemConfig.modem == MODEM_9600))
@@ -1579,7 +1656,7 @@ void AFSK_Poll(bool SA818, bool RFPower)
           for (int i = 0; i < BLOCK_SIZE / RESAMPLE_RATIO; i++)
           {
             // Convert back to 12-bit audio (0-4095)
-            sample = audio_buffer[i] * 2048;
+            sample = (int16_t)(audio_buffer[i] * 2048.0F);
             MODEM_DECODE(sample, mVrms);
           }
         }

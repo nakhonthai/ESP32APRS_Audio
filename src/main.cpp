@@ -3510,7 +3510,7 @@ void setup()
         NULL,                /* Task input parameter */
         1,                   /* Priority of the task */
         &taskAPRSPollHandle, /* Task handle. */
-        0);                  /* Core where the task should run */
+        1);                  /* Core where the task should run */
 #else
     //if (config.wifi_mode != 0)
     //{
@@ -6070,21 +6070,8 @@ void taskAPRS(void *pvParameters)
     // PacketBuffer.clean();
     adcEn = 0;
     dacEn = 0;
-    afskSetModem(config.modem_type, config.audio_lpf, config.tx_timeslot, config.preamble * 100, config.fx25_mode);
-    afskSetSQL(config.rf_sql_gpio, config.rf_sql_active);
-    afskSetPTT(config.rf_ptt_gpio, config.rf_ptt_active);
-    afskSetPWR(config.rf_pwr_gpio, config.rf_pwr_active);
-    // afskSetDCOffset(config.adc_dc_offset);
-    afskSetADCAtten(config.adc_atten);
+
     APRS_setCallsign(config.aprs_mycall, config.aprs_ssid);
-// APRS_setPath1("WIDE1-1", 1);
-// APRS_setPreamble(300);
-// APRS_setTail(0);
-#ifdef STRIP_PIN
-    AFSK_init(config.adc_gpio, config.dac_gpio, config.rf_ptt_gpio, config.rf_sql_gpio, config.rf_pwr_gpio, -1, -1, STRIP_PIN, config.rf_ptt_active, config.rf_sql_active, config.rf_pwr_active);
-#else
-    AFSK_init(config.adc_gpio, config.dac_gpio, config.rf_ptt_gpio, config.rf_sql_gpio, config.rf_pwr_gpio, 4, 2, -1, config.rf_ptt_active, config.rf_sql_active, config.rf_pwr_active);
-#endif
     sendTimer = millis() - (config.igate_interval * 1000) + 30000;
     igateTLM.TeleTimeout = millis() + 60000; // 1Min
 
@@ -7388,6 +7375,18 @@ void taskAPRS(void *pvParameters)
 
 void taskAPRSPoll(void *pvParameters)
 {
+    afskSetModem(config.modem_type, config.audio_lpf, config.tx_timeslot, config.preamble * 100, config.fx25_mode);
+    afskSetSQL(config.rf_sql_gpio, config.rf_sql_active);
+    afskSetPTT(config.rf_ptt_gpio, config.rf_ptt_active);
+    afskSetPWR(config.rf_pwr_gpio, config.rf_pwr_active);
+    // afskSetDCOffset(config.adc_dc_offset);
+    afskSetADCAtten(config.adc_atten);
+
+#ifdef STRIP_PIN
+    AFSK_init(config.adc_gpio, config.dac_gpio, config.rf_ptt_gpio, config.rf_sql_gpio, config.rf_pwr_gpio, -1, -1, STRIP_PIN, config.rf_ptt_active, config.rf_sql_active, config.rf_pwr_active);
+#else
+    AFSK_init(config.adc_gpio, config.dac_gpio, config.rf_ptt_gpio, config.rf_sql_gpio, config.rf_pwr_gpio, 4, 2, -1, config.rf_ptt_active, config.rf_sql_active, config.rf_pwr_active);
+#endif
     for (;;)
     {
         if (config.modem_type == 3)
