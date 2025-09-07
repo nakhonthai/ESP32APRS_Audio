@@ -1,8 +1,8 @@
 ## Arduino core for the ESP32, ESP32-C3, ESP32-C6 and ESP32-S3
 
-# ESP32APRS Audio Project
+# ESP32APRS Audio(Speaker/Mic) Project
 
-ESP32APRS Audio is a Internet Gateway(IGate)/Digital Repeater(DiGi)/Tracker/Weather(WX)/Telemetry(TLM) with TNC Built in that is implemented for Espressif ESP32 processor.
+ESP32APRS Audio is a Internet Gateway(IGate)/Digital Repeater(DiGi)/Tracker/Weather(WX)/Telemetry(TLM) with AFSK/GFSK TNC Built in that is implemented for Espressif ESP32 processor.
  
 
 ## Feature
@@ -71,7 +71,7 @@ ESP32DR Simple Circut is small interface board for connecting to a transceiver.
 |---|:---:|---|
 |ESP32|GPIO36|GPIO26|
 |ESP32-C3|GPIO0|GPIO1|
-|ESP32|GPIO1|GPIO2|
+|ESP32-S3|GPIO1|GPIO2|
 
 ### Schematic
 [![ESP32C3APRS](image/Schematic_ESPC3_APRS.png)](image/Schematic_ESPC3_APRS.png)
@@ -161,10 +161,10 @@ for Handheld
 ![HT-RX](image/ESP32DR_RxOnly.png)
 
 
-## ESP32IGate firmware installation (do it first time, next time via the web browser)
+## ESP32APRS_Audio firmware installation (do it first time, next time via the web browser)
 - 1.Connect the USB cable to the ESP32 Module.
-- 2.Download firmware and open the program ESP32 DOWNLOAD TOOL, set it in the firmware upload program, set the firmware to ESP32IGate_Vxx.bin, location 0x10000 and partitions.bin at 0x8000 and bootloader.bin at 0x1000 and boot.bin at 0xe000, if not loaded, connect GPIO0 cable to GND, press START button finished, press power button or reset (red) again.
-- 3.Then go to WiFi AP SSID: ESP32IGate and open a browser to the website. http://192.168.4.1 password: aprsthnetwork Can be fixed Or turn on your Wi-Fi router.
+- 2.Download firmware and open the program ESP32 DOWNLOAD TOOL, set it in the firmware upload program, set the firmware to ESP32_Vxx.bin, location 0x10000 and partitions.bin at 0x8000 and bootloader.bin at 0x1000 and boot.bin at 0xe000, if not loaded, connect GPIO0 cable to GND, press START button finished, press power button or reset (red) again.
+- 3.Then go to WiFi AP SSID: ESP32APRS_Audio and open a browser to the website. http://192.168.4.1 password: aprsthnetwork Can be fixed Or turn on your Wi-Fi router.
 - 4.Push **BOOT** button long >100ms to TX Position and >10Sec to Factory Default
 
 ![ESP32Tool](image/ESP32Tool.png)
