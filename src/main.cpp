@@ -253,11 +253,7 @@ statusType status;
 RTC_DATA_ATTR igateTLMType igateTLM;
 RTC_DATA_ATTR dataTLMType systemTLM;
 txQueueType *txQueue;
-// #ifdef BOARD_HAS_PSRAM
-// txQueueType *txQueue;
-// #else
-// RTC_DATA_ATTR txQueueType txQueue[PKGTXSIZE];
-// #endif
+
 RTC_DATA_ATTR double LastLat, LastLng;
 RTC_DATA_ATTR time_t lastTimeStamp;
 RTC_DATA_ATTR uint32_t COUNTER0_RAW;
@@ -1421,6 +1417,17 @@ void defaultConfig()
     config.rf_pd_active = 1;
     config.rf_pwr_active = 1;
     config.rf_ptt_active = 0;
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    config.rf_tx_gpio = 17;
+    config.rf_rx_gpio = 18;
+    config.rf_sql_gpio = -1;
+    config.rf_pd_gpio = 4;
+    config.rf_pwr_gpio = -1;
+    config.rf_ptt_gpio = 5;
+    config.rf_sql_active = 0;
+    config.rf_pd_active = 1;
+    config.rf_pwr_active = 1;
+    config.rf_ptt_active = 1;    
 #else
     config.rf_tx_gpio = 13;
     config.rf_rx_gpio = 14;
@@ -1783,12 +1790,18 @@ void defaultConfig()
     sprintf(config.sensor[9].parm, "Wind Speed");
     sprintf(config.sensor[9].unit, "kPh");
 
-#ifdef CORE_DEBUG_LEVEL
+// #ifdef CORE_DEBUG_LEVEL
+//     config.uart0_enable = false;
+//     config.uart0_baudrate = 115200;
+//     config.uart0_rx_gpio = 20;
+//     config.uart0_tx_gpio = 21;
+//     config.uart0_rts_gpio = -1;
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
     config.uart0_enable = false;
     config.uart0_baudrate = 115200;
-    config.uart0_rx_gpio = 20;
-    config.uart0_tx_gpio = 21;
-    config.uart0_rts_gpio = -1;
+    config.uart0_rx_gpio = 44;
+    config.uart0_tx_gpio = 43;
+    config.uart0_rts_gpio = -1;    
 #else
     config.uart0_enable = false;
     config.uart0_baudrate = 9600;
@@ -1802,6 +1815,12 @@ void defaultConfig()
     config.uart1_baudrate = 9600;
     config.uart1_rx_gpio = 21;
     config.uart1_tx_gpio = 20;
+    config.uart1_rts_gpio = -1;
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    config.uart1_enable = false;
+    config.uart1_baudrate = 9600;
+    config.uart1_rx_gpio = 18;
+    config.uart1_tx_gpio = 17;
     config.uart1_rts_gpio = -1;
 #else
     config.uart1_enable = false;
@@ -1884,6 +1903,10 @@ void defaultConfig()
     config.i2c_enable = true;
     config.i2c_sda_pin = 5;
     config.i2c_sck_pin = 6;
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+    config.i2c_enable = true;
+    config.i2c_sda_pin = 42;
+    config.i2c_sck_pin = 41;
 #else
     config.i2c_enable = true;
     config.i2c_sda_pin = 21;
@@ -2202,10 +2225,9 @@ uint16_t pkgType(const char *raw)
         type |= FILTER_QUERY;
         break;
     case ';':
-        if (body[28] == '_')
-            type |= FILTER_WX;
-        else
-            type |= FILTER_OBJECT;
+        type |= FILTER_OBJECT;
+        if (body[35] == '_')
+            type |= FILTER_WX;            
         break;
     case ')':
         type |= FILTER_ITEM;
@@ -2338,7 +2360,7 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
             body += 2;
             for (int z = 0; z < 9; z++)
             {
-                if (body[z] < 0x20 || body[z] > 0x7e)
+                if (body[z] < 0x30 || body[z] > 0x7A)
                 {
                     log_d("\tobject name has unprintable characters");
                     break; // non-printable
@@ -2459,6 +2481,7 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
     }
     psramBusy = false;
     lastHeard_Flag = true;
+    lastHeardTimeout = millis() + 1000;
     return i;
 }
 
@@ -2562,71 +2585,6 @@ bool pkgTxPush(const char *info, size_t len, int dly, uint8_t Ch)
     return true;
 }
 
-// bool pkgTxSend()
-// {
-// //   if (getReceive())
-// //     return false;
-// #ifdef BOARD_HAS_PSRAM
-//     while (psramBusy)
-//         delay(1);
-//     psramBusy = true;
-// #endif
-
-//     for (int i = 0; i < PKGTXSIZE; i++)
-//     {
-//         if (txQueue[i].Active)
-//         {
-//             int decTime = millis() - txQueue[i].timeStamp;
-//             if (decTime > txQueue[i].Delay)
-//             {
-//                 txQueue[i].Active = false;
-//                 char *info = (char *)calloc(500, sizeof(char));
-//                 if (info)
-//                 {
-//                     memset(info, 0, 500);
-//                     strcpy(info, txQueue[i].Info);
-//                     psramBusy = false;
-//                     if ((config.rf_type == RF_SR_1WV) || (config.rf_type == RF_SR_1WU) || (config.rf_type == RF_SR_1W350))
-//                     {
-//                         digitalWrite(config.rf_pwr_gpio, LOW);
-//                         if (config.rf_power ^ !config.rf_pwr_active)
-//                             pinMode(config.rf_pwr_gpio, OPEN_DRAIN);
-//                         else
-//                             pinMode(config.rf_pwr_gpio, OUTPUT);
-//                     }
-//                     else
-//                     {
-//                         digitalWrite(config.rf_pwr_gpio, config.rf_power ^ !config.rf_pwr_active); // ON RF Power H/L
-//                     }
-//                     status.txCount++;
-
-//                     APRS_setPreamble(config.preamble * 100);
-//                     APRS_sendTNC2Pkt(String(info)); // Send packet to RF
-//                     txQueue[i].Active = false;
-//                     igateTLM.TX++;
-//                     log_d("TX->RF: %s\n", info);
-//                     free(info);
-//                     for (int i = 0; i < 100; i++)
-//                     {
-//                         // if (digitalRead(config.rf_ptt_gpio) ^ config.rf_ptt_active)
-//                         if (!getTransmit())
-//                             break;
-//                         delay(50); // TOT 5sec
-//                     }
-//                     digitalWrite(config.rf_pwr_gpio, !config.rf_pwr_active); // OFF RF Power H/L
-//                     pinMode(config.rf_pwr_gpio, OUTPUT);
-//                     if (config.trk_en)
-//                     {
-//                         Sleep_Activate &= ~ACTIVATE_TRACKER;
-//                     }
-//                     return true;
-//                 }
-//             }
-//         }
-//     }
-//     psramBusy = false;
-//     return false;
-// }
 bool pkgTxSend()
 {
 //   if (getReceive())
@@ -3276,6 +3234,11 @@ void setup()
 
     LED_Status(255,255,255);
 
+    #if defined(CONFIG_IDF_TARGET_ESP32S3)
+    if((config.rf_ptt_gpio > 25) && (config.rf_ptt_gpio < 38))
+      config.rf_ptt_gpio = 5; // GPIO25-37 are flash only on ESP32S3
+    #endif
+
     if (config.i2c1_enable)
     {
         Wire1.begin(config.i2c1_sda_pin, config.i2c1_sck_pin, config.i2c1_freq);
@@ -3389,11 +3352,12 @@ void setup()
     //     pcnt_init_channel(PCNT_UNIT_1, config.counter1_gpio, config.counter1_active); // Initialize Unit 0 to pin 4
     // }
     log_d("UART config");
+    #ifdef ARDUINO_USB_MODE
+        Serial.begin(config.uart0_baudrate);
+    #endif
     if (config.uart0_enable)
-    {
-#ifndef CORE_DEBUG_LEVEL
+    {        
         Serial0.begin(config.uart0_baudrate, SERIAL_8N1, config.uart0_rx_gpio, config.uart0_tx_gpio);
-#endif
     }
     if (config.uart1_enable)
     {
@@ -3433,14 +3397,12 @@ void setup()
                 modbus.postTransmission(postTransmission);
             }
         }
-    }
+    }   
 
     log_d("RF Module config");
+    delay(10);
 
-    afskSetSQL(config.rf_sql_gpio, config.rf_sql_active);
-    afskSetPTT(config.rf_ptt_gpio, config.rf_ptt_active);
-    afskSetPWR(config.rf_pwr_gpio, config.rf_pwr_active);
-    setPtt(false);
+    
     if (config.rf_en)
         RF_MODULE(true);
     log_d("Free heap: %d", ESP.getHeapSize());
@@ -3462,6 +3424,17 @@ void setup()
     // enableCore0WDT();
     // enableCore1WDT();
     // disableCore1WDT();
+//      esp_task_wdt_config_t twdt_config = {
+//         .timeout_ms = 3000,                             // 3 seconds
+//         .idle_core_mask = (1 << portNUM_PROCESSORS) - 1, // Bitmask of all cores
+//         .trigger_panic = false,
+//     };
+//     //#if !defined(CONFIG_IDF_TARGET_ESP32C6)
+//     esp_task_wdt_init(&twdt_config); // enable panic so ESP32 restarts
+// // #else
+// //     esp_task_wdt_init(&twdt_config); // enable panic so ESP32 restarts
+// // #endif
+//     esp_task_wdt_add(NULL);
 
     oledSleepTimeout = millis() + (config.oled_timeout * 1000);
     AFSKInitAct = false;
@@ -3480,7 +3453,7 @@ void setup()
                 {
                     Serial1.println(config.gnss_at_command);
                 }
-#ifdef __XTENSA__
+#if SOC_UART_NUM > 2
                 else if (config.gnss_channel == 3)
                 {
                     Serial2.println(config.gnss_at_command);
@@ -3502,15 +3475,22 @@ void setup()
             &taskNetworkHandle, /* Task handle. */
             1);                 /* Core where the task should run */
     //}
-
     xTaskCreatePinnedToCore(
         taskAPRSPoll,        /* Function to implement the task */
         "taskAPRSPoll",      /* Name of the task */
-        4096,                /* Stack size in words */
+        2048,                /* Stack size in words */
         NULL,                /* Task input parameter */
-        1,                   /* Priority of the task */
+        0,                   /* Priority of the task */
         &taskAPRSPollHandle, /* Task handle. */
-        1);                  /* Core where the task should run */
+       1);                  /* Core where the task should run */
+    xTaskCreatePinnedToCore(
+        taskAPRS,        /* Function to implement the task */
+        "taskAPRS",      /* Name of the task */
+        4096,            /* Stack size in words */
+        NULL,            /* Task input parameter */
+        2,               /* Priority of the task */
+        &taskAPRSHandle, /* Task handle. */
+        1);              /* Core where the task should run */
 #else
     //if (config.wifi_mode != 0)
     //{
@@ -3519,7 +3499,7 @@ void setup()
             "taskNetwork",      /* Name of the task */
             12000,              /* Stack size in words */
             NULL,               /* Task input parameter */
-            3,                  /* Priority of the task */
+            1,                  /* Priority of the task */
             &taskNetworkHandle, /* Task handle. */
             0);                 /* Core where the task should run */
     //}
@@ -3529,11 +3509,10 @@ void setup()
         "taskAPRSPoll",      /* Name of the task */
         2048,                /* Stack size in words */
         NULL,                /* Task input parameter */
-        1,                   /* Priority of the task */
+        0,                   /* Priority of the task */
         &taskAPRSPollHandle, /* Task handle. */
         0);                  /* Core where the task should run */
-#endif
-    // Task 1
+    
     xTaskCreatePinnedToCore(
         taskAPRS,        /* Function to implement the task */
         "taskAPRS",      /* Name of the task */
@@ -3542,6 +3521,7 @@ void setup()
         2,               /* Priority of the task */
         &taskAPRSHandle, /* Task handle. */
         0);              /* Core where the task should run */
+#endif
 
     if (config.gnss_enable)
     {
@@ -5636,7 +5616,7 @@ void taskGPS(void *pvParameters)
                 {
                     Serial1.println(config.gnss_at_command);
                 }
-#ifdef __XTENSA__
+#if SOC_UART_NUM > 2
                 else if (config.gnss_channel == 3)
                 {
                     Serial2.println(config.gnss_at_command);
@@ -5666,7 +5646,7 @@ void taskGPS(void *pvParameters)
                     {
                         c = Serial1.read();
                     }
-#ifdef __XTENSA__
+#if SOC_UART_NUM > 2
                     else if (config.gnss_channel == 3)
                     {
                         c = Serial2.read();
@@ -5802,23 +5782,24 @@ void taskSerial(void *pvParameters)
     nmea_idx = 0;
     if (config.ext_tnc_enable)
     {
+        #ifdef ARDUINO_USB_MODE
+            Serial.setTimeout(10);
+        #endif
         if (config.ext_tnc_channel == 1)
         {
-
-#if ARDUINO_USB_CDC_ON_BOOT
             Serial0.setTimeout(10);
-#else
-            Serial.setTimeout(10);
-#endif
+
         }
         else if (config.ext_tnc_channel == 2)
         {
             Serial1.setTimeout(10);
         }
+#if SOC_UART_NUM > 2        
         else if (config.ext_tnc_channel == 3)
         {
-            // Serial2.setTimeout(10);
+            Serial2.setTimeout(10);
         }
+#endif
     }
     if (config.wx_en)
     {
@@ -5884,7 +5865,7 @@ void taskSerial(void *pvParameters)
             // }
         }
 
-        if (config.ext_tnc_enable && (config.ext_tnc_mode > 0 && config.ext_tnc_mode < 4))
+        if (config.ext_tnc_enable && (config.ext_tnc_mode > 0 && config.ext_tnc_mode < 5))
         {
             if (config.ext_tnc_mode == 1)
             { // KISS
@@ -5894,21 +5875,24 @@ void taskSerial(void *pvParameters)
                     c = -1;
                     if (config.ext_tnc_channel == 1)
                     {
-#if ARDUINO_USB_CDC_ON_BOOT
-                        c = Serial0.read();
-#else
-                        c = Serial.read();
-#endif
+                        if(Serial0.available()) c = Serial0.read();
                     }
                     else if (config.ext_tnc_channel == 2)
                     {
-                        c = Serial1.read();
+                        if(Serial1.available()) c = Serial1.read();
                     }
+                    #ifdef ARDUINO_USB_MODE
+                    else if (config.ext_tnc_channel == 4)
+                    {
+                        if(Serial.available()) c = Serial.read();
+                    }
+                    #endif
+#if SOC_UART_NUM > 2                    
                     else if (config.ext_tnc_channel == 3)
                     {
-                        // c = Serial2.read();
+                        if(Serial2.available()) c = Serial2.read();
                     }
-
+#endif
                     if (c > -1)
                         kiss_serial((uint8_t)c);
                     else
@@ -5920,21 +5904,24 @@ void taskSerial(void *pvParameters)
                 raw.clear();
                 if (config.ext_tnc_channel == 1)
                 {
-#if ARDUINO_USB_CDC_ON_BOOT
-                    raw = Serial0.readStringUntil(0x0D);
-#else
-                    raw = Serial.readStringUntil(0x0D);
-#endif
+                     if(Serial0.available()) raw = Serial0.readStringUntil(0x0D);
                 }
                 else if (config.ext_tnc_channel == 2)
                 {
-                    raw = Serial1.readStringUntil(0x0D);
+                    if(Serial1.available()) raw = Serial1.readStringUntil(0x0D);
                 }
+                #ifdef ARDUINO_USB_MODE
+                else if (config.ext_tnc_channel == 4)
+                {
+                    if(Serial.available()) raw = Serial.readStringUntil(0x0D);
+                }
+                #endif
+#if SOC_UART_NUM > 2                
                 else if (config.ext_tnc_channel == 3)
                 {
-                    // raw = Serial2.readStringUntil(0x0D);
+                    if(Serial2.available()) raw = Serial2.readStringUntil(0x0D);
                 }
-
+#endif
                 log_d("Ext TNC2RAW RX:%s", raw.c_str());
                 String src_call = raw.substring(0, raw.indexOf('>'));
                 if ((src_call != "") && (src_call.length() < 10) && (raw.length() < sizeof(rawP)))
@@ -5958,21 +5945,24 @@ void taskSerial(void *pvParameters)
                 String info = "";
                 if (config.ext_tnc_channel == 1)
                 {
-#if ARDUINO_USB_CDC_ON_BOOT
-                    info = Serial0.readString();
-#else
-                    info = Serial.readString();
-#endif
+                    if(Serial0.available()) info = Serial0.readString();
                 }
                 else if (config.ext_tnc_channel == 2)
                 {
-                    info = Serial1.readString();
+                    if(Serial1.available()) info = Serial1.readString();
                 }
+                #ifdef ARDUINO_USB_MODE
+                else if (config.ext_tnc_channel == 4)
+                {
+                    if(Serial.available()) info = Serial.readString();
+                }
+                #endif
+#if SOC_UART_NUM > 2                
                 else if (config.ext_tnc_channel == 3)
                 {
-                    // info = Serial2.readString();
+                    if(Serial2.available()) info = Serial2.readString();
                 }
-
+#endif
                 //  log_d("Ext Yaesu Packet >> %s",info.c_str());
                 int ed = info.indexOf(" [");
                 if (info != "" && ed > 10)
@@ -6066,7 +6056,7 @@ void taskAPRS(void *pvParameters)
     uint8_t fixed = 0;
     uint16_t mV = 0;
 
-    log_d("Task APRS has been start");
+    
     // PacketBuffer.clean();
     adcEn = 0;
     dacEn = 0;
@@ -6082,20 +6072,20 @@ void taskAPRS(void *pvParameters)
 
     initInterval = true;
     AFSKInitAct = true;
-
+    log_d("Task APRS has been start");
     for (;;)
     {
 
-        if (adcEn == 1)
-        {
-            AFSK_TimerEnable(true);
-            adcEn = 0;
-        }
-        else if (adcEn == -1)
-        {
-            AFSK_TimerEnable(false);
-            adcEn = 0;
-        }
+        // if (adcEn == 1)
+        // {
+        //     AFSK_TimerEnable(true);
+        //     adcEn = 0;
+        // }
+        // else if (adcEn == -1)
+        // {
+        //     AFSK_TimerEnable(false);
+        //     adcEn = 0;
+        // }
 
         if (dacEn == 1)
         {
@@ -6536,7 +6526,7 @@ void taskAPRS(void *pvParameters)
                     newDigiPkg = true;
                     if (config.ext_tnc_enable)
                     {
-                        if (config.ext_tnc_channel > 0 && config.ext_tnc_channel < 4)
+                        if (config.ext_tnc_channel > 0 && config.ext_tnc_channel < 5)
                         {
                             if (config.ext_tnc_mode == 1)
                             {
@@ -6545,40 +6535,48 @@ void taskAPRS(void *pvParameters)
                                 int sz = kiss_wrapper(pkg, buf, size);
                                 if (config.ext_tnc_channel == 1)
                                 {
-#if ARDUINO_USB_CDC_ON_BOOT
                                     Serial0.write(pkg, sz);
-#else
-                                    Serial.write(pkg, sz);
-#endif
                                 }
                                 else if (config.ext_tnc_channel == 2)
                                 {
                                     Serial1.write(pkg, sz);
                                 }
-                                else if (config.ext_tnc_channel == 3)
+                                #ifdef ARDUINO_USB_MODE
+                                else if (config.ext_tnc_channel == 4)
                                 {
                                     Serial.write(pkg, sz);
                                 }
+                                #endif
+                                #if SOC_UART_NUM > 2 
+                                else if (config.ext_tnc_channel == 3)
+                                {
+                                    Serial2.write(pkg, sz);
+                                }
+                                #endif
                             }
                             else if (config.ext_tnc_mode == 2)
                             {
                                 // TNC2
                                 if (config.ext_tnc_channel == 1)
                                 {
-#if ARDUINO_USB_CDC_ON_BOOT
                                     Serial0.println(tnc2);
-#else
-                                    Serial.println(tnc2);
-#endif
                                 }
                                 else if (config.ext_tnc_channel == 2)
                                 {
                                     Serial1.println(tnc2);
                                 }
-                                else if (config.ext_tnc_channel == 3)
+                                #ifdef ARDUINO_USB_MODE
+                                else if (config.ext_tnc_channel == 4)
                                 {
                                     Serial.println(tnc2);
                                 }
+                                #endif
+                                #if SOC_UART_NUM > 2 
+                                else if (config.ext_tnc_channel == 3)
+                                {
+                                    Serial2.println(tnc2);
+                                }
+                                #endif
                             }
                         }
                     }
@@ -7379,20 +7377,23 @@ void taskAPRSPoll(void *pvParameters)
     afskSetSQL(config.rf_sql_gpio, config.rf_sql_active);
     afskSetPTT(config.rf_ptt_gpio, config.rf_ptt_active);
     afskSetPWR(config.rf_pwr_gpio, config.rf_pwr_active);
+    
     // afskSetDCOffset(config.adc_dc_offset);
     afskSetADCAtten(config.adc_atten);
 
 #ifdef STRIP_PIN
     AFSK_init(config.adc_gpio, config.dac_gpio, config.rf_ptt_gpio, config.rf_sql_gpio, config.rf_pwr_gpio, -1, -1, STRIP_PIN, config.rf_ptt_active, config.rf_sql_active, config.rf_pwr_active);
 #else
-    AFSK_init(config.adc_gpio, config.dac_gpio, config.rf_ptt_gpio, config.rf_sql_gpio, config.rf_pwr_gpio, 4, 2, -1, config.rf_ptt_active, config.rf_sql_active, config.rf_pwr_active);
+    AFSK_init(config.adc_gpio, config.dac_gpio, config.rf_ptt_gpio, config.rf_sql_gpio, config.rf_pwr_gpio, LED_TX_PIN, LED_RX_PIN, -1, config.rf_ptt_active, config.rf_sql_active, config.rf_pwr_active);
 #endif
+    setPtt(false);
+    log_d("APRS Polling Task Start on Core %d.", xPortGetCoreID());
     for (;;)
     {
         if (config.modem_type == 3)
-            vTaskDelay(2 / portTICK_PERIOD_MS);
+            vTaskDelay(1 / portTICK_PERIOD_MS);
         else
-            vTaskDelay(5 / portTICK_PERIOD_MS);
+            vTaskDelay(3 / portTICK_PERIOD_MS);
 
         if (AFSKInitAct == true)
         {
@@ -7709,7 +7710,7 @@ void taskNetwork(void *pvParameters)
         timeNetworkOld = now;
         // wdtNetworkTimer = millis();
         // serviceHandle();
-        // esp_task_wdt_reset();
+        //esp_task_wdt_reset();
         timerNetwork = micros() - timerNetwork_old;
         vTaskDelay(10 / portTICK_PERIOD_MS);
         timerNetwork_old = micros();
@@ -7738,9 +7739,9 @@ void taskNetwork(void *pvParameters)
             {
                 if (millis() > lastHeardTimeout)
                 {
-                    lastHeardTimeout = millis() + 1000;
-                    event_lastHeard();
                     lastHeard_Flag = false;
+                    lastHeardTimeout = millis() + 1000;
+                    event_lastHeard();                    
                 }
             }
         }

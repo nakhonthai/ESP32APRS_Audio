@@ -922,7 +922,7 @@ int ParseAPRS::parse_aprs_mice(struct pbuf_t *pb, const unsigned char *body, con
 			return 0;
 		}
 
-	log_d("\tpassed dstcall format check");
+	//log_d("\tpassed dstcall format check");
 
 	/* validate information field (longitude, course, speed and
 	 * symbol table and code are checked). Not bullet proof..
@@ -971,7 +971,7 @@ int ParseAPRS::parse_aprs_mice(struct pbuf_t *pb, const unsigned char *body, con
 		return 0;
 	}
 
-	log_d("\tpassed info format check");
+	//log_d("\tpassed info format check");
 
 	/* make a local copy, we're going to modify it */
 	strncpy(dstcall, d_start, 6);
@@ -1658,7 +1658,7 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 			int len = (int)(body_end - body - 9);
 			if (len > 0)
 				parse_aprs_comment(pb, body + 9, (unsigned int)len);
-			log_d("MICE\n");
+			//log_d("MICE\n");
 			return rc;
 		}
 		return 0; // bad
@@ -1724,7 +1724,7 @@ int ParseAPRS::parse_aprs(struct pbuf_t *pb)
 			// Is it OK to declare it as position packet ?
 			rc = parse_aprs_nmea(pb, body, body_end);
 			parse_aprs_comment(pb, body + 10, (unsigned int)(body_end - body - 10));
-			log_d("\n");
+			//log_d("\n");
 			return rc;
 		}
 		return 0;

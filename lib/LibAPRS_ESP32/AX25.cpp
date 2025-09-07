@@ -19,7 +19,7 @@ along with VP-Digi.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <Arduino.h>
 #include "modem.h"
-#include "ax25.h"
+#include "AX25.h"
 #include <stdlib.h>
 #include "common.h"
 #include <stdbool.h>
@@ -686,13 +686,14 @@ void Ax25BitParse(uint8_t bit, uint8_t modem,uint16_t mV)
                                 //  int8_t peak,valley;
                                 //  uint8_t level;
                                 //  ModemGetSignalLevel(modem, &peak,&valley,&level);
-                                //  log_d("Pkt=%d SND: peak=%d valley=%d level=%d",rx->frameIdx,peak,valley,level);
+                                //log_d("Pkt=%d SND: peak=%d valley=%d level=%d",rx->frameIdx,peak,valley,level);
 
 								if(!rxFrameBufferFull) //if enough space, store the frame
 								{
 									rxFrame[rxFrameHead].start = rxBufferHead;
 									rxFrame[rxFrameHead].mVrms=mV;
 									ModemGetSignalLevel(modem, &rxFrame[rxFrameHead].peak, &rxFrame[rxFrameHead].valley, &rxFrame[rxFrameHead].level);
+									log_d("Pkt=%d SND: peak=%d valley=%d level=%d",rx->frameIdx,rxFrame[rxFrameHead].peak,rxFrame[rxFrameHead].valley,rxFrame[rxFrameHead].level);
 #ifdef ENABLE_FX25
 									rxFrame[rxFrameHead].fx25Mode = NULL;
 #endif
@@ -709,6 +710,8 @@ void Ax25BitParse(uint8_t bit, uint8_t modem,uint16_t mV)
 										rxBuffer[rxBufferHead++] = rx->frame[i];
 										rxBufferHead %= FRAME_BUFFER_SIZE;
 									}
+								}else{
+									log_w("RX frame buffer full");
 								}
 							}
 						}
@@ -1222,30 +1225,32 @@ char ax25_encode(ax25frame &frame, char *txt, int size)
             if ((j < 1) || (j > p))
                 j = p;
             convPath(&frame.header[0], &txt[p2 + 1], j - p2 - 1); // Get callsign dest
-                                                                  // if(j<p){
+
             p3 = 0;
-            for (i = j; i < size; i++)
-            { // copy path to origin
-                if (txt[i] == ':')
-                {
-                    for (; i < size; i++)
-                        txt[p3++] = 0x00;
-                    break;
-                }
-                txt[p3++] = txt[i];
-            }
-            // printf("Path:%s\r\n",txt);
-            token = strtok(txt, ",");
-            j = 0;
-            while (token != NULL)
-            {
-                ptr = token;
-                convPath(&frame.header[j + 2], ptr, strlen(ptr));
-                token = strtok(NULL, ",");
-                j++;
-                if (j > 7)
-                    break;
-            }
+			if ((j > p2) && (j < p)) { //Check PATH
+				for (i = j; i < size; i++)
+				{ // copy path to origin
+					if (txt[i] == ':')
+					{
+						for (; i < size; i++)
+							txt[p3++] = 0x00;
+						break;
+					}
+					txt[p3++] = txt[i];
+				}
+				// printf("Path:%s\r\n",txt);
+				token = strtok(txt, ",");
+				j = 0;
+				while (token != NULL)
+				{
+					ptr = token;
+					convPath(&frame.header[j + 2], ptr, strlen(ptr));
+					token = strtok(NULL, ",");
+					j++;
+					if (j > 7)
+						break;
+				}
+			}
 
             for (i = 0; i < 10; i++)
                 frame.header[i].ssid &= 0xFE; // Clear All END Path

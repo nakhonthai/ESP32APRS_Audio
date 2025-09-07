@@ -212,8 +212,8 @@ void setMainPage(AsyncWebServerRequest *request)
 	webString += "</body>\n";
 	webString += "</html>";
 	request->send(200, "text/html", webString); // send to someones browser when asked
-	//lastHeardTimeout=millis()+1500;
-	//lastHeard_Flag = true;
+	lastHeardTimeout=0;
+	lastHeard_Flag = true;
 }
 
 ////////////////////////////////////////////////////////////
@@ -403,7 +403,7 @@ void handle_dashboard(AsyncWebServerRequest *request)
 	webString += "</div>\n";
 
 	request->send(200, "text/html", webString); // send to someones browser when asked
-	lastHeardTimeout=millis()+1000;
+	lastHeardTimeout=0;
 	lastHeard_Flag = true;
 }
 
@@ -870,7 +870,7 @@ void event_lastHeard()
 
 	struct pbuf_t aprs;
 	ParseAPRS aprsParse;
-	struct tm tmstruct;
+	struct tm tmstruct,tmNow;
 
 	// adcEn=-1;
 	// dacEn=-1;
@@ -878,9 +878,11 @@ void event_lastHeard()
 
 	String html = "";
 	String line = "";
-	sort(pkgList, PKGLISTSIZE);
+	//sort(pkgList, PKGLISTSIZE);
+	time_t timeNow = time(NULL);
 
 	// log_d("Create html last heard");
+	localtime_r(&timeNow, &tmNow);
 
 	html = "<table>\n";
 	html += "<th colspan=\"7\" style=\"background-color: #070ac2;\">LAST HEARD <a href=\"/tnc2\" target=\"_tnc2\" style=\"color: yellow;font-size:8pt\">[RAW]</a></th>\n";
@@ -954,7 +956,10 @@ void event_lastHeard()
 					// time_t tm = pkg.time;
 					localtime_r(&pkg.time, &tmstruct);
 					char strTime[10];
-					sprintf(strTime, "%02d:%02d:%02d", tmstruct.tm_hour, tmstruct.tm_min, tmstruct.tm_sec);
+					if(tmNow.tm_mday==tmstruct.tm_mday)
+						sprintf(strTime, "%02d:%02d:%02d", tmstruct.tm_hour, tmstruct.tm_min, tmstruct.tm_sec);
+					else	
+						sprintf(strTime, "%02dD %02d:%02d", tmstruct.tm_mday, tmstruct.tm_hour, tmstruct.tm_min);
 					// String str = String(tmstruct.tm_hour, DEC) + ":" + String(tmstruct.tm_min, DEC) + ":" + String(tmstruct.tm_sec, DEC);
 
 					html += "<tr><td>" + String(strTime) + "</td>";
@@ -1074,12 +1079,13 @@ void event_lastHeard()
 	html += "</table>\n";
 	// log_d("HTML Length=%d Byte",html.length());
 	size_t len = html.length();
-	char *info = (char *)calloc(len, sizeof(char));
+	char *info = (char *)calloc(len+1, sizeof(char));
 	if (info)
 	{
+		memset(info,0,len+1);
 		html.toCharArray(info, len, 0);
 		html.clear();
-		lastheard_events.send(info, "lastHeard", millis(), 10000);
+		lastheard_events.send(info, "lastHeard", millis()/1000, 3000);
 		free(info);
 	}
 	// lastheard_events.send(html.c_str(), "lastHeard", millis());
@@ -3370,7 +3376,7 @@ void handle_mod(AsyncWebServerRequest *request)
 		html += "<td align=\"right\"><b>PORT:</b></td>\n";
 		html += "<td style=\"text-align: left;\">\n";
 		html += "<select name=\"channel\" id=\"channel\">\n";
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < 5; i++)
 		{
 			if (config.ext_tnc_channel == i)
 				html += "<option value=\"" + String(i) + "\" selected>" + String(TNC_PORT[i]) + " </option>\n";

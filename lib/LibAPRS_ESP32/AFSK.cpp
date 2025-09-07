@@ -12,11 +12,11 @@
 #include "hal/adc_hal_common.h"
 #define ADC_SAMPLE
 #endif
-//#include "cppQueue.h"
+// #include "cppQueue.h"
 #include "fir_filter.h"
 
 #include "driver/sdm.h"
-//#include "driver/gptimer.h"
+// #include "driver/gptimer.h"
 
 #include <hal/misc.h>
 #include <soc/syscon_struct.h>
@@ -118,72 +118,87 @@ extern float spaceFreq; // space freque
 extern float baudRate;  // baudrate
 
 /****************** Ring Buffer gen from DeepSeek *********************/
-#define BUFFER_SIZE 1600
-typedef struct {
-    int16_t buffer[BUFFER_SIZE]; // Buffer to store int16_t data
-    int head;                    // Index for the next write
-    int tail;                    // Index for the next read
-    int count;                   // Number of elements in the buffer
-    bool lock;
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+#define BUFFER_SIZE 1500
+#else
+#define BUFFER_SIZE 770
+#endif
+typedef struct
+{
+  int16_t buffer[BUFFER_SIZE]; // Buffer to store int16_t data
+  int head;                    // Index for the next write
+  int tail;                    // Index for the next read
+  int count;                   // Number of elements in the buffer
+  bool lock;
 } RingBuffer;
 
 // Initialize the ring buffer
-void RingBuffer_Init(RingBuffer *rb) {
-    rb->head = 0;
-    rb->tail = 0;
-    rb->count = 0;
-    rb->lock = false;
+void RingBuffer_Init(RingBuffer *rb)
+{
+  rb->head = 0;
+  rb->tail = 0;
+  rb->count = 0;
+  rb->lock = false;
 }
 
 // Check if the buffer is full
-bool RingBuffer_IsFull(const RingBuffer *rb) {
-    return rb->count == BUFFER_SIZE;
+bool RingBuffer_IsFull(const RingBuffer *rb)
+{
+  return rb->count == BUFFER_SIZE;
 }
 
 // Check if the buffer is empty
-bool RingBuffer_IsEmpty(const RingBuffer *rb) {
-    return rb->count == 0;
+bool RingBuffer_IsEmpty(const RingBuffer *rb)
+{
+  return rb->count == 0;
 }
 
 // Add an element to the buffer (push)
-bool RingBuffer_Push(RingBuffer *rb, int16_t data) {
-    if (RingBuffer_IsFull(rb)) {
-        return false; // Buffer is full
-    }
-    rb->lock = true;
-    if(rb->head >= BUFFER_SIZE || rb->head < 0) rb->head = 0; // Check if head exceeds buffer size
-    rb->buffer[rb->head] = data;
-    rb->head = (rb->head + 1) % BUFFER_SIZE; // Wrap around using modulo
-    rb->count++;
-    rb->lock = false;
-    return true;
+bool RingBuffer_Push(RingBuffer *rb, int16_t data)
+{
+  if (RingBuffer_IsFull(rb))
+  {
+    return false; // Buffer is full
+  }
+  rb->lock = true;
+  if (rb->head >= BUFFER_SIZE || rb->head < 0)
+    rb->head = 0; // Check if head exceeds buffer size
+  rb->buffer[rb->head] = data;
+  rb->head = (rb->head + 1) % BUFFER_SIZE; // Wrap around using modulo
+  rb->count++;
+  rb->lock = false;
+  return true;
 }
 
 // Remove an element from the buffer (pop)
-bool RingBuffer_Pop(RingBuffer *rb, int16_t *data) {
-    if (RingBuffer_IsEmpty(rb)) {
-        return false; // Buffer is empty
-    }
-    int to=0;
-    while(rb->lock) // Wait until the buffer is not locked
-    {
-      delay(1); // Avoid busy-waiting, adjust as needed
-      if(to++ > 100) return false; // Timeout after 1 second
-    }
-    if(rb->tail >= BUFFER_SIZE || rb->tail < 0) rb->tail = 0; // Check if tail exceeds buffer size
-    *data = rb->buffer[rb->tail];
-    rb->tail = (rb->tail + 1) % BUFFER_SIZE; // Wrap around using modulo
-    rb->count--;
-    return true;
+bool RingBuffer_Pop(RingBuffer *rb, int16_t *data)
+{
+  if (RingBuffer_IsEmpty(rb))
+  {
+    return false; // Buffer is empty
+  }
+  int to = 0;
+  while (rb->lock) // Wait until the buffer is not locked
+  {
+    delay(1); // Avoid busy-waiting, adjust as needed
+    if (to++ > 100)
+      return false; // Timeout after 1 second
+  }
+  if (rb->tail >= BUFFER_SIZE || rb->tail < 0)
+    rb->tail = 0; // Check if tail exceeds buffer size
+  *data = rb->buffer[rb->tail];
+  rb->tail = (rb->tail + 1) % BUFFER_SIZE; // Wrap around using modulo
+  rb->count--;
+  return true;
 }
 
 // Get the number of elements in the buffer
-int RingBuffer_Size(const RingBuffer *rb) {
-    return rb->count;
+int RingBuffer_Size(const RingBuffer *rb)
+{
+  return rb->count;
 }
 
 RingBuffer fifo; // Declare a ring buffer
-
 
 /******************************************************************** */
 
@@ -386,9 +401,11 @@ float update_agc(float *input_buffer, size_t len)
 extern AX25Ctx AX25;
 
 #ifdef CONFIG_IDF_TARGET_ESP32
-//#define I2S_INTERNAL 1
-//#include "driver/i2s.h"
+// #define I2S_INTERNAL 1
+// #include "driver/i2s.h"
 uint8_t adc_pins[] = {36, 39, 34, 35}; // some of ADC1 pins for ESP32
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+uint8_t adc_pins[] = {1, 2, 3, 4}; // ADC1 common pins for ESP32S3
 #else
 uint8_t adc_pins[] = {0, 2, 3, 4}; // ADC1 common pins for ESP32S2/S3 + ESP32C3/C6 + ESP32H2
 #endif
@@ -438,6 +455,7 @@ void afskSetADCAtten(uint8_t val)
     cfg_adc_atten = ADC_ATTENDB_MAX;
     Vref = 3300;
   }
+  analogSetPinAttenuation(adc_pins[0], cfg_adc_atten);
 }
 #else
 adc_atten_t cfg_adc_atten = ADC_ATTEN_DB_0;
@@ -643,7 +661,7 @@ void AFSK_TimerEnable(bool sts)
   }
   else
   {
-    i2s_adc_disable(I2S_NUM_0);    
+    i2s_adc_disable(I2S_NUM_0);
     adcEn = 0;
   }
 }
@@ -665,19 +683,19 @@ void IRAM_ATTR sample_adc_isr()
 {
   if (!hw_afsk_dac_isr)
   {
-    fifo.lock=true;
-    digitalWrite(15,HIGH);
+    fifo.lock = true;
+    // digitalWrite(15,HIGH);
     portENTER_CRITICAL_ISR(&timerMux); // ISR start
-    int16_t adc=analogReadMilliVolts(adc_pins[0]);
+    int16_t adc = analogReadMilliVolts(adc_pins[0]);
 
-    //RingBuffer_Push(&fifo, adc);
-    //if(fifo.head >= BUFFER_SIZE || fifo.head < 0) fifo.head = 0; // Check if head exceeds buffer size
+    // RingBuffer_Push(&fifo, adc);
+    // if(fifo.head >= BUFFER_SIZE || fifo.head < 0) fifo.head = 0; // Check if head exceeds buffer size
     fifo.buffer[fifo.head] = adc;
     fifo.head = (fifo.head + 1) % BUFFER_SIZE; // Wrap around using modulo
     fifo.count++;
     portEXIT_CRITICAL_ISR(&timerMux); // ISR end
-    digitalWrite(15,LOW);
-    fifo.lock=false;
+    // digitalWrite(15,LOW);
+    fifo.lock = false;
   }
 }
 #else
@@ -689,46 +707,44 @@ void IRAM_ATTR sample_adc_isr()
 
 // hw_timer_t *timer = NULL;
 
-
-
 bool adcStopFlag = false;
 void AFSK_TimerEnable(bool sts)
 {
   // if (xSemaphoreTake(xI2CSemaphore, (TickType_t)DEFAULT_SEMAPHORE_TIMEOUT) == pdTRUE)
   // {
   // vTaskSuspendAll ();
-  //adcq.flush();
+  // adcq.flush();
   if (sts == true)
   {
+#ifdef ADC_SAMPLE
+    RingBuffer_IsEmpty(&fifo);
+    timerStart(timer_adc);
+#else
     //   timerAlarmEnable(timer);
     if (AdcHandle != NULL)
     {
-      #ifdef ADC_SAMPLE
-      RingBuffer_IsEmpty(&fifo);
-      timerStart(timer_adc);
-      #else
+
       adc_continuous_start(AdcHandle);
-      //HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 1);
-      #endif
+      // HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 1);
     }
+#endif
     adcEn = 0;
   }
   else
   {
-
+#ifdef ADC_SAMPLE
+    timerStop(timer_adc);
+#else
     //   timerAlarmDisable(timer);
     if (AdcHandle != NULL)
     {
-       #ifdef ADC_SAMPLE
-      timerStop(timer_adc);
-      #else      
-      //log_d("SAR DIV=%d LEN=%d", SYSCON.saradc_ctrl.sar_clk_div, SYSCON.saradc_ctrl.sar1_patt_len);
-      //HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 0);
-      //SYSCON.saradc_ctrl.sar1_patt_p_clear = 1;
+      // log_d("SAR DIV=%d LEN=%d", SYSCON.saradc_ctrl.sar_clk_div, SYSCON.saradc_ctrl.sar1_patt_len);
+      // HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 0);
+      // SYSCON.saradc_ctrl.sar1_patt_p_clear = 1;
       adc_continuous_stop(AdcHandle);
       // adcStopFlag = true;
-      #endif
     }
+#endif
     adcEn = 0;
   }
   // xTaskResumeAll ();
@@ -739,7 +755,6 @@ void AFSK_TimerEnable(bool sts)
 SemaphoreHandle_t xI2CSemaphore;
 
 #define DEFAULT_SEMAPHORE_TIMEOUT 10
-
 
 void DAC_TimerEnable(bool sts)
 {
@@ -777,11 +792,11 @@ void setTransmit(bool val)
 
 bool getReceive()
 {
-  bool ret = false;
+  bool ret = true;
   if ((digitalRead(_ptt_pin) ^ _ptt_active) == 0) // signal active with ptt_active
     return false;                                 // PTT Protection receive
-  if (digitalRead(LED_RX_PIN))                    // Check RX LED receiving.
-    ret = true;
+  //if (digitalRead(LED_RX_PIN))                    // Check RX LED receiving.
+  //  ret = true;
   return ret;
 }
 
@@ -791,11 +806,17 @@ bool getReceive()
  */
 void setPtt(bool state)
 {
+  log_d("PTT Pin: %d, Active: %d, State: %d", _ptt_pin, _ptt_active, state);
   if (state)
   {
     setTransmit(true);
+    #if defined(CONFIG_IDF_TARGET_ESP32S3)
+    if((_ptt_pin > 25) && (_ptt_pin < 38))
+      _ptt_pin = 5; // GPIO25-37 are flash only on ESP32S3
+    #else
     if (_ptt_pin > 34)
-      _ptt_pin = 32;
+      _ptt_pin = 32; // GPIO34 is the max pin for ESP32/ESP32S2
+    #endif
     if (_ptt_active)
     {
       pinMode(_ptt_pin, OUTPUT);
@@ -806,12 +827,12 @@ void setPtt(bool state)
       pinMode(_ptt_pin, OUTPUT_OPEN_DRAIN);
       digitalWrite(_ptt_pin, LOW);
     }
-    LED_Status2(255, 0, 0);
+    //LED_Status2(255, 0, 0);
   }
   else
   {
     setTransmit(false);
-    //adcq.flush();
+    // adcq.flush();
     if (_ptt_active)
     {
       pinMode(_ptt_pin, OUTPUT);
@@ -822,12 +843,12 @@ void setPtt(bool state)
       pinMode(_ptt_pin, OUTPUT_OPEN_DRAIN);
       digitalWrite(_ptt_pin, HIGH);
     }
-    LED_Status2(0, 0, 0);
+    //LED_Status2(0, 0, 0);
   }
 }
 
 uint8_t modem_config = 0;
-void afskSetModem(uint8_t val, bool bpf,uint16_t timeSlot,uint16_t preamble,uint8_t fx25Mode)
+void afskSetModem(uint8_t val, bool bpf, uint16_t timeSlot, uint16_t preamble, uint8_t fx25Mode)
 {
   if (bpf)
     ModemConfig.flatAudioIn = 1;
@@ -837,38 +858,45 @@ void afskSetModem(uint8_t val, bool bpf,uint16_t timeSlot,uint16_t preamble,uint
   if (val == 0)
   {
     ModemConfig.modem = MODEM_300;
-#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+#if defined(ADC_SAMPLE)
     SAMPLERATE = 9600;
-#elif defined(CONFIG_IDF_TARGET_ESP32)
+    BLOCK_SIZE = (SAMPLERATE / 25);
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
     SAMPLERATE = 9600;
+    BLOCK_SIZE = (SAMPLERATE / 25);
 #else
-    SAMPLERATE = 38400;
+    SAMPLERATE = 19200;
+    BLOCK_SIZE = (SAMPLERATE / 50);
 #endif
-    BLOCK_SIZE = (SAMPLERATE / 50); // Must be multiple of resample ratio
     RESAMPLE_RATIO = (SAMPLERATE / 9600);
   }
   else if (val == 1)
   {
     ModemConfig.modem = MODEM_1200;
-#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
-    SAMPLERATE = 19200;
-#elif defined(CONFIG_IDF_TARGET_ESP32)
+#if defined(ADC_SAMPLE)
     SAMPLERATE = 9600;
+    BLOCK_SIZE = (SAMPLERATE / 25);
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+    SAMPLERATE = 19200;
+    BLOCK_SIZE = (SAMPLERATE / 50);
 #else
-    SAMPLERATE = 38400;
+    SAMPLERATE = 28800;
+    BLOCK_SIZE = (SAMPLERATE / 50);
 #endif
-    BLOCK_SIZE = (SAMPLERATE / 50); // Must be multiple of resample ratio
     RESAMPLE_RATIO = (SAMPLERATE / 9600);
   }
   else if (val == 2)
   {
     ModemConfig.modem = MODEM_1200_V23;
-#if defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
-    SAMPLERATE = 19200;
-#elif defined(CONFIG_IDF_TARGET_ESP32)
+#if defined(ADC_SAMPLE)
     SAMPLERATE = 9600;
+    BLOCK_SIZE = (SAMPLERATE / 25);    
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C6)
+    SAMPLERATE = 19200;
+    BLOCK_SIZE = (SAMPLERATE / 50);
 #else
-    SAMPLERATE = 38400;
+    SAMPLERATE = 28800;
+    BLOCK_SIZE = (SAMPLERATE / 50);
 #endif
     BLOCK_SIZE = (SAMPLERATE / 50); // Must be multiple of resample ratio
     RESAMPLE_RATIO = (SAMPLERATE / 9600);
@@ -895,7 +923,8 @@ void afskSetModem(uint8_t val, bool bpf,uint16_t timeSlot,uint16_t preamble,uint
   ModemConfig.usePWM = 1;
   ModemInit();
   Ax25Init(fx25Mode);
-  if(fx25Mode>0) Fx25Init();
+  if (fx25Mode > 0)
+    Fx25Init();
   Ax25TimeSlot(timeSlot);
   Ax25TxDelay(preamble);
 }
@@ -924,8 +953,8 @@ void afskSetPWR(int8_t val, bool act)
   _pwr_active = act;
 }
 
-//uint32_t ret_num;
-//uint8_t *resultADC;
+// uint32_t ret_num;
+// uint8_t *resultADC;
 
 typedef struct
 {
@@ -934,18 +963,18 @@ typedef struct
 } interrupt_config_t;
 
 // portMUX_TYPE DRAM_ATTR timerMux = portMUX_INITIALIZER_UNLOCKED;
-volatile SemaphoreHandle_t timerSemaphore;
+//volatile SemaphoreHandle_t timerSemaphore;
 
 #ifndef I2S_INTERNAL
 int16_t adcPush;
-//static TaskHandle_t s_task_handle;
-// adc_oneshot_unit_handle_t adc1_handle;
+// static TaskHandle_t s_task_handle;
+//  adc_oneshot_unit_handle_t adc1_handle;
 static bool s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_continuous_evt_data_t *edata, void *user_data)
 {
-  //BaseType_t mustYield = pdFALSE;
-  //Notify that ADC continuous driver has done enough number of conversions
-  //vTaskNotifyGiveFromISR(s_task_handle, &mustYield);
-  portENTER_CRITICAL_ISR(&timerMux);
+  // BaseType_t mustYield = pdFALSE;
+  // Notify that ADC continuous driver has done enough number of conversions
+  // vTaskNotifyGiveFromISR(s_task_handle, &mustYield);
+  //portENTER_CRITICAL_ISR(&timerMux);
   fifo.lock = true;
   for (uint32_t k = 0; k < edata->size; k += SOC_ADC_DIGI_RESULT_BYTES)
   {
@@ -961,16 +990,18 @@ static bool s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_contin
     adcPush = (int)p->type2.data;
 #endif
 
-    if(fifo.head >= BUFFER_SIZE || fifo.head < 0) fifo.head = 0; // Check if head exceeds buffer size
+    if (fifo.head >= BUFFER_SIZE || fifo.head < 0)
+      RingBuffer_Init(&fifo); // Check if head exceeds buffer size
+      //fifo.head = 0; // Check if head exceeds buffer size
     fifo.buffer[fifo.head] = adcPush;
     fifo.head = (fifo.head + 1) % BUFFER_SIZE; // Wrap around using modulo
-    fifo.count++;    
-//RingBuffer_Push(&fifo, adcPush);
-  }  
+    fifo.count++;
+    // RingBuffer_Push(&fifo, adcPush);
+  }
   fifo.lock = false;
-  portEXIT_CRITICAL_ISR(&timerMux);
+  //portEXIT_CRITICAL_ISR(&timerMux);
   // vTaskDelay(TMP102_UPDATE_CICLE_MS / portTICK_PERIOD_MS);
-  //return (mustYield == pdTRUE);
+  // return (mustYield == pdTRUE);
   return true;
 }
 // static TaskHandle_t s_task_handle;
@@ -1006,9 +1037,9 @@ void adc_continue_init(void)
       .max_store_buf_size = (uint32_t)conv_frame_size * 2,
       .conv_frame_size = (uint32_t)conv_frame_size,
   };
-  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0)
-  AdcHandleConfig.flags.flush_pool  = true;
-  #endif  
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0)
+  AdcHandleConfig.flags.flush_pool = true;
+#endif
   Err = adc_continuous_new_handle(&AdcHandleConfig, &AdcHandle);
   if (Err != ESP_OK)
     log_d("AdMeasure : Adc Continuous Init Failed.");
@@ -1068,7 +1099,7 @@ void adc_continue_init(void)
           return false;
         }
       }
-#endif //I2C
+#endif // I2C
 // adc_cali_line_fitting_config_t cali_config = {
 //       .unit_id = ADC_UNIT_1,
 //       .bitwidth = ADC_BITWIDTH_12,
@@ -1118,24 +1149,24 @@ void adc_continue_init(void)
       log_d("Creating ADC_UNIT_%d cerve cali handle", 1);
 //
 #endif
- 
-      //s_task_handle = xTaskGetCurrentTaskHandle();
+
+      // s_task_handle = xTaskGetCurrentTaskHandle();
 
       if (Err != ESP_OK)
         ESP_LOGI(TAG, "=====> AdMeasure : Fail to create the Curve Fitting Scheme.");
       else
       {
-        //if(_sql_pin < 0){
-          /* On démarre l'ADC : */
-          // SYSCON.saradc_ctrl2.meas_num_limit = 0;
-          adc_continuous_start(AdcHandle);
-          // adc_continuous_stop(AdcHandle);
-          // SYSCON.saradc_ctrl2.meas_num_limit = 0;
-          // HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 0);
-          log_d("ADC Continuous has been start");
-          adcStopFlag = false;
+        // if(_sql_pin < 0){
+        /* On démarre l'ADC : */
+        // SYSCON.saradc_ctrl2.meas_num_limit = 0;
+        adc_continuous_start(AdcHandle);
+        // adc_continuous_stop(AdcHandle);
+        // SYSCON.saradc_ctrl2.meas_num_limit = 0;
+        // HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 0);
+        log_d("ADC Continuous has been start");
+        adcStopFlag = false;
 
-                 // }else{
+        // }else{
         //   adc_continuous_stop(AdcHandle);
         //   adcStopFlag = true; // Stop ADC if SQL pin is set
         // }
@@ -1144,7 +1175,7 @@ void adc_continue_init(void)
   }
 }
 #endif
-#endif //I2C
+#endif // I2C
 
 /*
  * Configure and initialize the sigma delta modulation
@@ -1156,11 +1187,13 @@ static void sigmadelta_init(void)
       .channel = SIGMADELTA_CHANNEL_0,
       .sigmadelta_duty = 127,
       .sigmadelta_prescale = 96,
-      #ifdef CONFIG_IDF_TARGET_ESP32C3
+#ifdef CONFIG_IDF_TARGET_ESP32C3
       .sigmadelta_gpio = GPIO_NUM_1, // GPIO1 is used for ESP32C3
-      #else 
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+      .sigmadelta_gpio = GPIO_NUM_2, // GPIO2 is used for ESP32S3
+#else
       .sigmadelta_gpio = GPIO_NUM_26,
-      #endif
+#endif
   };
   sigmadelta_config(&sigmadelta_cfg);
 }
@@ -1180,16 +1213,16 @@ void AFSK_hw_init(void)
   {
     pinMode(_led_rx_pin, OUTPUT);
   }
-  if(_led_strip_pin > -1)
+  if (_led_strip_pin > -1)
   {
-    if(strip == NULL)
-    strip = new Adafruit_NeoPixel(1, _led_strip_pin, NEO_GRB + NEO_KHZ800);
+    if (strip == NULL)
+      strip = new Adafruit_NeoPixel(1, _led_strip_pin, NEO_GRB + NEO_KHZ800);
   }
 
   if (_pwr_pin > -1)
     digitalWrite(_pwr_pin, !_pwr_active);
 
-    RingBuffer_Init(&fifo);
+  RingBuffer_Init(&fifo);
 
 #ifdef I2S_INTERNAL
   //  Initialize the I2S peripheral
@@ -1197,9 +1230,9 @@ void AFSK_hw_init(void)
 #else
 
 #ifdef ADC_SAMPLE
-  pinMode(15,OUTPUT);
+  pinMode(15, OUTPUT);
   analogReadResolution(12);
-  analogSetAttenuation(cfg_adc_atten);
+  analogSetPinAttenuation(adc_pins[0], cfg_adc_atten);
   timer_adc = timerBegin(20000000);
   // Attach onTimer function to our timer.
   timerAttachInterrupt(timer_adc, &sample_adc_isr); // Attaches the handler function to the timer
@@ -1207,9 +1240,9 @@ void AFSK_hw_init(void)
   // Repeat the alarm (third parameter) with unlimited count = 0 (fourth parameter).
   timerAlarm(timer_adc, (uint64_t)20000000 / SAMPLERATE, true, 0);
   timerStart(timer_adc);
-  
+
 #else
-adc_continue_init();
+  adc_continue_init();
 #endif
 
 // Initialize FIR filter
@@ -1231,9 +1264,9 @@ adc_continue_init();
 #endif
 
   sigmadelta_init();
-
+  log_d("Sigma Delta Initialized");
   // Create semaphore to inform us when the timer has fired
-  timerSemaphore = xSemaphoreCreateBinary();
+  //timerSemaphore = xSemaphoreCreateBinary();
   // Set timer frequency to 20Mhz
   timer_dac = timerBegin(20000000);
   // Attach onTimer function to our timer.
@@ -1242,7 +1275,6 @@ adc_continue_init();
   // Repeat the alarm (third parameter) with unlimited count = 0 (fourth parameter).
   timerAlarm(timer_dac, (uint64_t)20000000 / CONFIG_AFSK_DAC_SAMPLERATE, true, 0);
   timerStop(timer_dac);
-
 
   //   ESP_LOGI(TAG, "Create timer handle");
   //   gptimer_handle_t gptimer = NULL;
@@ -1276,9 +1308,10 @@ adc_continue_init();
   // }
 
   setTransmit(false);
+  log_d("AFSK Hardware Initialized");
 }
 
-void AFSK_init(int8_t adc_pin, int8_t dac_pin, int8_t ptt_pin, int8_t sql_pin, int8_t pwr_pin, int8_t led_tx_pin, int8_t led_rx_pin, int8_t led_strip_pin,bool ptt_act,bool sql_act,bool pwr_act)
+void AFSK_init(int8_t adc_pin, int8_t dac_pin, int8_t ptt_pin, int8_t sql_pin, int8_t pwr_pin, int8_t led_tx_pin, int8_t led_rx_pin, int8_t led_strip_pin, bool ptt_act, bool sql_act, bool pwr_act)
 {
   _adc_pin = adc_pin;
   _dac_pin = dac_pin;
@@ -1310,8 +1343,8 @@ void AFSK_init(int8_t adc_pin, int8_t dac_pin, int8_t ptt_pin, int8_t sql_pin, i
   tp->cdt_led_pin = 2;
   tp->cdt_led_on = 2;
   log_d("cdt_led_pin = %d, cdt_led_on = %d, port = %d", tp->cdt_led_pin, tp->cdt_led_on, tp->port);
-  // tp->ptt_pin = 12;
-  #ifdef FX25TNCR2
+// tp->ptt_pin = 12;
+#ifdef FX25TNCR2
   tp->sta_led_pin = STA_LED_PIN[i];
 #endif
 
@@ -1382,8 +1415,8 @@ int mVsumCount = 0;
 uint8_t dcd_cnt = 0;
 bool sqlActiveOld = false;
 #define READ_LEN 256
-//uint32_t ret_num = 0;
-//uint8_t resultADC[READ_LEN] = {0};
+// uint32_t ret_num = 0;
+// uint8_t resultADC[READ_LEN] = {0};
 
 void AFSK_Poll(bool SA818, bool RFPower)
 {
@@ -1399,17 +1432,27 @@ void AFSK_Poll(bool SA818, bool RFPower)
 #endif
 
   if (_sql_pin > -1)
-  {                                                 // Set SQL pin active
-    if ((digitalRead(_sql_pin) ^ _sql_active) == 0){ // signal active with sql_active
+  { // Set SQL pin active
+    if ((digitalRead(_sql_pin) ^ _sql_active) == 0)
+    { // signal active with sql_active
       sqlActive = true;
-      //  if(sqlActiveOld == false){
-      //    AFSK_TimerEnable(true); // Start ADC if SQL pin is set
-      //  }    
-    } else {
+#if defined(ADC_SAMPLE)
+      if (sqlActiveOld == false)
+      {
+        AFSK_TimerEnable(true); // Start ADC if SQL pin is set
+      }
+#endif
+    }
+    else
+    {
       sqlActive = false;
-      //  if(sqlActiveOld == true){
-      //      AFSK_TimerEnable(false); // Stop ADC if SQL pin is not set
-      //  }
+      if (sqlActiveOld == true)
+      {
+        #if defined(ADC_SAMPLE)
+        AFSK_TimerEnable(false); // Stop ADC if SQL pin is not set
+        #endif
+        LED_Status2(0, 0, 0);
+      }
     }
   }
   else
@@ -1518,7 +1561,7 @@ void AFSK_Poll(bool SA818, bool RFPower)
   }
   else
   {
-    
+
     if (audio_buffer != NULL)
     {
       tcb_t *tp = &tcb;
@@ -1541,48 +1584,48 @@ void AFSK_Poll(bool SA818, bool RFPower)
           adc = (int)pcm_in[i];
           x++;
 #else
-// ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-// size_t resNum = BLOCK_SIZE * SOC_ADC_DIGI_RESULT_BYTES;
-//       uint8_t *resultADC = (uint8_t *)malloc(resNum);
-//       if(resultADC){
-//        esp_err_t ret = adc_continuous_read(AdcHandle, resultADC, resNum, &ret_num, 0);
-//             if (ret == ESP_OK) {
-//                 for (int i = 0; i < ret_num; i += SOC_ADC_DIGI_RESULT_BYTES) {
-//                   adc_digi_output_data_t *p = (adc_digi_output_data_t*)&resultADC[i];
-//                   #if defined(CONFIG_IDF_TARGET_ESP32)
-//                       if (p->type1.channel > 0)
-//                         continue;
-//                       adcPush = (int16_t)p->type1.data;
-//                   #else
-//                       if ((p->type2.channel > 0) || (p->type2.unit > 0))
-//                         continue;
-//                       adcPush = (int)p->type2.data;
-//                   #endif
-//                   RingBuffer_Push(&fifo, adcPush);
-//                 }
-//               }
-//               free(resultADC);
-//       }
-      //while (adcq.getCount() >= BLOCK_SIZE)
-      while(RingBuffer_Size(&fifo) >= BLOCK_SIZE)
+      // ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+      // size_t resNum = BLOCK_SIZE * SOC_ADC_DIGI_RESULT_BYTES;
+      //       uint8_t *resultADC = (uint8_t *)malloc(resNum);
+      //       if(resultADC){
+      //        esp_err_t ret = adc_continuous_read(AdcHandle, resultADC, resNum, &ret_num, 0);
+      //             if (ret == ESP_OK) {
+      //                 for (int i = 0; i < ret_num; i += SOC_ADC_DIGI_RESULT_BYTES) {
+      //                   adc_digi_output_data_t *p = (adc_digi_output_data_t*)&resultADC[i];
+      //                   #if defined(CONFIG_IDF_TARGET_ESP32)
+      //                       if (p->type1.channel > 0)
+      //                         continue;
+      //                       adcPush = (int16_t)p->type1.data;
+      //                   #else
+      //                       if ((p->type2.channel > 0) || (p->type2.unit > 0))
+      //                         continue;
+      //                       adcPush = (int)p->type2.data;
+      //                   #endif
+      //                   RingBuffer_Push(&fifo, adcPush);
+      //                 }
+      //               }
+      //               free(resultADC);
+      //       }
+      // while (adcq.getCount() >= BLOCK_SIZE)
+      while (RingBuffer_Size(&fifo) >= BLOCK_SIZE)
       {
-        //digitalWrite(4, HIGH);
-        
+        //digitalWrite(15, HIGH);
+
         mVsum = 0;
         mVsumCount = 0;
-        //portENTER_CRITICAL_ISR(&timerMux);
+        // portENTER_CRITICAL_ISR(&timerMux);
         for (x = 0; x < BLOCK_SIZE; x++)
         {
           // while(adcq_lock) delay(1);
-          //if (!adcq.pop(&adc)) // Pull queue buffer
-          
-          bool ret = RingBuffer_Pop(&fifo, &adc);          
+          // if (!adcq.pop(&adc)) // Pull queue buffer
+
+          bool ret = RingBuffer_Pop(&fifo, &adc);
           if (!ret)
             break;
           // if (!RingBuffer_Pop(&fifo, &adc))
-          //   break;          
+          //   break;
 
-#endif       
+#endif
           tp->avg_sum += adc - tp->avg_buf[tp->avg_idx];
           tp->avg_buf[tp->avg_idx++] = adc;
           if (tp->avg_idx >= TCB_AVG_N)
@@ -1599,11 +1642,11 @@ void AFSK_Poll(bool SA818, bool RFPower)
 
           if (x % m == 0)
           {
-            #ifdef ADC_SAMPLE
-            mV=adc;
-            #else
+#ifdef ADC_SAMPLE
+            mV = adc;
+#else
             adc_cali_raw_to_voltage(AdcCaliHandle, adc, &mV);
-            #endif
+#endif
             mV -= offset;
             // mVsum += powl(mV, 2); // VRMS = √(1/n)(V1^2 +V2^2 + … + Vn^2)
             // mV = (adcVal * Vref) >> 12;
@@ -1614,14 +1657,14 @@ void AFSK_Poll(bool SA818, bool RFPower)
           float sample = (float)adcVal / 2048.0f * agc_gain;
           audio_buffer[x] = sample;
         }
-        //portEXIT_CRITICAL_ISR(&timerMux);
-        // Update AGC gain
+        // portEXIT_CRITICAL_ISR(&timerMux);
+        //  Update AGC gain
         update_agc(audio_buffer, BLOCK_SIZE);
-        #ifdef ADC_SAMPLE
-            offset=tp->avg;
-        #else
+#ifdef ADC_SAMPLE
+        offset = tp->avg;
+#else
         adc_cali_raw_to_voltage(AdcCaliHandle, tp->avg, &offset);
-        #endif
+#endif
 
         if (mVsumCount > 0)
         {
@@ -1640,10 +1683,10 @@ void AFSK_Poll(bool SA818, bool RFPower)
           }
           // Tool conversion dBv <--> Vrms at http://sengpielaudio.com/calculator-db-volt.htm
           // dBV = 20.0F * log10(Vrms);
-          //log_d("Audio dc_offset=%d mVrms=%d", offset, mVrms);
+          // log_d("Audio dc_offset=%d mVrms=%d", offset, mVrms);
         }
 
-        if ((dcd_cnt > 3)||(ModemConfig.modem == MODEM_9600))
+        if ((dcd_cnt > 3) || (ModemConfig.modem == MODEM_9600))
         {
           tp->cdt = true;
           //  Process audio block
@@ -1664,7 +1707,7 @@ void AFSK_Poll(bool SA818, bool RFPower)
         {
           tp->cdt = false;
         }
-        //digitalWrite(4, LOW);
+        //digitalWrite(15, LOW);
       }
     }
     // #ifdef SQL
