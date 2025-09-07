@@ -1,8 +1,8 @@
 ## Arduino core for the ESP32, ESP32-C3, ESP32-C6 and ESP32-S3
 
-# ESP32APRS Simple Project
+# ESP32APRS Audio Project
 
-ESP32APRS is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/Telemetry(TLM) with TNC Built in that is implemented for Espressif ESP32 processor.
+ESP32APRS Audio is a Internet Gateway(IGate)/Digital Repeater(DiGi)/Tracker/Weather(WX)/Telemetry(TLM) with TNC Built in that is implemented for Espressif ESP32 processor.
  
 
 ## Feature
@@ -12,12 +12,12 @@ ESP32APRS is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/
 * Support APRS internet gateway (IGATE)
 * Support APRS digital repeater (DIGI)
 * Support APRS tracker (TRACKER)
+* Support APRS Weather (WX)
+* Support APRS telemetry (TLM)
 * Support GNSS External mod select UART0-2 and TCP Client
 * Support TNC External mod select UART0-2 and Yaesu packet
 * Support APRS IGATE/DIGI/WX/Telemetry with fix position for move position from GNSS
 * Using ESP-Arduino development on Visual studio code + Platform IO
-* Support AFSK 1600/1800Hz 300bps AFSK (For HF radio)
-* Support AFSK Bell202 1200bps (For VHF/UHF radio)
 * Implementing software modem, decoding and encoding
 * Support monitor display information and statistices
 * Support Wi-Fi multi station or WiFi Access point
@@ -31,9 +31,9 @@ ESP32APRS is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/
 * support PPPoS (PPP Over Serial GSM network)
 * display received and transmit packet on the LED and display OLED or led color strip
 * Multiple modems: credit coding from project [vp-digi](https://github.com/sq8vps/vp-digi)
-  * 1200bps AFSK Bell 202 (VHF standard)
-  * 300bps AFSK Bell 103 (HF standard)
-  * 9600bps GFSK G3RUH (UHF standard)
+  * 1200bps AFSK Bell 202 1200/2200Hz (VHF standard)
+  * 300bps AFSK Bell 103 1600/1800Hz (HF standard)
+  * 9600bps GFSK G3RUH (For ESP32-S3)
   * 1200bps AFSK V.23
 * Analog-digital busy channel detection (data carrier detection)
 * AX.25 coder/decoder
@@ -48,8 +48,8 @@ ESP32APRS is a Internet Gateway(IGate)/Dital Repeater(DiGi)/Tracker/Weather(WX)/
 ![esp32dr_sql](image/ESP32IGate_SQL.jpg) 
 
 ## Web service screen short
-![screen_dashboard](image/ESP32IGate_Screen_dashboard.png) ![screen_igate](image/ESP32IGate_Screen_igate.png) \
-![screen_radio](image/ESP32IGate_Screen_radio.png) ![screen_mod](image/ESP32IGate_Screen_mod.png)
+![ESP32S3_CDTest](image/ESP32S3_CDTest.png) ![screen_dashboard](image/ESP32IGate_Screen_dashboard.png) ![screen_igate](image/ESP32IGate_Screen_igate.png) \
+![screen_mod](image/ESP32IGate_Screen_mod.png)
 
 ## ESP32DR_SA868
 Share project [here](https://oshwlab.com/APRSTH/esp32sa818) \
@@ -66,9 +66,17 @@ ESP32DR Simple Circut is small interface board for connecting to a transceiver.
 * PCB Single size
 * RJ11 6 Pin out to Radio
 
-### Schematic
+### Fix Audio input/output port
+|ESP32 Core|ADC(Speaker)|DAC(Mic)|
+|---|:---:|---|
+|ESP32|GPIO36|GPIO26|
+|ESP32-C3|GPIO0|GPIO1|
+|ESP32|GPIO1|GPIO2|
 
-[![schematic](image/ESP32DR_SimpleCircuit.png)](image/ESP32DR_SimpleCircuit.png)
+### Schematic
+[![ESP32C3APRS](image/Schematic_ESPC3_APRS.png)](image/Schematic_ESPC3_APRS.png)
+
+[![ESP32DR_Simple](image/ESP32DR_SimpleCircuit.png)](image/ESP32DR_SimpleCircuit.png)
 
 ### CAD data
  
@@ -80,7 +88,9 @@ The PCB film negative is [here](doc/PCB_Bottom_Invert.pdf)
 
 The PCB Layout is [here](doc/PCB_Layout.pdf)
 
-The Schematic PDF is [here](doc/ESP32DR_Simple_Schematic.pdf)
+The ESP32DR_Simple Schematic PDF is [here](doc/ESP32DR_Simple_Schematic.pdf)
+
+The ESP32C3APRS Schematic PDF is [here](doc/Schematic_ESPC3_APRS.pdf)
 
 ### BOM list  
 
