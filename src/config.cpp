@@ -47,8 +47,8 @@ bool saveConfiguration(const char *filename, const Configuration &config)
     log_d("Create file %s",filename);
     //AFSK_TimerEnable(false);
     // Allocate a temporary JsonDocument
-    adcEn=-1;
-    delay(500);
+    //adcEn=-1;
+    //delay(500);
     //StaticJsonDocument<6000> doc;    
     JsonDocument doc;
     
@@ -517,7 +517,7 @@ bool saveConfiguration(const char *filename, const Configuration &config)
         // Close the file
         file.close();
         delay(100);
-        adcEn=1;
+        //adcEn=1;
         dacEn=0;
     }
     doc.clear();

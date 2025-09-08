@@ -2626,17 +2626,19 @@ bool pkgTxSend()
                 {
 
                     psramBusy = false;
-                    if ((config.rf_type == RF_SR_1WV) || (config.rf_type == RF_SR_1WU) || (config.rf_type == RF_SR_1W350))
-                    {
-                        digitalWrite(config.rf_pwr_gpio, LOW);
-                        if (config.rf_power ^ !config.rf_pwr_active)
-                            pinMode(config.rf_pwr_gpio, OPEN_DRAIN);
+                    if(config.rf_en){
+                        if ((config.rf_type == RF_SR_1WV) || (config.rf_type == RF_SR_1WU) || (config.rf_type == RF_SR_1W350))
+                        {
+                            digitalWrite(config.rf_pwr_gpio, LOW);
+                            if (config.rf_power ^ !config.rf_pwr_active)
+                                pinMode(config.rf_pwr_gpio, OPEN_DRAIN);
+                            else
+                                pinMode(config.rf_pwr_gpio, OUTPUT);
+                        }
                         else
-                            pinMode(config.rf_pwr_gpio, OUTPUT);
-                    }
-                    else
-                    {
-                        digitalWrite(config.rf_pwr_gpio, config.rf_power ^ !config.rf_pwr_active); // ON RF Power H/L
+                        {
+                            digitalWrite(config.rf_pwr_gpio, config.rf_power ^ !config.rf_pwr_active); // ON RF Power H/L
+                        }
                     }
                     status.txCount++;
                     log_d("TX->RF[%i]: %s\n", txQueue[i].length, txQueue[i].Info);
@@ -3516,7 +3518,7 @@ void setup()
     xTaskCreatePinnedToCore(
         taskAPRS,        /* Function to implement the task */
         "taskAPRS",      /* Name of the task */
-        4096,            /* Stack size in words */
+        6000,            /* Stack size in words */
         NULL,            /* Task input parameter */
         2,               /* Priority of the task */
         &taskAPRSHandle, /* Task handle. */

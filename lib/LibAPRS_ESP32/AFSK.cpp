@@ -118,11 +118,11 @@ extern float spaceFreq; // space freque
 extern float baudRate;  // baudrate
 
 /****************** Ring Buffer gen from DeepSeek *********************/
-#if defined(CONFIG_IDF_TARGET_ESP32S3)
+//#if defined(CONFIG_IDF_TARGET_ESP32S3)
 #define BUFFER_SIZE 1500
-#else
-#define BUFFER_SIZE 770
-#endif
+// #else
+// #define BUFFER_SIZE 770
+// #endif
 typedef struct
 {
   int16_t buffer[BUFFER_SIZE]; // Buffer to store int16_t data
@@ -714,8 +714,11 @@ void AFSK_TimerEnable(bool sts)
   // {
   // vTaskSuspendAll ();
   // adcq.flush();
+  RingBuffer_Init(&fifo);
+  portENTER_CRITICAL_ISR(&timerMux); // ISR start  
   if (sts == true)
   {
+    
 #ifdef ADC_SAMPLE
     RingBuffer_IsEmpty(&fifo);
     timerStart(timer_adc);
@@ -724,7 +727,7 @@ void AFSK_TimerEnable(bool sts)
     if (AdcHandle != NULL)
     {
 
-      adc_continuous_start(AdcHandle);
+      //adc_continuous_start(AdcHandle);
       // HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 1);
     }
 #endif
@@ -738,15 +741,18 @@ void AFSK_TimerEnable(bool sts)
     //   timerAlarmDisable(timer);
     if (AdcHandle != NULL)
     {
+      //while(fifo.lock); // wait if locked
       // log_d("SAR DIV=%d LEN=%d", SYSCON.saradc_ctrl.sar_clk_div, SYSCON.saradc_ctrl.sar1_patt_len);
       // HAL_FORCE_MODIFY_U32_REG_FIELD(SYSCON.saradc_ctrl2, meas_num_limit, 0);
       // SYSCON.saradc_ctrl.sar1_patt_p_clear = 1;
-      adc_continuous_stop(AdcHandle);
+      //adc_continuous_flush_pool(AdcHandle);
+      //adc_continuous_stop(AdcHandle);
       // adcStopFlag = true;
     }
 #endif
     adcEn = 0;
   }
+  portEXIT_CRITICAL_ISR(&timerMux); // ISR end
   // xTaskResumeAll ();
   // }
 }
@@ -827,7 +833,7 @@ void setPtt(bool state)
       pinMode(_ptt_pin, OUTPUT_OPEN_DRAIN);
       digitalWrite(_ptt_pin, LOW);
     }
-    //LED_Status2(255, 0, 0);
+    LED_Status2(255, 0, 0);
   }
   else
   {
@@ -843,7 +849,7 @@ void setPtt(bool state)
       pinMode(_ptt_pin, OUTPUT_OPEN_DRAIN);
       digitalWrite(_ptt_pin, HIGH);
     }
-    //LED_Status2(0, 0, 0);
+    LED_Status2(0, 0, 0);
   }
 }
 
@@ -969,12 +975,12 @@ typedef struct
 int16_t adcPush;
 // static TaskHandle_t s_task_handle;
 //  adc_oneshot_unit_handle_t adc1_handle;
-static bool s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_continuous_evt_data_t *edata, void *user_data)
+static bool IRAM_ATTR s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_continuous_evt_data_t *edata, void *user_data)
 {
   // BaseType_t mustYield = pdFALSE;
   // Notify that ADC continuous driver has done enough number of conversions
   // vTaskNotifyGiveFromISR(s_task_handle, &mustYield);
-  //portENTER_CRITICAL_ISR(&timerMux);
+  portENTER_CRITICAL_ISR(&timerMux);
   fifo.lock = true;
   for (uint32_t k = 0; k < edata->size; k += SOC_ADC_DIGI_RESULT_BYTES)
   {
@@ -999,7 +1005,7 @@ static bool s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_contin
     // RingBuffer_Push(&fifo, adcPush);
   }
   fifo.lock = false;
-  //portEXIT_CRITICAL_ISR(&timerMux);
+  portEXIT_CRITICAL_ISR(&timerMux);
   // vTaskDelay(TMP102_UPDATE_CICLE_MS / portTICK_PERIOD_MS);
   // return (mustYield == pdTRUE);
   return true;
