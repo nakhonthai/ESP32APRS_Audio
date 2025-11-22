@@ -5726,6 +5726,7 @@ void handle_digi(AsyncWebServerRequest *request)
 	StandByTick = millis() + (config.pwr_stanby_delay * 1000);
 
 	bool digiEn = false;
+	bool digiAuto = false;
 	bool posGPS = false;
 	bool bcnEN = false;
 	bool pos2RF = false;
@@ -5743,6 +5744,14 @@ void handle_digi(AsyncWebServerRequest *request)
 				{
 					if (String(request->arg(i)) == "OK")
 						digiEn = true;
+				}
+			}
+			if (request->argName(i) == "digiAuto")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						digiAuto = true;
 				}
 			}
 			if (request->argName(i) == "myCall")
@@ -6039,6 +6048,7 @@ void handle_digi(AsyncWebServerRequest *request)
 			}
 		}
 		config.digi_en = digiEn;
+		config.digi_auto = digiAuto;
 		config.digi_gps = posGPS;
 		config.digi_bcn = bcnEN;
 		config.digi_loc2rf = pos2RF;
@@ -6126,6 +6136,13 @@ void handle_digi(AsyncWebServerRequest *request)
 		if (config.digi_en)
 			digiEnFlag = "checked";
 		html += "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"digiEnable\" value=\"OK\" " + digiEnFlag + "><span class=\"slider round\"></span></label></td>\n";
+		html += "</tr>\n";
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>Auto Enable:</b></td>\n";
+		String digiAutoFlag = "";
+		if (config.digi_auto)
+			digiAutoFlag = "checked";
+		html += "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"digiAuto\" value=\"OK\" " + digiAutoFlag + "><span class=\"slider round\"></span></label> <i>*Automatic enable when APRS-IS disconnected</i></td>\n";
 		html += "</tr>\n";
 		html += "<tr>\n";
 		html += "<td align=\"right\"><b>Station Callsign:</b></td>\n";
