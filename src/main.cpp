@@ -7744,7 +7744,7 @@ void taskNetwork(void *pvParameters)
                 {
                     lastHeard_Flag = false;
                     lastHeardTimeout = millis() + 1000;
-                    event_lastHeard();                    
+                    event_lastHeard(false);                    
                 }
             }
         }

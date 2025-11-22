@@ -135,6 +135,6 @@ extern void RF_MODULE(bool boot);
 void handle_ws(char *Raw,size_t len,uint16_t mVrms);
 void handle_ws_gnss(char *nmea);
 void handle_ws_gnss(char *nmea, size_t size);
-void event_lastHeard();
+String event_lastHeard(bool gethtml=false);
 
 #endif

@@ -400,6 +400,7 @@ void handle_dashboard(AsyncWebServerRequest *request)
 	webString += "\n";
 	webString += "<div class=\"content\">\n";
 	webString += "<div id=\"lastHeard\">\n";
+	webString += event_lastHeard(true);
 	webString += "</div>\n";
 
 	request->send(200, "text/html", webString); // send to someones browser when asked
@@ -862,11 +863,11 @@ void handle_lastHeard(AsyncWebServerRequest *request)
 	// html.clear();
 }
 
-void event_lastHeard()
+String event_lastHeard(bool gethtml)
 {
 	// log_d("Event count: %d",lastheard_events.count());
-	if (lastheard_events.count() == 0)
-		return;
+	//if (lastheard_events.count() == 0)
+	//	return;
 
 	struct pbuf_t aprs;
 	ParseAPRS aprsParse;
@@ -1078,6 +1079,7 @@ void event_lastHeard()
 	}
 	html += "</table>\n";
 	// log_d("HTML Length=%d Byte",html.length());
+	if(gethtml) return html;
 	size_t len = html.length();
 	char *info = (char *)calloc(len+1, sizeof(char));
 	if (info)
@@ -1091,6 +1093,7 @@ void event_lastHeard()
 	// lastheard_events.send(html.c_str(), "lastHeard", millis());
 	// adcEn=1;
 	// dacEn=0;
+	return "";
 }
 
 void handle_storage(AsyncWebServerRequest *request)
@@ -9435,8 +9438,10 @@ void webService()
     }
     // send event with message "hello!", id current millis
     // and set reconnect delay to 1 second
-    client->send("hello!", NULL, millis(), 10000); });
+    String html = event_lastHeard(true);
+    client->send(html.c_str(), "lastHeard", time(NULL), 5000); });
 	async_server.addHandler(&lastheard_events);
+	
 	async_server.onNotFound(notFound);
 	async_server.begin();
 	async_websocket.addHandler(&ws);
