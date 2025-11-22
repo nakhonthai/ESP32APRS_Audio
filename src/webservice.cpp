@@ -3628,6 +3628,31 @@ void handle_system(AsyncWebServerRequest *request)
 			html = "Save config failed.";
 			request->send(501, "text/html", html); // Not Implemented
 		}
+	}else if (request->hasArg("updateAutoReset"))
+	{
+		for (uint8_t i = 0; i < request->args(); i++)
+		{
+
+			if (request->argName(i) == "SetAutoReset")
+			{
+				if (request->arg(i) != "")
+				{
+					config.reset_timeout = request->arg(i).toInt();
+				}
+				break;
+			}
+		}
+		String html;
+		if (saveConfiguration("/default.cfg", config))
+		{
+			html = "Setup completed successfully";
+			request->send(200, "text/html", html); // send to someones browser when asked
+		}
+		else
+		{
+			html = "Save config failed.";
+			request->send(501, "text/html", html); // Not Implemented
+		}
 	}
 	else if (request->hasArg("updateTime"))
 	{
@@ -4314,6 +4339,14 @@ void handle_system(AsyncWebServerRequest *request)
 		html += "<button type='submit' id='updateTimeNtp'  name=\"commit\"> NTP Update </button>\n";
 		html += "<input type=\"hidden\" name=\"updateTimeNtp\"/></form>\n</td>\n";
 		// html += "<input class=\"btn btn-primary\" id=\"updateTimeNtp\" name=\"updateTimeNtp\" type=\"submit\" value=\"NTP Update\" maxlength=\"80\"/></td>\n";
+		html += "</tr>\n";
+
+		html += "<tr>\n";
+		html += "<td style=\"text-align: right;\">Auto REBOOT:</td>\n";
+		html += "<td style=\"text-align: left;\"><form accept-charset=\"UTF-8\" action=\"#\" enctype='multipart/form-data' id=\"formAutoReset\" method=\"post\"><input  min=\"0\" max=\"65535\"  name=\"SetAutoReset\" type=\"number\" value=\"" + String(config.reset_timeout) + "\" /> Minutes\n";
+		html += "<button type='submit' id='updateAutoReset'  name=\"commit\"> Update </button> *<i>0=No reset</i>\n";
+		html += "<input type=\"hidden\" name=\"updateAutoReset\"/></form>\n</td>\n";
+		// html += "<input class=\"button\" id=\"updateTimeNtp\" name=\"updateTimeNtp\" type=\"submit\" value=\"NTP Update\" maxlength=\"80\"/></td>\n";
 		html += "</tr>\n";
 
 		html += "<tr>\n";

@@ -498,6 +498,7 @@ bool saveConfiguration(const char *filename, const Configuration &config)
     doc["digiTlmInv"] = config.digi_tlm_interval;
     doc["igateTlmInv"] = config.igate_tlm_interval;
     doc["hostName"] = config.host_name;
+    doc["resetTimeout"] = config.reset_timeout;
 
     // Serialize JSON to file
     File file = LITTLEFS.open(filename, FILE_WRITE);
@@ -969,6 +970,7 @@ bool loadConfiguration(const char *filename, Configuration &config)
         config.digi_tlm_interval = doc["digiTlmInv"];
         config.igate_tlm_interval = doc["igateTlmInv"];
         strlcpy(config.host_name, doc["hostName"] | "", sizeof(config.host_name));
+        config.reset_timeout = doc["resetTimeout"];
 
         // Close the file (Curiously, File's destructor doesn't close the file)
         // f.close();

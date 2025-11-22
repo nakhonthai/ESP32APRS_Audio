@@ -229,6 +229,7 @@ extern int8_t adcEn;
 extern int8_t dacEn;
 
 long timeNetwork, timeAprs, timeGui;
+long autoResetTimeout = 0;
 
 // cppQueue PacketBuffer(sizeof(AX25Msg), 5, IMPLEMENTATION); // Instantiate queue
 #ifdef OLED
@@ -3573,6 +3574,7 @@ void setup()
     }
 
     upTimeStamp = millis() / 1000;
+    autoResetTimeout = millis() + ((long)config.reset_timeout * 60000);
 }
 
 String getTimeStamp()
@@ -4881,6 +4883,17 @@ void loop()
         if (ESP.getFreeHeap() < 30000)
             esp_restart();
         // Serial.println(String(ESP.getFreeHeap()));
+    
+        if((config.reset_timeout > 0) && (millis() > autoResetTimeout)){
+            autoResetTimeout=millis() + (config.reset_timeout*60000);
+            log_d("Auto Reset System");
+            vTaskSuspendAll();
+            WiFi.disconnect(true); // Disconnect from the network
+            WiFi.persistent(false);
+            WiFi.mode(WIFI_OFF); // Switch WiFi off
+            //PowerOff();
+            esp_restart();
+        }
     }
 }
 

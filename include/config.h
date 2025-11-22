@@ -457,6 +457,7 @@ typedef struct Config_Struct
 	uint8_t igate_tlm_interval;
 	uint8_t wx_tlm_interval;
 	char host_name[32];	
+	uint16_t reset_timeout; // minute
 
 } Configuration;
 
