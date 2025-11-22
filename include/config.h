@@ -158,6 +158,7 @@ typedef struct Config_Struct
 
 	// DIGI REPEATER
 	bool digi_en;
+	bool digi_auto;
 	bool digi_loc2rf;
 	bool digi_loc2inet;
 	bool digi_timestamp;

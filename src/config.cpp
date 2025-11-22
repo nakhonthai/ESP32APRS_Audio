@@ -155,6 +155,7 @@ bool saveConfiguration(const char *filename, const Configuration &config)
 
     // Digi group
     doc["digiEn"] = config.digi_en;
+    doc["digiAuto"] = config.digi_auto;
     doc["digiPos2rf"] = config.digi_loc2rf;
     doc["digiPos2inet"] = config.digi_loc2inet;
     doc["digiTime"] = config.digi_timestamp;
@@ -651,6 +652,7 @@ bool loadConfiguration(const char *filename, Configuration &config)
         }
         // Digi group
         config.digi_en = doc["digiEn"];
+        config.digi_auto = doc["digiAuto"];
         config.digi_loc2rf = doc["digiPos2rf"];
         config.digi_loc2inet = doc["digiPos2inet"];
         config.digi_timestamp = doc["digiTime"];

@@ -1482,6 +1482,7 @@ void defaultConfig()
 
     // DIGI REPEATER
     config.digi_en = false;
+    config.digi_auto = false;
     config.digi_loc2rf = true;
     config.digi_loc2inet = false;
     config.digi_ssid = 3;
@@ -6915,7 +6916,7 @@ void taskAPRS(void *pvParameters)
         }
 
         // Digi Repeater Process
-        if (config.digi_en)
+        if (config.digi_en || (config.digi_auto && (aprsClient.connected() == false)))
         {
             if (config.digi_sts_interval > 10)
             {
