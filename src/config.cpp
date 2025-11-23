@@ -506,6 +506,11 @@ bool saveConfiguration(const char *filename, const Configuration &config)
     doc["hostName"] = config.host_name;
     doc["resetTimeout"] = config.reset_timeout;
 
+    doc["cmdOnMqtt"] = config.at_cmd_mqtt;
+    doc["cmdOnMsg"] = config.at_cmd_msg;
+    doc["cmdOnBluetooth"] = config.at_cmd_bluetooth;
+    doc["cmdOnUart"] = config.at_cmd_uart;
+
     doc["msgEnable"] = config.msg_enable;
     doc["msgMycall"] = config.msg_mycall;
     doc["msgRf"] = config.msg_rf;
@@ -993,6 +998,10 @@ bool loadConfiguration(const char *filename, Configuration &config)
         config.igate_tlm_interval = doc["igateTlmInv"];
         strlcpy(config.host_name, doc["hostName"] | "", sizeof(config.host_name));
         config.reset_timeout = doc["resetTimeout"];
+        config.at_cmd_mqtt = doc["cmdOnMqtt"];
+        config.at_cmd_msg = doc["cmdOnMsg"];
+        config.at_cmd_bluetooth = doc["cmdOnBluetooth"];
+        config.at_cmd_uart = doc["cmdOnUart"];
 
         if(doc["msgEnable"].isNull()){ //old version compatibility
             config.msg_enable = true;

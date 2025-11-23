@@ -1,7 +1,7 @@
 
 
 #include <Arduino.h>
-//#include <handleATCommand.h>
+#include <handleATCommand.h>
 #include "message.h"
 #include <parse_aprs.h>
 #include "webservice.h"
@@ -589,12 +589,12 @@ void handleIncomingAPRS(const String &line)
                         return;
                     pkgMsgUpdate(fromCall.c_str(), decrypted.c_str(), msgNo.toInt(), -1, true); // RX Message
                     sendAPRSAck(fromCall, msgNo);
-                    // if (config.at_cmd_msg)
-                    // {
-                    //     String response = handleATCommand(decrypted);
-                    //     if (response != "")
-                    //         sendAPRSMessage(fromCall, response, config.msg_encrypt);
-                    // }
+                    if (config.at_cmd_msg)
+                    {
+                        String response = handleATCommand(decrypted);
+                        if (response != "")
+                            sendAPRSMessage(fromCall, response, config.msg_encrypt);
+                    }
                 }
                 event_chatMessage(false);
             }

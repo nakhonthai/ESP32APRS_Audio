@@ -669,230 +669,230 @@ void handle_sysinfo(AsyncWebServerRequest *request)
 	html.clear();
 }
 
-void handle_lastHeard(AsyncWebServerRequest *request)
-{
-	struct pbuf_t aprs;
-	ParseAPRS aprsParse;
-	struct tm tmstruct;
-	String html = "";
-	sort(pkgList, PKGLISTSIZE);
+// void handle_lastHeard(AsyncWebServerRequest *request)
+// {
+// 	struct pbuf_t aprs;
+// 	ParseAPRS aprsParse;
+// 	struct tm tmstruct;
+// 	String html = "";
+// 	sort(pkgList, PKGLISTSIZE);
 
-	html = "<table>\n";
-	html += "<th colspan=\"7\" style=\"background-color: #070ac2;\">LAST HEARD <a href=\"/tnc2\" target=\"_tnc2\" style=\"color: yellow;font-size:8pt\">[RAW]</a></th>\n";
-	html += "<tr>\n";
-	html += "<th style=\"min-width:10ch\"><span><b>Time (";
-	if (config.timeZone >= 0)
-		html += "+";
-	// else
-	//	html += "-";
+// 	html = "<table>\n";
+// 	html += "<th colspan=\"7\" style=\"background-color: #070ac2;\">LAST HEARD <a href=\"/tnc2\" target=\"_tnc2\" style=\"color: yellow;font-size:8pt\">[RAW]</a></th>\n";
+// 	html += "<tr>\n";
+// 	html += "<th style=\"min-width:10ch\"><span><b>Time (";
+// 	if (config.timeZone >= 0)
+// 		html += "+";
+// 	// else
+// 	//	html += "-";
 
-	if (config.timeZone == (int)config.timeZone)
-		html += String((int)config.timeZone) + ")</b></span></th>\n";
-	else
-		html += String(config.timeZone, 1) + ")</b></span></th>\n";
-	html += "<th style=\"min-width:16px\">ICON</th>\n";
-	html += "<th style=\"min-width:10ch\">Callsign</th>\n";
-	html += "<th>VIA LAST PATH</th>\n";
-	html += "<th style=\"min-width:5ch\">DX</th>\n";
-	html += "<th style=\"min-width:5ch\">PACKET</th>\n";
-	html += "<th style=\"min-width:5ch\">AUDIO</th>\n";
-	html += "</tr>\n";
+// 	if (config.timeZone == (int)config.timeZone)
+// 		html += String((int)config.timeZone) + ")</b></span></th>\n";
+// 	else
+// 		html += String(config.timeZone, 1) + ")</b></span></th>\n";
+// 	html += "<th style=\"min-width:16px\">ICON</th>\n";
+// 	html += "<th style=\"min-width:10ch\">Callsign</th>\n";
+// 	html += "<th>VIA LAST PATH</th>\n";
+// 	html += "<th style=\"min-width:5ch\">DX</th>\n";
+// 	html += "<th style=\"min-width:5ch\">PACKET</th>\n";
+// 	html += "<th style=\"min-width:5ch\">AUDIO</th>\n";
+// 	html += "</tr>\n";
 
-	for (int i = 0; i < PKGLISTSIZE; i++)
-	{
-		if (i >= PKGLISTSIZE)
-			break;
-		pkgListType pkg = getPkgList(i);
-		if (pkg.time > 0)
-		{
-			String line = String(pkg.raw);
-			int packet = pkg.pkg;
-			int start_val = line.indexOf(">", 0); // หาตำแหน่งแรกของ >
-			if (start_val > 3)
-			{
-				String src_call = line.substring(0, start_val);
-				memset(&aprs, 0, sizeof(pbuf_t));
-				aprs.buf_len = 300;
-				aprs.packet_len = line.length();
-				line.toCharArray(&aprs.data[0], aprs.packet_len);
-				int start_info = line.indexOf(":", 0);
-				int end_ssid = line.indexOf(",", 0);
-				int start_dst = line.indexOf(">", 2);
-				int start_dstssid = line.indexOf("-", start_dst);
-				String path = "";
+// 	for (int i = 0; i < PKGLISTSIZE; i++)
+// 	{
+// 		if (i >= PKGLISTSIZE)
+// 			break;
+// 		pkgListType pkg = getPkgList(i);
+// 		if (pkg.time > 0)
+// 		{
+// 			String line = String(pkg.raw);
+// 			int packet = pkg.pkg;
+// 			int start_val = line.indexOf(">", 0); // หาตำแหน่งแรกของ >
+// 			if (start_val > 3)
+// 			{
+// 				String src_call = line.substring(0, start_val);
+// 				memset(&aprs, 0, sizeof(pbuf_t));
+// 				aprs.buf_len = 300;
+// 				aprs.packet_len = line.length();
+// 				line.toCharArray(&aprs.data[0], aprs.packet_len);
+// 				int start_info = line.indexOf(":", 0);
+// 				int end_ssid = line.indexOf(",", 0);
+// 				int start_dst = line.indexOf(">", 2);
+// 				int start_dstssid = line.indexOf("-", start_dst);
+// 				String path = "";
 
-				if ((end_ssid > start_dst) && (end_ssid < start_info))
-				{
-					path = line.substring(end_ssid + 1, start_info);
-				}
-				if (end_ssid < 5)
-					end_ssid = start_info;
-				if ((start_dstssid > start_dst) && (start_dstssid < start_dst + 10))
-				{
-					aprs.dstcall_end_or_ssid = &aprs.data[start_dstssid];
-				}
-				else
-				{
-					aprs.dstcall_end_or_ssid = &aprs.data[end_ssid];
-				}
-				aprs.info_start = &aprs.data[start_info + 1];
-				aprs.dstname = &aprs.data[start_dst + 1];
-				aprs.dstname_len = end_ssid - start_dst;
-				aprs.dstcall_end = &aprs.data[end_ssid];
-				aprs.srccall_end = &aprs.data[start_dst];
+// 				if ((end_ssid > start_dst) && (end_ssid < start_info))
+// 				{
+// 					path = line.substring(end_ssid + 1, start_info);
+// 				}
+// 				if (end_ssid < 5)
+// 					end_ssid = start_info;
+// 				if ((start_dstssid > start_dst) && (start_dstssid < start_dst + 10))
+// 				{
+// 					aprs.dstcall_end_or_ssid = &aprs.data[start_dstssid];
+// 				}
+// 				else
+// 				{
+// 					aprs.dstcall_end_or_ssid = &aprs.data[end_ssid];
+// 				}
+// 				aprs.info_start = &aprs.data[start_info + 1];
+// 				aprs.dstname = &aprs.data[start_dst + 1];
+// 				aprs.dstname_len = end_ssid - start_dst;
+// 				aprs.dstcall_end = &aprs.data[end_ssid];
+// 				aprs.srccall_end = &aprs.data[start_dst];
 
-				// Serial.println(aprs.info_start);
-				if (aprsParse.parse_aprs(&aprs))
-				{
-					pkg.calsign[10] = 0;
-					// time_t tm = pkg.time;
-					localtime_r(&pkg.time, &tmstruct);
-					char strTime[10];
-					sprintf(strTime, "%02d:%02d:%02d", tmstruct.tm_hour, tmstruct.tm_min, tmstruct.tm_sec);
-					// String str = String(tmstruct.tm_hour, DEC) + ":" + String(tmstruct.tm_min, DEC) + ":" + String(tmstruct.tm_sec, DEC);
+// 				// Serial.println(aprs.info_start);
+// 				if (aprsParse.parse_aprs(&aprs))
+// 				{
+// 					pkg.calsign[10] = 0;
+// 					// time_t tm = pkg.time;
+// 					localtime_r(&pkg.time, &tmstruct);
+// 					char strTime[10];
+// 					sprintf(strTime, "%02d:%02d:%02d", tmstruct.tm_hour, tmstruct.tm_min, tmstruct.tm_sec);
+// 					// String str = String(tmstruct.tm_hour, DEC) + ":" + String(tmstruct.tm_min, DEC) + ":" + String(tmstruct.tm_sec, DEC);
 
-					html += "<tr><td>" + String(strTime) + "</td>";
-					String fileImg = "";
-					uint8_t sym = (uint8_t)aprs.symbol[1];
-					if (sym > 31 && sym < 127)
-					{
-						if (aprs.symbol[0] > 64 && aprs.symbol[0] < 91) // table A-Z
-						{
-							html += "<td><b>" + String(aprs.symbol[0]) + "</b></td>";
-						}
-						else
-						{
-							fileImg = String(sym, DEC);
-							if (aprs.symbol[0] == 92)
-							{
-								fileImg += "-2.png";
-							}
-							else if (aprs.symbol[0] == 47)
-							{
-								fileImg += "-1.png";
-							}
-							else
-							{
-								fileImg = "dot.png";
-							}
-							html += "<td><img src=\"http://aprs.dprns.com/symbols/icons/" + fileImg + "\"></td>";
-						}
-					}
-					else
-					{
-						html += "<td><img src=\"http://aprs.dprns.com/symbols/icons/dot.png\"></td>";
-					}
-					html += "<td>" + src_call;
-					if (aprs.srcname_len > 0 && aprs.srcname_len < 10) // Get Item/Object
-					{
-						char itemname[10];
-						memset(&itemname, 0, sizeof(itemname));
-						memcpy(&itemname, aprs.srcname, aprs.srcname_len);
-						html += "(" + String(itemname) + ")";
-					}
-					html += +"</td>";
-					if (path == "")
-					{
-						html += "<td style=\"text-align: left;\">RF: DIRECT</td>";
-					}
-					else
-					{
-						String LPath = path.substring(path.lastIndexOf(',') + 1);
-						// if(path.indexOf("qAR")>=0 || path.indexOf("qAS")>=0 || path.indexOf("qAC")>=0){ //Via from Internet Server
-						if (path.indexOf("qA") >= 0 || path.indexOf("TCPIP") >= 0)
-						{
-							html += "<td style=\"text-align: left;\">INET: " + LPath + "</td>";
-						}
-						else
-						{
-							if (path.indexOf("*") > 0)
-							{
-								html += "<td style=\"text-align: left;\">DIGI: " + path + "</td>";
-							}
-							else
-							{
-								html += "<td style=\"text-align: left;\">RF: " + path + "</td>";
-							}
-						}
-					}
-					// html += "<td>" + path + "</td>";
-					if (aprs.flags & F_HASPOS)
-					{
-						double lat, lon;
-						if (gps.location.isValid())
-						{
-							lat = gps.location.lat();
-							lon = gps.location.lng();
-						}
-						else
-						{
-							lat = config.igate_lat;
-							lon = config.igate_lon;
-						}
-						double dtmp = aprsParse.direction(lon, lat, aprs.lng, aprs.lat);
-						double dist = aprsParse.distance(lon, lat, aprs.lng, aprs.lat);
-						html += "<td>" + String(dist, 1) + "km/" + String(dtmp, 0) + "°</td>";
-					}
-					else
-					{
-						html += "<td>-</td>\n";
-					}
-					html += "<td>" + String(packet) + "</td>\n";
-					if (pkg.audio_level == 0)
-					{
-						html += "<td>-</td></tr>\n";
-					}
-					else
-					{
-						double Vrms = (double)pkg.audio_level / 1000;
-						double audBV = 20.0F * log10(Vrms);
-						if (audBV < -20.0F)
-						{
-							html += "<td style=\"color: #0000f0;\">";
-						}
-						else if (audBV > -5.0F)
-						{
-							html += "<td style=\"color: #f00000;\">";
-						}
-						else
-						{
-							html += "<td style=\"color: #008000;\">";
-						}
-						html += String(audBV, 1) + "dBV</td></tr>\n";
-					}
-				}
-			}
-		}
-	}
-	html += "</table>\n";
-	if ((ESP.getFreeHeap() / 1000) > 120)
-	{
-		request->send(200, "text/html", html); // send to someones browser when asked
-	}
-	else
-	{
-		size_t len = html.length();
-		char *info = (char *)calloc(len, sizeof(char));
-		if (info)
-		{
+// 					html += "<tr><td>" + String(strTime) + "</td>";
+// 					String fileImg = "";
+// 					uint8_t sym = (uint8_t)aprs.symbol[1];
+// 					if (sym > 31 && sym < 127)
+// 					{
+// 						if (aprs.symbol[0] > 64 && aprs.symbol[0] < 91) // table A-Z
+// 						{
+// 							html += "<td><b>" + String(aprs.symbol[0]) + "</b></td>";
+// 						}
+// 						else
+// 						{
+// 							fileImg = String(sym, DEC);
+// 							if (aprs.symbol[0] == 92)
+// 							{
+// 								fileImg += "-2.png";
+// 							}
+// 							else if (aprs.symbol[0] == 47)
+// 							{
+// 								fileImg += "-1.png";
+// 							}
+// 							else
+// 							{
+// 								fileImg = "dot.png";
+// 							}
+// 							html += "<td><img src=\"http://aprs.dprns.com/symbols/icons/" + fileImg + "\"></td>";
+// 						}
+// 					}
+// 					else
+// 					{
+// 						html += "<td><img src=\"http://aprs.dprns.com/symbols/icons/dot.png\"></td>";
+// 					}
+// 					html += "<td>" + src_call;
+// 					if (aprs.srcname_len > 0 && aprs.srcname_len < 10) // Get Item/Object
+// 					{
+// 						char itemname[10];
+// 						memset(&itemname, 0, sizeof(itemname));
+// 						memcpy(&itemname, aprs.srcname, aprs.srcname_len);
+// 						html += "(" + String(itemname) + ")";
+// 					}
+// 					html += +"</td>";
+// 					if (path == "")
+// 					{
+// 						html += "<td style=\"text-align: left;\">RF: DIRECT</td>";
+// 					}
+// 					else
+// 					{
+// 						String LPath = path.substring(path.lastIndexOf(',') + 1);
+// 						// if(path.indexOf("qAR")>=0 || path.indexOf("qAS")>=0 || path.indexOf("qAC")>=0){ //Via from Internet Server
+// 						if (path.indexOf("qA") >= 0 || path.indexOf("TCPIP") >= 0)
+// 						{
+// 							html += "<td style=\"text-align: left;\">INET: " + LPath + "</td>";
+// 						}
+// 						else
+// 						{
+// 							if (path.indexOf("*") > 0)
+// 							{
+// 								html += "<td style=\"text-align: left;\">DIGI: " + path + "</td>";
+// 							}
+// 							else
+// 							{
+// 								html += "<td style=\"text-align: left;\">RF: " + path + "</td>";
+// 							}
+// 						}
+// 					}
+// 					// html += "<td>" + path + "</td>";
+// 					if (aprs.flags & F_HASPOS)
+// 					{
+// 						double lat, lon;
+// 						if (gps.location.isValid())
+// 						{
+// 							lat = gps.location.lat();
+// 							lon = gps.location.lng();
+// 						}
+// 						else
+// 						{
+// 							lat = config.igate_lat;
+// 							lon = config.igate_lon;
+// 						}
+// 						double dtmp = aprsParse.direction(lon, lat, aprs.lng, aprs.lat);
+// 						double dist = aprsParse.distance(lon, lat, aprs.lng, aprs.lat);
+// 						html += "<td>" + String(dist, 1) + "km/" + String(dtmp, 0) + "°</td>";
+// 					}
+// 					else
+// 					{
+// 						html += "<td>-</td>\n";
+// 					}
+// 					html += "<td>" + String(packet) + "</td>\n";
+// 					if (pkg.audio_level == 0)
+// 					{
+// 						html += "<td>-</td></tr>\n";
+// 					}
+// 					else
+// 					{
+// 						double Vrms = (double)pkg.audio_level / 1000;
+// 						double audBV = 20.0F * log10(Vrms);
+// 						if (audBV < -20.0F)
+// 						{
+// 							html += "<td style=\"color: #0000f0;\">";
+// 						}
+// 						else if (audBV > -5.0F)
+// 						{
+// 							html += "<td style=\"color: #f00000;\">";
+// 						}
+// 						else
+// 						{
+// 							html += "<td style=\"color: #008000;\">";
+// 						}
+// 						html += String(audBV, 1) + "dBV</td></tr>\n";
+// 					}
+// 				}
+// 			}
+// 		}
+// 	}
+// 	html += "</table>\n";
+// 	if ((ESP.getFreeHeap() / 1000) > 120)
+// 	{
+// 		request->send(200, "text/html", html); // send to someones browser when asked
+// 	}
+// 	else
+// 	{
+// 		size_t len = html.length();
+// 		char *info = (char *)calloc(len, sizeof(char));
+// 		if (info)
+// 		{
 
-			html.toCharArray(info, len, 0);
-			html.clear();
-			AsyncWebServerResponse *response = request->beginResponse_P(200, String(F("text/html")), (const uint8_t *)info, len);
+// 			html.toCharArray(info, len, 0);
+// 			html.clear();
+// 			AsyncWebServerResponse *response = request->beginResponse_P(200, String(F("text/html")), (const uint8_t *)info, len);
 
-			response->addHeader("Sensor", "content");
-			request->send(response);
-			free(info);
-		}
-		else
-		{
-			log_d("Can't define calloc info size %d", len);
-		}
-	}
-	// request->send(200, "text/html", html); // send to someones browser when asked
-	// delay(100);
-	// html.clear();
-}
+// 			response->addHeader("Sensor", "content");
+// 			request->send(response);
+// 			free(info);
+// 		}
+// 		else
+// 		{
+// 			log_d("Can't define calloc info size %d", len);
+// 		}
+// 	}
+// 	// request->send(200, "text/html", html); // send to someones browser when asked
+// 	// delay(100);
+// 	// html.clear();
+// }
 
 String event_lastHeard(bool gethtml)
 {
@@ -3366,6 +3366,69 @@ void handle_mod(AsyncWebServerRequest *request)
 		saveConfiguration("/default.cfg", config);
 		String html = "OK";
 		request->send(200, "text/html", html);
+	}else if (request->hasArg("commitCMD"))
+	{
+		bool mqtt = false;
+		bool msg = false;
+		bool bluetooth = false;
+		for (uint8_t i = 0; i < request->args(); i++)
+		{
+			if (request->argName(i) == "mqtt")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+					{
+						mqtt = true;
+					}
+				}
+			}
+
+			if (request->argName(i) == "msg")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+					{
+						msg = true;
+					}
+				}
+			}
+
+			if (request->argName(i) == "bluetooth")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+					{
+						bluetooth = true;
+					}
+				}
+			}
+
+			if (request->argName(i) == "uart")
+			{
+				if (request->arg(i) != "")
+				{
+					if (isValidNumber(request->arg(i)))
+						config.at_cmd_uart = request->arg(i).toInt();
+				}
+			}
+		}
+		config.at_cmd_mqtt = mqtt;
+		config.at_cmd_msg = msg;
+		config.at_cmd_bluetooth = bluetooth;
+		String html;
+		if (saveConfiguration("/default.cfg", config))
+		{
+			html = "Setup completed successfully";
+			request->send(200, "text/html", html); // send to someones browser when asked
+		}
+		else
+		{
+			html = "Save config failed.";
+			request->send(501, "text/html", html); // Not Implemented
+		}
 	}
 	#ifdef PPPOS
 	else if (request->hasArg("commitPPPoS"))
@@ -4114,6 +4177,56 @@ void handle_mod(AsyncWebServerRequest *request)
 		html += "</td></tr></table>\n";
 		html += "</form>\n";
 		html += "</td></tr></table>\n";
+		html += "<br />\n";
+
+		html += "<table style=\"text-align:unset;border-width:0px;background:unset\"><tr style=\"background:unset;vertical-align:top\"><td width=\"50%\" style=\"border:unset;vertical-align:top\">";
+
+		/************************ AT-COMMAND **************************/
+		html += "<form id='formATCommand' method=\"POST\" action='#' enctype='multipart/form-data'>\n";
+		html += "<table>\n";
+		html += "<th colspan=\"2\"><span><b>AT-COMMAND CHANNEL</b></span></th>\n";
+		html += "<tr>\n";
+		html += "<td width=\"150\" align=\"right\"><b>MQTT:</b></td>\n";
+		String cmdFlag = "";
+		if (config.at_cmd_mqtt)
+			cmdFlag = "checked";
+		html += "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"mqtt\" value=\"OK\" " + cmdFlag + "><span class=\"slider round\"></span></label></td>\n";
+		html += "</tr>\n";
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>MESSAGE:</b></td>\n";
+		cmdFlag = "";
+		if (config.at_cmd_msg)
+			cmdFlag = "checked";
+		html += "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"msg\" value=\"OK\" " + cmdFlag + "><span class=\"slider round\"></span></label></td>\n";
+		html += "</tr>\n";
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>BLUETOOTH:</b></td>\n";
+		cmdFlag = "";
+		if (config.at_cmd_bluetooth)
+			cmdFlag = "checked";
+		html += "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"bluetooth\" value=\"OK\" " + cmdFlag + "><span class=\"slider round\"></span></label></td>\n";
+		html += "</tr>\n";
+
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>UART PORT:</b></td>\n";
+		html += "<td style=\"text-align: left;\">\n";
+		html += "<select name=\"uart\" id=\"cmdUart\">\n";
+		for (int i = 0; i < 5; i++)
+		{
+			if (config.at_cmd_uart == i)
+				html += "<option value=\"" + String(i) + "\" selected>" + String(TNC_PORT[i]) + " </option>\n";
+			else
+				html += "<option value=\"" + String(i) + "\" >" + String(TNC_PORT[i]) + " </option>\n";
+		}
+		html += "</select>\n";
+		html += "</td>\n";
+		html += "</tr>\n";
+
+		html += "<tr><td colspan=\"2\" align=\"right\">\n";
+		html += "<div><button class=\"button\" type='submit' id='submitCMD'  name=\"commit\"> Apply Change </button></div>\n";
+		html += "<input type=\"hidden\" name=\"commitCMD\"/>\n";
+		html += "</td></tr></table><br />\n";
+		html += "</form><br />";
 
 		#ifdef PPPOS
 		html += "<br />\n";
@@ -4137,6 +4250,13 @@ void handle_mod(AsyncWebServerRequest *request)
 		if (config.ppp_gnss)
 			pppEnFlag = "checked";
 		html += "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"pppGnss\" value=\"OK\" " + pppEnFlag + "><span class=\"slider round\"></span></label></td>\n";
+		html += "</tr>\n";
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>NAPT:</b></td>\n";
+		pppEnFlag = "";
+		if (config.ppp_napt)
+			pppEnFlag = "checked";
+		html += "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"pppNapt\" value=\"OK\" " + pppEnFlag + "><span class=\"slider round\"></span></label> *WiFi NAT</td>\n";
 		html += "</tr>\n";
 		html += "<tr>\n";
 		html += "<td align=\"right\"><b>APN:</b></td>\n";
@@ -4178,7 +4298,7 @@ void handle_mod(AsyncWebServerRequest *request)
 		html += "<td align=\"right\"><b>PORT:</b></td>\n";
 		html += "<td style=\"text-align: left;\">\n";
 		html += "<select name=\"port\" id=\"port\">\n";
-		for (int i = 0; i < 3; i++)
+		for (int i = 0; i < 2; i++)
 		{
 			if (config.ppp_serial == i)
 				html += "<option value=\"" + String(i) + "\" selected>" + String(GNSS_PORT[i + 1]) + " </option>\n";
@@ -4211,8 +4331,7 @@ void handle_mod(AsyncWebServerRequest *request)
 		html += "</form>";
 
 		html += "</td></tr></table>\n";
-		#endif // PPP
-		
+		#endif
 		if ((ESP.getFreeHeap() / 1000) > 120)
 		{
 			request->send(200, "text/html", html); // send to someones browser when asked
@@ -10105,8 +10224,8 @@ void webService()
 					{ handle_sidebar(request); });
 	async_server.on("/sysinfo", HTTP_GET, [](AsyncWebServerRequest *request)
 					{ handle_sysinfo(request); });
-	async_server.on("/lastHeard", HTTP_GET, [](AsyncWebServerRequest *request)
-					{ handle_lastHeard(request); });
+	// async_server.on("/lastHeard", HTTP_GET, [](AsyncWebServerRequest *request)
+	// 				{ handle_lastHeard(request); });
 	async_server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request)
 					{ handle_css(request); });
 	async_server.on("/jquery-3.7.1.js", HTTP_GET, [](AsyncWebServerRequest *request)

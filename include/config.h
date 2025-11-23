@@ -464,6 +464,10 @@ typedef struct Config_Struct
 	uint8_t wx_tlm_interval;
 	char host_name[32];	
 	uint16_t reset_timeout; // minute
+	bool at_cmd_mqtt;
+	bool at_cmd_msg;
+	bool at_cmd_bluetooth;
+	uint8_t at_cmd_uart;
 
 	//Message
 	bool msg_enable;

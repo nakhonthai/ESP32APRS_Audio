@@ -45,6 +45,8 @@
 
 #include <ModbusMaster.h>
 
+#include "handleATCommand.h"
+
 #include "sensor.h"
 
 #include <rom/spi_flash.h>
@@ -3503,7 +3505,7 @@ void setup()
         xTaskCreatePinnedToCore(
             taskNetwork,        /* Function to implement the task */
             "taskNetwork",      /* Name of the task */
-            14000,              /* Stack size in words */
+            12000,              /* Stack size in words */
             NULL,               /* Task input parameter */
             1,                  /* Priority of the task */
             &taskNetworkHandle, /* Task handle. */
@@ -6273,6 +6275,14 @@ void taskAPRS(void *pvParameters)
                     {
                         kiss_serial((uint8_t)NuSerial.read());
                     }
+                }
+                else if (config.bt_mode == 3)
+                { // AT COMMAND
+                        String cmd=NuSerial.readStringUntil('\n');
+                        cmd.trim();
+                        String ret = handleATCommand(String((char *)cmd.c_str()));
+                        if(ret!="") NuSerial.println(ret);
+                        log_d("AT-Command response: %s", ret.c_str());
                 }
             }
         }
