@@ -21,6 +21,7 @@
 #include <TimeLib.h>
 #include <TinyGPSPlus.h>
 #include "LITTLEFS.h"
+#include "message.h"
 
 typedef struct timeZoneName
 {
@@ -94,6 +95,7 @@ extern TaskHandle_t taskSensorHandle;
 extern time_t systemUptime;
 extern String RF_VERSION;
 extern pkgListType *pkgList;
+extern msgType *msgQueue;
 extern TinyGPSPlus gps;
 extern float vbat;
 extern WiFiClient aprsClient;
@@ -136,5 +138,6 @@ void handle_ws(char *Raw,size_t len,uint16_t mVrms);
 void handle_ws_gnss(char *nmea);
 void handle_ws_gnss(char *nmea, size_t size);
 String event_lastHeard(bool gethtml=false);
+String event_chatMessage(bool gethtml=false);
 
 #endif

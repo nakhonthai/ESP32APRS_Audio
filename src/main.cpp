@@ -22,6 +22,7 @@
 #include "cppQueue.h"
 #include "digirepeater.h"
 #include "igate.h"
+#include "message.h"
 #include "wireguardif.h"
 #include "wireguard.h"
 #include "driver/pcnt.h"
@@ -1945,6 +1946,16 @@ void defaultConfig()
     sprintf(config.path[1], "WIDE1-1");
     sprintf(config.path[2], "WIDE1-1,WIDE2-1");
     sprintf(config.path[3], "RFONLY");
+
+    config.msg_enable = true;
+    config.msg_encrypt = false;
+    config.msg_rf = true;
+    config.msg_inet = true;
+    config.msg_retry = 3;
+    config.msg_interval = 30; // second
+    config.msg_path = 9;
+    sprintf(config.msg_key, "8EC8233E91D59B0164C24E771BA66307");
+    sprintf(config.msg_mycall, "NOCALL");
 
     config.log = 0;
 #ifdef MQTT
@@ -6146,6 +6157,7 @@ bool initInterval = true;
 int trkTlmInvCount = 0;
 int igateTlmInvCount = 0;
 int digiTlmInvCount = 0;
+unsigned long msgInterval=0;
 void taskAPRS(void *pvParameters)
 {
     //	long start, stop;
@@ -6177,6 +6189,7 @@ void taskAPRS(void *pvParameters)
     sendTimer = millis() - (config.igate_interval * 1000) + 30000;
     igateTLM.TeleTimeout = millis() + 60000; // 1Min
 
+    msgInterval=millis()+30000;
     timeSlot = millis();
     timeAprs = 0;
     tx_interval = config.trk_interval;
@@ -6225,6 +6238,12 @@ void taskAPRS(void *pvParameters)
         timerAPRS = micros() - timerAPRS_old;
         vTaskDelay(10 / portTICK_PERIOD_MS);
         timerAPRS_old = micros();
+
+        if(now>msgInterval)
+        {
+            msgInterval=millis()+config.msg_interval;
+            sendAPRSMessageRetry();
+        }
 
 #ifdef BLUETOOTH
 #if !defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32C6)
@@ -6765,6 +6784,11 @@ void taskAPRS(void *pvParameters)
                             handle_ws(rawP, tnc2.length(), incomingPacket.mVrms);
                             free(rawP);
                         }
+                    }
+                    
+                    if(config.msg_enable && (type & FILTER_MESSAGE))
+                    {
+                        handleIncomingAPRS(tnc2);
                     }
                     lastPkg = true;
                     // handle_ws(tnc2, incomingPacket.mVrms);
@@ -8095,6 +8119,10 @@ void taskNetwork(void *pvParameters)
                                     memcpy(raw, info.c_str(), info.length());
 
                                     uint16_t type = pkgType(&raw[0]);
+                                    if(type & FILTER_MESSAGE)
+                                    {
+                                        handleIncomingAPRS(line);
+                                    }
                                     int start_dstssid = line.indexOf("-", 1); // get SSID -
                                     if (start_dstssid < 0)
                                         start_dstssid = line.indexOf(" ", 1); // get ssid space
