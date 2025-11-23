@@ -444,12 +444,18 @@ typedef struct Config_Struct
 	uint8_t ppp_flow_ctrl = 0;
 	bool ppp_gnss = false;
 
-	//MQTT Config
+	// MQTT Config
+#ifdef MQTT	
 	bool en_mqtt;
 	char mqtt_host[63];
 	char mqtt_topic[63];
 	char mqtt_subscribe[63];
+	char mqtt_user[32];
+	char mqtt_pass[63];
 	uint16_t mqtt_port;
+	uint16_t mqtt_topic_flag;
+	uint16_t mqtt_subscribe_flag;
+#endif
 
 	uint8_t trk_mice_type;
 	uint8_t trk_tlm_interval;
@@ -458,6 +464,17 @@ typedef struct Config_Struct
 	uint8_t wx_tlm_interval;
 	char host_name[32];	
 	uint16_t reset_timeout; // minute
+
+	//Message
+	bool msg_enable;
+	char msg_mycall[10];
+	uint8_t msg_path;
+	bool msg_rf;
+	bool msg_inet;
+	bool msg_encrypt;
+	char msg_key[33];
+	uint8_t msg_retry;
+	uint16_t msg_interval;
 
 } Configuration;
 

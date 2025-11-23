@@ -52,6 +52,10 @@
 
 #include <time.h>
 
+#ifdef MQTT
+#include <PubSubClient.h>
+#endif
+
 #include "AFSK.h"
 
 #ifdef PPPOS
@@ -1943,6 +1947,18 @@ void defaultConfig()
     sprintf(config.path[3], "RFONLY");
 
     config.log = 0;
+#ifdef MQTT
+    config.en_mqtt = false;
+    sprintf(config.mqtt_host, "mqtt.nakhonthai.net");
+    char strCID[13];
+	uint64_t chipid = ESP.getEfuseMac();
+	sprintf(strCID, "%04X%08X", (uint16_t)(chipid >> 32), (uint32_t)chipid);
+    sprintf(config.mqtt_topic, "/%s/TX",strCID);
+    sprintf(config.mqtt_subscribe, "/%s/RX",strCID);
+    config.mqtt_user[0]=0;
+    config.mqtt_pass[0]=0;
+    config.mqtt_port = 1883;
+#endif
 
     config.ppp_enable = false;
     sprintf(config.ppp_apn, "internet");
@@ -3688,6 +3704,86 @@ String compress_position(double nowLat, double nowLng, int alt_feed, double cour
     str_comp = String(table) + String(aprs_position);
     return str_comp;
 }
+
+#ifdef MQTT
+
+WiFiClient espClient;
+PubSubClient clientMQTT(espClient);
+
+void mqtt_reconnect()
+{
+    // Loop until we're reconnected
+    if (!clientMQTT.connected())
+    {
+        char strCID[13];
+        uint64_t chipid = ESP.getEfuseMac();
+        sprintf(strCID, "%04X%08X", (uint16_t)(chipid >> 32), (uint32_t)chipid);
+        Serial.print("Attempting MQTT connection...");
+        // Attempt to connect
+        char idMqtt[50];
+        sprintf(idMqtt, "%s", strCID);
+        // if (strlen(config.wx_object) > 3)
+        // {
+        //     strcat(idMqtt, "_");
+        //     strcat(idMqtt, config.wx_object);
+        // }
+        bool res=false;
+        if(config.mqtt_user[0]!=0){
+            res=clientMQTT.connect(idMqtt, config.mqtt_user, config.mqtt_pass);
+        }else{
+            res=clientMQTT.connect(idMqtt);
+        }
+        if (res)
+        {
+            log_d("MQTT Connected");
+            // Once connected, publish an announcement...
+            char payload[20];
+            // char topic[50];
+            // if (strlen(config.wx_object) > 3)
+            //     sprintf(topic, "/%s/status", config.wx_object);
+            // else
+            //     sprintf(topic, "/%s/status", config.wx_mycall);
+            sprintf(payload, "Connected");
+
+            clientMQTT.publish(config.mqtt_topic, payload);
+            // ... and resubscribe
+            clientMQTT.subscribe(config.mqtt_subscribe);
+            delay(3000);
+        }
+        else
+        {
+            log_d("MQTT Failed, rc=%d ", clientMQTT.state());
+        }
+    }
+}
+
+void mqtt_callback(char *topic, byte *payload, unsigned int length)
+{
+    byte *payload_ptr=(byte *)calloc(1,length+1);
+    if(payload_ptr==NULL){
+        log_d("MQTT No memory");
+        return;
+    }
+    memset(payload_ptr,0,length+1);
+    memcpy(payload_ptr, payload, length);
+    log_d("MQTT Message arrived on topic [%s] with length %d", topic, length);
+    if (payload_ptr[0] == 'A' && payload_ptr[1] == 'T')
+    {
+        if(config.at_cmd_mqtt){
+            log_d("AT-Command received: %s", payload_ptr);
+            String ret = handleATCommand(String((char *)payload_ptr));
+            log_d("AT-Command response: %s", ret.c_str());
+            clientMQTT.publish(config.mqtt_topic, ret.c_str());        
+        }
+    }
+    else
+    {
+        pkgTxPush((const char *)payload_ptr, length, 0, RF_CHANNEL);
+    }
+    free(payload_ptr);
+}
+
+#endif // MQTT
 
 String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, uint16_t speed, uint8_t type, uint8_t *telem, size_t telemLen, char *grid, char *status, int32_t alt, char table, char symbol)
 {
@@ -6629,6 +6725,14 @@ void taskAPRS(void *pvParameters)
                         }
                     }
 #endif
+
+#ifdef MQTT
+                if (config.en_mqtt && clientMQTT.connected() && (config.mqtt_topic_flag & MQTT_TOPIC_TNC))
+                {
+                    log_d("Publish MQTT Topic: %s Payload: %s", config.mqtt_topic, tnc2.c_str());
+                    clientMQTT.publish(config.mqtt_topic, tnc2.c_str());
+                }
+#endif
                     // SerialBT.println(tnc2);
                     // uint16_t type = pkgType((char *)incomingPacket.info);
                     if (!(type & FILTER_THIRDPARTY))
@@ -7286,7 +7390,39 @@ void taskAPRS(void *pvParameters)
                 {
                     WxInterval = millis() + (10 * 1000);
                 }
+#ifdef MQTT
+                if (config.en_mqtt && (config.mqtt_topic_flag & MQTT_TOPIC_WX) && clientMQTT.connected())
+                {
+                    char payload[500];
+                    char topic[100];
+                    if(strlen(config.wx_object)<3)
+                        sprintf(topic,"/%s/WEATHER/sample",config.wx_mycall);
+                    else
+                        sprintf(topic,"/%s/WEATHER/sample",config.wx_object);
+                    getWxJson(&payload[0],false);
+                    log_d("Publish MQTT Topic: %s Payload: %s", config.mqtt_topic, payload);
+                    clientMQTT.publish(config.mqtt_topic, payload);
+                }
+#endif                
             }
+#ifdef MQTT            
+            if (millis() > WxIntervalAvg)
+            {
+                WxIntervalAvg = millis() + (600 * 1000);
+                if (config.en_mqtt && (config.mqtt_topic_flag & MQTT_TOPIC_WX) && clientMQTT.connected())
+                {
+                    char payload[500];
+                    char topic[100];
+                    if(strlen(config.wx_object)<3)
+                        sprintf(topic,"/%s/WEATHER/average",config.wx_mycall);
+                    else
+                        sprintf(topic,"/%s/WEATHER/average",config.wx_object);
+                    getWxJson(&payload[0],true);
+                    log_d("Publish MQTT Topic: %s Payload: %s", topic, payload);
+                    clientMQTT.publish(topic, payload);
+                }
+            }
+#endif               
         }
 
         if (config.tlm0_en)
@@ -7434,6 +7570,12 @@ IPAddress ap_mask(255, 255, 255, 0);
 IPAddress ap_leaseStart(192, 168, 4, 2);
 IPAddress ap_dns(8, 8, 4, 4);
 
+uint8_t wifiStatus = WL_DISCONNECTED;
+bool vpnConnected = false;
+bool wifiDisconnecting = false;
+uint16_t wifiDisCount=0;
+unsigned long vpnTimeout=0;
+
 void onEvent(arduino_event_id_t event, arduino_event_info_t info)
 {
     switch (event)
@@ -7444,14 +7586,26 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info)
         break;
     case ARDUINO_EVENT_PPP_CONNECTED:
         log_d("PPP Connected");
-        // if (config.en_mqtt)
-        // {
-        //     if (!clientMQTT.connected())
-        //     {
-        //         clientMQTT.setServer(config.mqtt_host, config.mqtt_port);
-        //         clientMQTT.setCallback(mqtt_callback);
-        //     }
-        // }
+        if(!WiFi.isConnected()){
+            if(config.vpn){
+                log_d("Setup Wireguard VPN by PPP!");
+                vpnConnected = false;
+                vpnTimeout=millis()+3000;
+            }
+        
+#ifdef MQTT
+        if (config.en_mqtt)
+        {
+            if (!clientMQTT.connected())
+            {
+                clientMQTT.disconnect();
+                clientMQTT.setServer(config.mqtt_host, config.mqtt_port);
+                clientMQTT.setCallback(mqtt_callback);
+            }
+            mqtt_reconnect();
+        }
+#endif
+        }
         break;
     case ARDUINO_EVENT_PPP_GOT_IP:
         pppStatus.ip = info.got_ip.ip_info.ip.addr;
@@ -7461,20 +7615,23 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info)
         log_d("PPP IP: %s", IPAddress(pppStatus.ip).toString().c_str());
         log_d("PPP Gateway: %s", IPAddress(pppStatus.gateway).toString().c_str());
         log_d("PPP Subnet: %s", IPAddress(pppStatus.netmask).toString().c_str());
-        WiFi.AP.enableNAPT(true);
+        WiFi.AP.enableNAPT(config.ppp_napt);
         break;
     case ARDUINO_EVENT_PPP_LOST_IP:
         log_d("PPP Lost IP");
         WiFi.AP.enableNAPT(false);
+        pppTimeout = millis() + (60 * 1000);
         break;
     case ARDUINO_EVENT_PPP_DISCONNECTED:
         log_d("PPP Disconnected");
         WiFi.AP.enableNAPT(false);
+        pppTimeout = millis() + (60 * 1000);
         break;
     case ARDUINO_EVENT_PPP_STOP:
         log_d("PPP Stopped");
         break;
     #endif
+
     case ARDUINO_EVENT_WIFI_AP_START:
         log_d("AP Started");
         Serial.println(WiFi.AP);
@@ -7496,25 +7653,68 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info)
         log_d("AP Stopped");
         break;
     case ARDUINO_EVENT_WIFI_STA_CONNECTED:
-        // String info = "WiFi Infor:";
-        // info += "\nSSID: " + WiFi.SSID();
-        // info += "\nRSSI: " + String(WiFi.RSSI()) + "dBm";
-        // info += "\nIP: " + WiFi.localIP().toString();
-        // info += "\nGW IP: " + WiFi.gatewayIP().toString();
-        // info += "\nMAC: " + WiFi.macAddress();
-        // lv_label_set_text(ui_txtSystemInfo, info.c_str());
-        // if (config.en_mqtt)
-        // {
-        //     if (!clientMQTT.connected())
-        //     {
-        //         clientMQTT.setServer(config.mqtt_host, config.mqtt_port);
-        //         clientMQTT.setCallback(mqtt_callback);
-        //     }
-        // }
+        wifiDisCount=0;
+        wifiDisconnecting = false;
+// String info = "WiFi Infor:";
+// info += "\nSSID: " + WiFi.SSID();
+// info += "\nRSSI: " + String(WiFi.RSSI()) + "dBm";
+// info += "\nIP: " + WiFi.localIP().toString();
+// info += "\nGW IP: " + WiFi.gatewayIP().toString();
+// info += "\nMAC: " + WiFi.macAddress();
+// lv_label_set_text(ui_txtSystemInfo, info.c_str());
+        if(config.vpn){
+            log_d("Setup Wireguard VPN by WiFi!");
+            vpnConnected = false;
+            vpnTimeout=millis()+3000;
+        }
+#ifdef MQTT
+        if (config.en_mqtt)
+        {
+            if (!clientMQTT.connected())
+            {
+                clientMQTT.disconnect();
+                clientMQTT.setServer(config.mqtt_host, config.mqtt_port);
+                clientMQTT.setCallback(mqtt_callback);
+            }
+            mqtt_reconnect();
+        }
+#endif        
         log_d("WiFi Connected");
         break;
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
         log_d("WiFi Disconnected");
+        wifiDisCount++;        
+        // if(wifiDisCount%5==0){
+        //     log_d("WiFi Disconnected count=%d",wifiDisCount);
+        //     WiFi.disconnect(true,true);            
+        //     wifiMulti.run(); // Move to next AP             
+        //     WiFi.reconnect();
+        // }
+        if(wifiDisconnecting==false && wifiDisCount>10){
+            wifiDisCount=0;
+            wifiDisconnecting = true; 
+            pingTimeout = millis() + 10000;
+            #ifdef MQTT
+        if (config.en_mqtt)
+        {
+            if (!clientMQTT.connected())
+            {
+                clientMQTT.disconnect();
+                clientMQTT.setServer(config.mqtt_host, config.mqtt_port);
+                clientMQTT.setCallback(mqtt_callback);
+            }
+            mqtt_reconnect();
+        }
+#endif                           
+        #ifdef PPPOS
+        if(config.vpn ){            
+            //if(PPP.connected()){
+                vpnConnected = false;  
+                vpnTimeout=millis()+1000;              
+            //}
+        }
+        #endif
+        }
         break;
     default:
         break;
@@ -7524,12 +7724,14 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info)
 long int pppTimeout = 0;
 
 #ifdef PPPOS
+
 void PPPOS_Start()
 {
     if (config.ppp_enable)
-    {
+    {        
         pppTimeout = millis() + (600 * 1000);
         log_d("Starting the modem. It might take a while!");
+        PPP.end();
         pinMode(config.ppp_rst_gpio, OUTPUT);
         digitalWrite(config.ppp_rst_gpio, config.ppp_rst_active);
         delay(config.ppp_rst_delay);
@@ -7537,9 +7739,24 @@ void PPPOS_Start()
         // pinMode(39, INPUT_PULLUP); // Set GPIO39 as input with pull-up resistor
         //  digitalWrite(39, HIGH); // Set GPIO39 to high to enable pull-up resistor
         delay(1000); // Wait for the modem to reset
-
+        
+        PPP.setApn(config.ppp_apn);     // Set the APN for the modem
+        PPP.setResetPin(config.ppp_rst_gpio, config.ppp_rst_active, config.ppp_rst_delay);
         PPP.setPins(config.ppp_tx_gpio, config.ppp_rx_gpio);
-        PPP.begin(PPP_MODEM_MODEL, config.ppp_serial, 115200);
+        log_d("PPP Modem Init...");
+        log_d("Using UART %d as PPP interface", config.ppp_serial);
+        if(config.ppp_serial>1) return;
+        if (PPP.begin(PPP_MODEM_MODEL, config.ppp_serial, 115200))
+        {
+            log_d("PPP started successfully");
+        }
+        else
+        {
+            log_d("PPP failed to start");
+            sprintf(pppStatus.manufacturer, "Not found modem");
+            sprintf(pppStatus.model, "N/A");
+            return;
+        }
 
         // Configure the modem
         if (config.ppp_gnss)
@@ -7552,8 +7769,7 @@ void PPPOS_Start()
             Serial.println(PPP.cmd("AT+QGPSCFG=\"apflash\",1", 10000));             // เปิดใช้งาน AP-Flash เพื่อการเริ่มต้นที่รวดเร็ว
             Serial.println(PPP.cmd("AT+QGPS=1", 10000));
         }
-
-        PPP.setApn("INTERNET");     // Set the APN for the modem
+        
         PPP.cmd("AT+CTZU=1", 1000); // Enable automatic time zone update
         // PPP.setUser(ppp_user);
         // PPP.setPass(ppp_pass);
@@ -7576,7 +7792,7 @@ void PPPOS_Start()
             int i = 0;
             unsigned int s = millis();
             log_d("Waiting to connect to network");
-            while (!attached && ((++i) < 300))
+            while (!attached && ((++i) < 30))
             {
                 log_d(".");
                 delay(100);
@@ -7596,8 +7812,7 @@ void PPPOS_Start()
             pppStatus.rssi = PPP.RSSI();
             log_d("Operator: %s", pppStatus.oper);
             log_d("RSSI: %d dBm", pppStatus.rssi);
-            // log_d("RSSI: %i", PPP.RSSI());
-            //  PPP.started(); // Start the PPP connection
+            PPP.started(); // Start the PPP connection            
             //   if(PPP.sms("0984958488","Test SMS from ESP32")){
             //       log_d("SMS sent successfully!");
             //   } else {
@@ -7967,6 +8182,20 @@ void taskNetwork(void *pvParameters)
                     }
                 }
             }
+
+#ifdef MQTT
+            if (config.en_mqtt)
+            {
+                if (!clientMQTT.connected())
+                {
+                    mqtt_reconnect();
+                }
+                else
+                {
+                    clientMQTT.loop();
+                }
+            }
+#endif
 
             if (millis() > pingTimeout)
             {

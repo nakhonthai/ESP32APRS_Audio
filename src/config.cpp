@@ -487,11 +487,17 @@ bool saveConfiguration(const char *filename, const Configuration &config)
     doc["pppFlow"] = config.ppp_flow_ctrl;
     doc["pppGNSS"] = config.ppp_gnss;
 
+    #ifdef MQTT
     doc["mqttEnable"] = config.en_mqtt;
     doc["mqttHost"] = config.mqtt_host;
     doc["mqttTopic"] = config.mqtt_topic;
     doc["mqttSub"] = config.mqtt_subscribe;
+    doc["mqttTopicFlag"] = config.mqtt_topic_flag;
+    doc["mqttSubFlag"] = config.mqtt_subscribe_flag;
     doc["mqttPort"] = config.mqtt_port;
+    doc["mqttUser"] = config.mqtt_user;
+    doc["mqttPass"] = config.mqtt_pass;
+    #endif
 
     doc["trkMicEType"] = config.trk_mice_type;
     doc["trkTlmInv"] = config.trk_tlm_interval;
@@ -499,6 +505,16 @@ bool saveConfiguration(const char *filename, const Configuration &config)
     doc["igateTlmInv"] = config.igate_tlm_interval;
     doc["hostName"] = config.host_name;
     doc["resetTimeout"] = config.reset_timeout;
+
+    doc["msgEnable"] = config.msg_enable;
+    doc["msgMycall"] = config.msg_mycall;
+    doc["msgRf"] = config.msg_rf;
+    doc["msgInet"] = config.msg_inet;
+    doc["msgPath"] = config.msg_path;
+    doc["msgEncrypt"] = config.msg_encrypt;
+    doc["msgAESKey"] = config.msg_key;
+    doc["msgRetry"] = config.msg_retry;
+    doc["msgInterval"] = config.msg_interval;
 
     // Serialize JSON to file
     File file = LITTLEFS.open(filename, FILE_WRITE);
@@ -959,11 +975,17 @@ bool loadConfiguration(const char *filename, Configuration &config)
         config.ppp_flow_ctrl = doc["pppFlowCtrl"];
         config.ppp_gnss = doc["pppGNSS"];
 
+        #ifdef MQTT
         config.en_mqtt = doc["mqttEnable"];
         strlcpy(config.mqtt_host, doc["mqttHost"] | "", sizeof(config.mqtt_host));
         strlcpy(config.mqtt_topic, doc["mqttTopic"] | "", sizeof(config.mqtt_topic));
         strlcpy(config.mqtt_subscribe, doc["mqttSub"] | "", sizeof(config.mqtt_subscribe));
+        config.mqtt_topic_flag = doc["mqttTopicFlag"];
+        config.mqtt_subscribe_flag = doc["mqttSubFlag"];
         config.mqtt_port = doc["mqttPort"];
+        strlcpy(config.mqtt_user, doc["mqttUser"] | "", sizeof(config.mqtt_user));
+        strlcpy(config.mqtt_pass, doc["mqttPass"] | "", sizeof(config.mqtt_pass));
+        #endif
 
         config.trk_mice_type = doc["trkMicEType"];
         config.trk_tlm_interval = doc["trkTlmInv"];
@@ -971,6 +993,28 @@ bool loadConfiguration(const char *filename, Configuration &config)
         config.igate_tlm_interval = doc["igateTlmInv"];
         strlcpy(config.host_name, doc["hostName"] | "", sizeof(config.host_name));
         config.reset_timeout = doc["resetTimeout"];
+
+        if(doc["msgEnable"].isNull()){ //old version compatibility
+            config.msg_enable = true;
+            config.msg_encrypt = false;
+            config.msg_rf = true;
+            config.msg_inet = true;
+            config.msg_retry = 3;
+            config.msg_interval = 30;
+            config.msg_path = 9;
+            sprintf(config.msg_key, "8EC8233E91D59B0164C24E771BA66307");
+            sprintf(config.msg_mycall, "NOCALL");
+        }else{
+            config.msg_enable = doc["msgEnable"];
+            config.msg_path = doc["msgPath"];
+            config.msg_rf = doc["msgRf"];
+            config.msg_inet = doc["msgInet"];
+            config.msg_encrypt = doc["msgEncrypt"];
+            config.msg_retry = doc["msgRetry"];
+            config.msg_interval = doc["msgInterval"];
+            strlcpy(config.msg_key, doc["msgAESKey"] | "", sizeof(config.msg_key));
+            strlcpy(config.msg_mycall, doc["msgMycall"] | "", sizeof(config.msg_mycall));
+        }
 
         // Close the file (Curiously, File's destructor doesn't close the file)
         // f.close();

@@ -32,6 +32,11 @@ AsyncWebServer async_websocket(81);
 AsyncWebSocket ws("/ws");
 AsyncWebSocket ws_gnss("/ws_gnss");
 
+#ifdef MQTT
+#include <PubSubClient.h>
+extern PubSubClient clientMQTT;
+#endif
+
 extern pppType pppStatus;
 
 // Create an Event Source on /events
@@ -122,6 +127,10 @@ void setMainPage(AsyncWebServerRequest *request)
 	webString += "} else if (tabName == 'SENSOR') {\n";
 	webString += "$(\"#contentmain\").load(\"/sensor\");\n";
 	webString += "} else if (tabName == 'VPN') {\n";
+#ifdef MQTT
+	webString += "} else if (tabName == 'MQTT') {\n";
+	webString += "$(\"#contentmain\").load(\"/mqtt\");\n";
+#endif
 	webString += "$(\"#contentmain\").load(\"/vpn\");\n";
 	webString += "} else if (tabName == 'WiFi') {\n";
 	webString += "$(\"#contentmain\").load(\"/wireless\");\n";
@@ -177,6 +186,9 @@ void setMainPage(AsyncWebServerRequest *request)
 	webString += "<button class=\"nav-tabs\" onclick=\"selectTab(event, 'TLM')\">TLM</button>\n";
 	webString += "<button class=\"nav-tabs\" onclick=\"selectTab(event, 'SENSOR')\">SENSOR</button>\n";
 	webString += "<button class=\"nav-tabs\" onclick=\"selectTab(event, 'VPN')\">VPN</button>\n";
+#ifdef MQTT
+	webString += "<button class=\"nav-tabs\" onclick=\"selectTab(event, 'MQTT')\">MQTT</button>\n";
+#endif
 	webString += "<button class=\"nav-tabs\" onclick=\"selectTab(event, 'WiFi')\">WiFi</button>\n";
 	webString += "<button class=\"nav-tabs\" onclick=\"selectTab(event, 'MOD')\">MOD</button>\n";
 	webString += "<button class=\"nav-tabs\" onclick=\"selectTab(event, 'System')\">System</button>\n";
@@ -2014,6 +2026,296 @@ void handle_vpn(AsyncWebServerRequest *request)
 		request->send(200, "text/html", html); // send to someones browser when asked
 	}
 }
+
+#ifdef MQTT
+void handle_mqtt(AsyncWebServerRequest *request)
+{
+	if (!request->authenticate(config.http_username, config.http_password))
+	{
+		return request->requestAuthentication();
+	}
+	StandByTick = millis() + (config.pwr_stanby_delay * 1000);
+
+	if (request->hasArg("commitMQTT"))
+	{
+		bool mqttEn = false;
+		config.mqtt_topic_flag = 0;
+		config.mqtt_subscribe_flag = 0;
+		for (uint8_t i = 0; i < request->args(); i++)
+		{
+			if (request->argName(i) == "enable")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						mqttEn = true;
+				}
+			}
+
+			if (request->argName(i) == "host")
+			{
+				if (request->arg(i) != "")
+				{
+					strcpy(config.mqtt_host, request->arg(i).c_str());
+				}
+			}
+			if (request->argName(i) == "port")
+			{
+				if (request->arg(i) != "")
+				{
+					config.mqtt_port = request->arg(i).toInt();
+				}
+			}
+			if (request->argName(i) == "user")
+			{
+				if (request->arg(i) != "")
+				{
+					strcpy(config.mqtt_user, request->arg(i).c_str());
+				}
+			}
+			if (request->argName(i) == "pass")
+			{
+				if (request->arg(i) != "")
+				{
+					strcpy(config.mqtt_pass, request->arg(i).c_str());
+				}
+			}
+			if (request->argName(i) == "topic")
+			{
+				if (request->arg(i) != "")
+				{
+					strcpy(config.mqtt_topic, request->arg(i).c_str());
+				}
+			}
+			if (request->argName(i) == "subscribe")
+			{
+				if (request->arg(i) != "")
+				{
+					strcpy(config.mqtt_subscribe, request->arg(i).c_str());
+				}
+			}
+
+			if (request->argName(i) == "TopicTNC")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						config.mqtt_topic_flag |= MQTT_TOPIC_TNC;
+				}
+			}
+			if (request->argName(i) == "TopicSts")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						config.mqtt_topic_flag |= MQTT_TOPIC_STATUS;
+				}
+			}
+			if (request->argName(i) == "TopicTlm")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						config.mqtt_topic_flag |= MQTT_TOPIC_TELEMETRY;
+				}
+			}
+			if (request->argName(i) == "TopicWX")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						config.mqtt_topic_flag |= MQTT_TOPIC_WX;
+				}
+			}
+			if (request->argName(i) == "TopicSensor")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						config.mqtt_topic_flag |= MQTT_TOPIC_SENSOR;
+				}
+			}
+
+			if (request->argName(i) == "subCMD")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						config.mqtt_topic_flag |= MQTT_SUBSCRIBE_CMD;
+				}
+			}
+			if (request->argName(i) == "subTNC")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						config.mqtt_topic_flag |= MQTT_SUBSCRIBE_TNC;
+				}
+			}
+			if (request->argName(i) == "subMsg")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						config.mqtt_topic_flag |= MQTT_SUBSCRIBE_MESSAGE;
+				}
+			}
+		}
+
+		config.en_mqtt = mqttEn;
+		clientMQTT.disconnect();
+		String html;
+		if (saveConfiguration("/default.cfg", config))
+		{
+			html = "Setup completed successfully";
+			request->send(200, "text/html", html); // send to someones browser when asked
+		}
+		else
+		{
+			html = "Save config failed.";
+			request->send(501, "text/html", html); // Not Implemented
+		}
+	}
+	else
+	{
+
+		String html = "<script type=\"text/javascript\">\n";
+		html += "$('form').submit(function (e) {\n";
+		html += "e.preventDefault();\n";
+		html += "var data = new FormData(e.currentTarget);\n";
+		html += "if(e.currentTarget.id===\"formVPN\") document.getElementById(\"submitMQTT\").disabled=true;\n";
+		html += "$.ajax({\n";
+		html += "url: '/mqtt',\n";
+		html += "type: 'POST',\n";
+		html += "data: data,\n";
+		html += "contentType: false,\n";
+		html += "processData: false,\n";
+		html += "success: function (data) {\n";
+		html += "alert(\"Submited Successfully\");\n";
+		html += "},\n";
+		html += "error: function (data) {\n";
+		html += "alert(\"An error occurred.\");\n";
+		html += "}\n";
+		html += "});\n";
+		html += "});\n";
+		html += "</script>\n";
+
+		// html += "<h2>System Setting</h2>\n";
+		html += "<form accept-charset=\"UTF-8\" action=\"#\" class=\"form-horizontal\" id=\"fromMQTT\" method=\"post\">\n";
+		html += "<table>\n";
+		html += "<th colspan=\"2\"><span><b>MQTT Configuration</b></span></th>\n";
+		html += "<tr>";
+
+		String syncFlage = "";
+		if (config.en_mqtt)
+			syncFlage = "checked";
+		html += "<td align=\"right\"><b>Enable</b></td>\n";
+		html += "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"enable\" value=\"OK\" " + syncFlage + "><span class=\"slider round\"></span></label></td>\n";
+		html += "</tr>\n";
+
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>Server Address:</b></td>\n";
+		html += "<td style=\"text-align: left;\"><input  size=\"30\" maxlength=\"32\" name=\"host\" type=\"text\" value=\"" + String(config.mqtt_host) + "\" /></td>\n";
+		html += "</tr>\n";
+
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>Server Port:</b></td>\n";
+		html += "<td style=\"text-align: left;\"><input size=\"5\"  maxlength=\"5\"  name=\"port\" type=\"number\" value=\"" + String(config.mqtt_port) + "\" /></td>\n";
+		html += "</tr>\n";
+
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>User:</b></td>\n";
+		html += "<td style=\"text-align: left;\"><input maxlength=\"32\" name=\"user\" type=\"text\" value=\"" + String(config.mqtt_user) + "\" /></td>\n";
+		html += "</tr>\n";
+
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>Password:</b></td>\n";
+		html += "<td style=\"text-align: left;\"><input size=\"40\" maxlength=\"63\" name=\"pass\" type=\"password\" value=\"" + String(config.mqtt_pass) + "\" /></td>\n";
+		html += "</tr>\n";
+
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>Topic:</b></td>\n";
+		html += "<td style=\"text-align: left;\"><input size=\"50\" maxlength=\"32\" id=\"topic\" name=\"topic\" type=\"text\" value=\"" + String(config.mqtt_topic) + "\" /></td>\n";
+		html += "</tr>\n";
+
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>Topic Flag:</b></td>\n";
+
+		html += "<td align=\"center\">\n";
+		html += "<fieldset id=\"TopicGrp\">\n";
+		html += "<legend>Topic Flags Send out MQTT</legend>\n<table style=\"text-align:unset;border-width:0px;background:unset\">";
+		html += "<tr style=\"background:unset;\">";
+
+		String topicFlageEn = "";
+		if (config.mqtt_topic_flag & MQTT_TOPIC_TNC)
+			topicFlageEn = "checked";
+		html += "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"TopicTNC\" type=\"checkbox\" value=\"OK\" " + topicFlageEn + "/>TNC</td>\n";
+
+		topicFlageEn = "";
+		if (config.mqtt_topic_flag & MQTT_TOPIC_STATUS)
+			topicFlageEn = "checked";
+		html += "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"TopicSts\" type=\"checkbox\" value=\"OK\" " + topicFlageEn + "/>Status</td>\n";
+
+		topicFlageEn = "";
+		if (config.mqtt_topic_flag & MQTT_TOPIC_TELEMETRY)
+			topicFlageEn = "checked";
+		html += "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"TopicTlm\" type=\"checkbox\" value=\"OK\" " + topicFlageEn + "/>Telemetry</td>\n";
+
+		topicFlageEn = "";
+		if (config.mqtt_topic_flag & MQTT_TOPIC_WX)
+			topicFlageEn = "checked";
+		html += "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"TopicWX\" type=\"checkbox\" value=\"OK\" " + topicFlageEn + "/>Weather</td>\n";
+
+		topicFlageEn = "";
+		if (config.mqtt_topic_flag & MQTT_TOPIC_SENSOR)
+			topicFlageEn = "checked";
+		html += "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"TopicSensor\" type=\"checkbox\" value=\"OK\" " + topicFlageEn + "/>Sensor</td>\n";
+
+		html += "<td style=\"border:unset;\"></td>";
+		html += "</tr></table></fieldset>\n";
+		html += "</td></tr>\n";
+
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>Subscription:</b></td>\n";
+		html += "<td style=\"text-align: left;\"><input size=\"50\" maxlength=\"32\" name=\"subscribe\" type=\"text\" value=\"" + String(config.mqtt_subscribe) + "\" /></td>\n";
+		html += "</tr>\n";
+
+		html += "<tr>\n";
+		html += "<td align=\"right\"><b>Subscription Flag:</b></td>\n";
+
+		html += "<td align=\"center\">\n";
+		html += "<fieldset id=\"SubGrp\">\n";
+		html += "<legend>Subscription Flags Receive</legend>\n<table style=\"text-align:unset;border-width:0px;background:unset\">";
+		html += "<tr style=\"background:unset;\">";
+
+		String subFlageEn = "";
+		if (config.mqtt_subscribe_flag & MQTT_SUBSCRIBE_CMD)
+			subFlageEn = "checked";
+		html += "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"subCMD\" type=\"checkbox\" value=\"OK\" " + subFlageEn + "/>AT-Command</td>\n";
+
+		subFlageEn = "";
+		if (config.mqtt_subscribe_flag & MQTT_SUBSCRIBE_TNC)
+			subFlageEn = "checked";
+		html += "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"subTNC\" type=\"checkbox\" value=\"OK\" " + subFlageEn + "/>TNC</td>\n";
+
+		subFlageEn = "";
+		if (config.mqtt_subscribe_flag & MQTT_SUBSCRIBE_MESSAGE)
+			subFlageEn = "checked";
+		html += "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"subMsg\" type=\"checkbox\" value=\"OK\" " + subFlageEn + "/>Message</td>\n";
+
+		html += "<td style=\"border:unset;\"></td>";
+		html += "</tr></table></fieldset>\n";
+		html += "</td></tr>\n";
+
+		html += "</table><br />\n";
+		html += "<td><input class=\"button\" id=\"submitMQTT\" name=\"commitMQTT\" type=\"submit\" value=\"Save Config\" maxlength=\"80\"/></td>\n";
+		html += "<input type=\"hidden\" name=\"commitMQTT\"/>\n";
+		html += "</form>\n";
+
+		request->send(200, "text/html", html); // send to someones browser when asked
+	}
+}
+#endif
 
 void handle_mod(AsyncWebServerRequest *request)
 {
@@ -9362,6 +9664,10 @@ void webService()
 					{ handle_radio(request); });
 	async_server.on("/vpn", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest *request)
 					{ handle_vpn(request); });
+#ifdef MQTT
+	async_server.on("/mqtt", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest *request)
+					{ handle_mqtt(request); });
+#endif					
 	async_server.on("/mod", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest *request)
 					{ handle_mod(request); });
 	async_server.on("/default", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest *request)
