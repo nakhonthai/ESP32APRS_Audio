@@ -3191,17 +3191,20 @@ void setup()
     pkgList = (pkgListType *)ps_malloc(sizeof(pkgListType) * PKGLISTSIZE);
     Telemetry = (TelemetryType *)malloc(sizeof(TelemetryType) * TLMLISTSIZE);
     txQueue = (txQueueType *)ps_malloc(sizeof(txQueueType) * PKGTXSIZE);
+    msgQueue = (msgType *)ps_malloc(sizeof(msgType) * PKGLISTSIZE);
     // TNC2Raw = (int *)ps_malloc(sizeof(int) * PKGTXSIZE);
 #else
     pkgList = (pkgListType *)malloc(sizeof(pkgListType) * PKGLISTSIZE);
     Telemetry = (TelemetryType *)malloc(sizeof(TelemetryType) * TLMLISTSIZE);
     txQueue = (txQueueType *)malloc(sizeof(txQueueType) * PKGTXSIZE);
+    msgQueue = (msgType *)malloc(sizeof(msgType) * PKGLISTSIZE);
     // TNC2Raw = (int *)malloc(sizeof(int) * PKGTXSIZE);
 #endif
 
     memset(pkgList, 0, sizeof(pkgListType) * PKGLISTSIZE);
     memset(Telemetry, 0, sizeof(TelemetryType) * TLMLISTSIZE);
     memset(txQueue, 0, sizeof(txQueueType) * PKGTXSIZE);
+    memset(msgQueue, 0, sizeof(msgType) * PKGLISTSIZE);
 
     pinMode(BOOT_PIN, INPUT_PULLUP); // BOOT Button
     pinMode(LED_RX, OUTPUT);
@@ -3500,7 +3503,7 @@ void setup()
         xTaskCreatePinnedToCore(
             taskNetwork,        /* Function to implement the task */
             "taskNetwork",      /* Name of the task */
-            12000,              /* Stack size in words */
+            14000,              /* Stack size in words */
             NULL,               /* Task input parameter */
             1,                  /* Priority of the task */
             &taskNetworkHandle, /* Task handle. */
@@ -7658,7 +7661,7 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info)
 
     case ARDUINO_EVENT_WIFI_AP_START:
         log_d("AP Started");
-        Serial.println(WiFi.AP);
+        //log_d(WiFi.AP);
         break;
     case ARDUINO_EVENT_WIFI_AP_STACONNECTED:
         log_d("AP STA Connected");
@@ -7917,6 +7920,8 @@ void taskNetwork(void *pvParameters)
         {
             NTP_Timeout = millis() + 2000;
         }
+        wifiMulti.setStrictMode(false);  // Default is true.  Library will disconnect and forget currently connected AP if it's not in the AP list.
+        wifiMulti.setAllowOpenAP(true);  // Default is false.  True adds open APs to the AP list.
     }
 
     if (config.wifi_mode & WIFI_AP_FIX)
@@ -7935,24 +7940,34 @@ void taskNetwork(void *pvParameters)
         }
     }
 
-    if (wifiMulti.run() == WL_CONNECTED)
-    {
-        log_d("Wi-Fi CONNECTED!");
-        log_d("IP address: %s", WiFi.localIP().toString().c_str());
-        NTP_Timeout = millis() + 5000;
-    }
+    // if (wifiMulti.run() == WL_CONNECTED)
+    // {
+    //     log_d("Wi-Fi CONNECTED!");
+    //     log_d("IP address: %s", WiFi.localIP().toString().c_str());
+    //     NTP_Timeout = millis() + 5000;
+    // }
 
     pingTimeout = millis() + 10000;
     unsigned long timeNetworkOld = millis();
     timeNetwork = 0;
+
+    #ifdef PPPOS
+    PPPOS_Start(); // Start PPP connection if enabled
+    pppTimeout = millis() + (600 * 1000);
+    #endif
+
+     #ifdef PPPOS
+    if (config.ppp_enable || (config.wifi_mode & WIFI_AP_STA_FIX))
+    #else
     if (config.wifi_mode & WIFI_AP_STA_FIX)
+    #endif
         webService();
 
     // wireguard_ctx_t ctx = {0};
     esp_err_t err;
-    #ifdef PPPOS
-    PPPOS_Start();    // Start PPP connection if enabled
-    #endif
+    // #ifdef PPPOS
+    // PPPOS_Start();    // Start PPP connection if enabled
+    // #endif
 
     #ifdef BLUETOOTH
     bluetooth_init(); // Initialize Bluetooth if enabled
@@ -8003,11 +8018,15 @@ void taskNetwork(void *pvParameters)
 
         if (config.wifi_mode & WIFI_AP_FIX)
         {
-            APStationNum = WiFi.softAPgetStationNum();
+             APStationNum = WiFi.softAPgetStationNum();
             if (APStationNum > 0)
             {
                 // config.pwr_sleep_activate |= ACTIVATE_WIFI;
+                #ifdef PPPOS
+                if ((WiFi.isConnected() == false) && (PPP.connected() == false))
+                #else   
                 if (WiFi.isConnected() == false)
+                #endif
                 {
                     vTaskDelay(9 / portTICK_PERIOD_MS);
                     continue;
@@ -8015,7 +8034,16 @@ void taskNetwork(void *pvParameters)
             }
         }
 
-        if (wifiMulti.run(connectTimeoutMs) == WL_CONNECTED)
+        wifiStatus = WL_DISCONNECTED;
+        if (config.wifi_mode & WIFI_STA_FIX)
+        {
+            wifiStatus = wifiMulti.run(10000); // Timeout 10 sec
+        }
+        #ifdef PPPOS
+        if ((wifiStatus == WL_CONNECTED) || (PPP.connected()))
+        #else
+        if ((wifiStatus == WL_CONNECTED))
+        #endif
         {
             // config.pwr_sleep_activate |= ACTIVATE_WIFI;
             if (millis() > NTP_Timeout)
@@ -8024,9 +8052,9 @@ void taskNetwork(void *pvParameters)
                 // setSyncProvider(getNtpTime);
                 log_d("Contacting Time Server\n");
                 configTime(3600 * config.timeZone, 0, config.ntp_host);
-                // vTaskDelay(500 / portTICK_PERIOD_MS);
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
                 struct tm tmstruct;
-                if (getLocalTime(&tmstruct, 5000))
+                if (getLocalTime(&tmstruct, 1000))
                 {
                     time_t systemTime;
                     time(&systemTime);
@@ -8038,39 +8066,42 @@ void taskNetwork(void *pvParameters)
                     pingTimeout = millis() + 2000;
                     if (config.vpn)
                     {
+                        // if (wireguard_up())
+                        //     log_d("Wireguard UP Link");
+                        // else
+                        //     log_d("Wireguard Connect Fail!");
+                        log_d("Setup Wireguard Setup!");
+                        vpnTimeout=millis()+10000;
+                        //if (wireguard_active()) wireguard_remove();
                         if (!wireguard_active())
-                        {
-                            log_d("Setup Wiregurad VPN!");
-                            wireguard_setup();
+                        {                            
+                         //if (wireguard_active()) wireguard_remove();
+                            log_d("Setup Wireguard VPN!");
+                            if(WiFi.isConnected()){
+                                wireguard_setup();
+                                vpnConnected=true;
+                            }else{
+                                #ifdef PPPOS
+                                if(PPP.connected()){
+                                    wireguard_setup((netif *)PPP.netif());
+                                    vpnConnected=true;
+                                }
+                                #endif
+                            }
                         }
-                        // //if(ctx.netif==NULL){
-                        //     log_d("wireguard_setup");
-                        //     err = wireguard_setup(&ctx);
-                        //     if (err != ESP_OK) {
-                        //         log_d("wireguard_setup: %s", esp_err_to_name(err));
-                        //     }
-                        // //}
-                        // log_d("VPN Connecting.");
-                        // //if(esp_wireguardif_peer_is_up(&ctx) != ESP_OK){
-
-                        //     err = esp_wireguard_connect(&ctx);
-                        //     if (err != ESP_OK) {
-                        //         log_d("esp_wireguard_connect: %s", esp_err_to_name(err));
-                        //     }else{
-                        //         int to=0;
-                        //         while (esp_wireguardif_peer_is_up(&ctx) != ESP_OK) {
-                        //             vTaskDelay(1000 / portTICK_PERIOD_MS);
-                        //             if(++to>5) break;
-                        //         }
-                        //         log_d("VPN Peer is up");
-                        //         esp_wireguard_set_default(&ctx);
-                        //     }
                     }
                 }
                 else
                 {
-                    NTP_Timeout = millis() + 60000;
+                    NTP_Timeout = millis() + 5000;
                 }
+            }
+
+             if(millis()>vpnTimeout && !vpnConnected && config.vpn){
+                vpnTimeout=millis()+10000;                                
+                log_d("RENEW Device Wireguard VPN!"); 
+                wireguard_change_device();
+                vpnConnected=true; 
             }
 
             if (config.igate_en)
@@ -8227,79 +8258,99 @@ void taskNetwork(void *pvParameters)
 
             if (millis() > pingTimeout)
             {
-                pingTimeout = millis() + 60000;
-                log_d("Ping GW to %s\n", WiFi.gatewayIP().toString().c_str());
-                if (ping_start(WiFi.gatewayIP(), 2, 0, 0, 5) == true)
+                pingTimeout = millis() + 600000;
+                if(config.wifi_mode & WIFI_STA_FIX)
                 {
-                    log_d("GW Success!!\n");
-                }
-                else
-                {
-                    log_d("GW Fail!\n");
-                    WiFi.disconnect();
-                    WiFi.persistent(false);
-                    WiFi.mode(WIFI_OFF); // Switch WiFi off
-
-                    wifiTTL = 0;
-                    delay(3000);
-                    if (config.wifi_mode == WIFI_STA_FIX)
-                    { /**< WiFi station mode */
-                        WiFi.mode(WIFI_MODE_STA);
-                        WiFi.setTxPower((wifi_power_t)config.wifi_power);
-                    }
-                    else if (config.wifi_mode == WIFI_AP_FIX)
-                    { /**< WiFi soft-AP mode */
-                        WiFi.mode(WIFI_MODE_AP);
-                        WiFi.setTxPower((wifi_power_t)config.wifi_power);
-                    }
-                    else if (config.wifi_mode == WIFI_AP_STA_FIX)
-                    { /**< WiFi station + soft-AP mode */
-                        WiFi.mode(WIFI_MODE_APSTA);
-                        WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                    log_d("Ping WiFi to %s\n", WiFi.gatewayIP().toString().c_str());
+                    IPAddress wifiIP;
+                    wifiIP.fromString(String(WiFi.gatewayIP().toString()));
+                    if (ping_start(wifiIP, 2, 0, 0, 10) == true)
+                    {
+                        log_d("Ping WiFi Success!!\n");
                     }
                     else
                     {
-                        WiFi.mode(WIFI_MODE_NULL);
-                    }
-                    WiFi.reconnect();
-                    wifiMulti.run(5000);
-                }
-                if (config.vpn)
-                {
-                    if (!wireguard_active())
-                    {
-                        log_d("Reconnection Wiregurad VPN!");
-                        wireguard_remove();
-                        delay(1000);
-                        wireguard_setup();
-                    }
-                    //             IPAddress vpnIP;
-                    //             vpnIP.fromString(String(config.wg_gw_address));
-                    //             log_d("Ping VPN to %s", vpnIP.toString().c_str());
-                    //             if (ping_start(vpnIP, 2, 0, 0, 10) == true)
-                    //             {
-                    //                 log_d("VPN Ping Success!!");
-                    //             }
-                    //             else
-                    //             {
-                    //                 log_d("VPN Ping Fail!");
-                    //                 wireguard_remove();
-                    //                 delay(3000);
-                    //                 wireguard_setup();
-                    //                 //esp_wireguard_disconnect(&ctx);
-                    //                 log_d("VPN Connecting.");
-                    // // err = esp_wireguard_connect(&ctx);
-                    // // if (err != ESP_OK) {
-                    // //     log_d("esp_wireguard_connect: %s", esp_err_to_name(err));
-                    // // }
-                    // // while (esp_wireguardif_peer_is_up(&ctx) != ESP_OK) {
-                    // //     vTaskDelay(1000 / portTICK_PERIOD_MS);
-                    // // }
-                    // // log_d("VPN Peer is up");
-                    // // esp_wireguard_set_default(&ctx);
+                        log_d("Ping WiFi Fail!\n");
+                        WiFi.disconnect();
+                        WiFi.persistent(false);
+                        WiFi.mode(WIFI_OFF); // Switch WiFi off
 
-                    //             }
+                        wifiTTL = 0;
+                        delay(3000);
+                        if (config.wifi_mode == WIFI_STA_FIX)
+                        { /**< WiFi station mode */
+                            WiFi.mode(WIFI_MODE_STA);
+                            WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                        }
+                        else if (config.wifi_mode == WIFI_AP_FIX)
+                        { /**< WiFi soft-AP mode */
+                            WiFi.mode(WIFI_MODE_AP);
+                            WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                        }
+                        else if (config.wifi_mode == WIFI_AP_STA_FIX)
+                        { /**< WiFi station + soft-AP mode */
+                            WiFi.mode(WIFI_MODE_APSTA);
+                            WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                        }
+                        else
+                        {
+                            WiFi.mode(WIFI_MODE_NULL);
+                        }
+                        WiFi.reconnect();
+                        wifiMulti.run(5000);
+                    }
                 }
+                // if (config.vpn)
+                // {
+                //     if (!wireguard_active())
+                //     {
+                //         log_d("Reconnection Wireguard VPN!");
+                //         wireguard_remove();
+                //         delay(1000);
+                //         if(WiFi.isConnected()){
+                //                 wireguard_setup(NULL);
+                //             }else{
+                //                 if(PPP.connected()){
+                //                     wireguard_setup((netif *)PPP.netif());
+                //                 }
+                //             }
+                //     }
+                //     IPAddress vpnIP;
+                //     vpnIP.fromString(String(config.wg_local_address));
+                //     log_d("Ping VPN to %s", vpnIP.toString().c_str());
+                //     if (ping_start(vpnIP, 2, 0, 0, 10) == true)
+                //     {
+                //         log_d("VPN Ping Success!");
+                //     }
+                //     else
+                //     {
+                //         log_d("VPN Ping Fail!");
+                //         wireguard_remove();
+                //         delay(1000);
+                //         wireguard_setup(NULL);
+                            
+                //     }
+                // }
+                #ifdef PPPOS
+                if(config.ppp_enable)
+                {
+                    if (PPP.connected())
+                    {
+                        //IPAddress pppIP(pppStatus.ip);
+                        log_d("Ping PPP to %s", PPP.localIP().toString().c_str());
+                        if ((PPP.linkUp()==true)&&(ping_start(PPP.localIP(), 2, 0, 0, 30) == true))
+                        {
+                            log_d("PPP Ping Success!!");
+                        }
+                        else
+                        {
+                            log_d("PPP Ping Fail!");
+                            PPPOS_Start();
+                            pppTimeout = millis() + (600 * 1000);
+                        }
+                    }
+                }
+                #endif
             }
         }
     } // for loop

@@ -146,6 +146,8 @@ time_t wireguardif_latest_handshake(struct netif *netif, u8_t peer_index);
 // Add ip/mask to the list of allowed ips of the given peer
 err_t wireguardif_add_allowed_ip(struct netif *netif, u8_t peer_index, ip_addr_t ip, ip_addr_t mask);
 
+err_t wireguardif_changedevice(struct netif *netif);
+
 #ifdef __cplusplus
 }
 #endif
