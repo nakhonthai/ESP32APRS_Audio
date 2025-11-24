@@ -1455,7 +1455,7 @@ void defaultConfig()
     config.audio_hpf = false;
     config.audio_lpf = false;
     config.preamble = 3;
-    sprintf(config.ntp_host, "ntp.dprns.com");
+    sprintf(config.ntp_host, "aprs.nakhonthai.net");
 
     // IGATE
     config.igate_bcn = false;
@@ -1470,10 +1470,10 @@ void defaultConfig()
     config.aprs_ssid = 1;
     config.aprs_port = 14580;
     sprintf(config.aprs_mycall, "NOCALL");
-    sprintf(config.aprs_host, "aprs.dprns.com");
+    sprintf(config.aprs_host, "aprs.nakhonthai.net");
     memset(config.aprs_passcode, 0, sizeof(config.aprs_passcode));
     sprintf(config.aprs_moniCall, "%s-%d", config.aprs_mycall, config.aprs_ssid);
-    sprintf(config.aprs_filter, "m/0");
+    sprintf(config.aprs_filter, "t/m");
     //--Position
     config.igate_gps = false;
     config.igate_lat = 13.7555;
@@ -1650,7 +1650,7 @@ void defaultConfig()
     config.rx_display = true;
 
     // afsk,TNC
-    sprintf(config.ntp_host, "ntp.dprns.com");
+    sprintf(config.ntp_host, "ntp.nakhonthai.net");
 
     sprintf(config.path[0], "WIDE1-1");
     sprintf(config.path[1], "WIDE1-1,WIDE2-1");
@@ -1660,7 +1660,7 @@ void defaultConfig()
     // VPN Wireguard
     config.vpn = false;
     config.wg_port = 51820;
-    sprintf(config.wg_peer_address, "vpn.dprns.com");
+    sprintf(config.wg_peer_address, "vpn.nakhonthai.net");
     sprintf(config.wg_local_address, "192.168.1.2");
     sprintf(config.wg_netmask_address, "255.255.255.0");
     sprintf(config.wg_gw_address, "192.168.1.1");
@@ -7925,11 +7925,12 @@ void taskNetwork(void *pvParameters)
                 wifiMulti.addAP(config.wifi_sta[i].wifi_ssid, config.wifi_sta[i].wifi_pass);
             }
         }
-        WiFi.setHostname("ESP32APRS_Audio");
+        WiFi.setHostname(config.host_name);
         if (wifiMulti.run() == WL_CONNECTED)
         {
             NTP_Timeout = millis() + 2000;
         }
+        
         wifiMulti.setStrictMode(false);  // Default is true.  Library will disconnect and forget currently connected AP if it's not in the AP list.
         wifiMulti.setAllowOpenAP(true);  // Default is false.  True adds open APs to the AP list.
     }
@@ -8290,17 +8291,17 @@ void taskNetwork(void *pvParameters)
                         if (config.wifi_mode == WIFI_STA_FIX)
                         { /**< WiFi station mode */
                             WiFi.mode(WIFI_MODE_STA);
-                            WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                            //WiFi.setTxPower((wifi_power_t)config.wifi_power);
                         }
                         else if (config.wifi_mode == WIFI_AP_FIX)
                         { /**< WiFi soft-AP mode */
                             WiFi.mode(WIFI_MODE_AP);
-                            WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                            //WiFi.setTxPower((wifi_power_t)config.wifi_power);
                         }
                         else if (config.wifi_mode == WIFI_AP_STA_FIX)
                         { /**< WiFi station + soft-AP mode */
                             WiFi.mode(WIFI_MODE_APSTA);
-                            WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                            //WiFi.setTxPower((wifi_power_t)config.wifi_power);
                         }
                         else
                         {

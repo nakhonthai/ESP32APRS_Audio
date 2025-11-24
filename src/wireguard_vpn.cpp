@@ -8,6 +8,9 @@
 #include <Arduino.h>
 #include "main.h"
 #include <esp_wireguard.h>
+#include <WiFi.h>
+#include "lwip/dns.h"
+#include "lwip/ip_addr.h"
 
 
 //ใช้ตัวแปรโกลบอลในไฟล์ main.cpp
@@ -45,7 +48,13 @@ ip_addr_t ipaddr = WG_LOCAL_ADDRESS;
     ipaddr_aton(config.wg_local_address,&ipaddr);
     ipaddr_aton(config.wg_netmask_address,&netmask);
     ipaddr_aton(config.wg_gw_address,&gateway);
-    ipaddr_aton(config.wg_peer_address,&peer_address);
+    //ipaddr_aton(config.wg_peer_address,&peer_address);
+    IPAddress hostIp;
+    if (WiFi.hostByName(config.wg_peer_address, hostIp)) {
+        ipaddr_aton(hostIp.toString().c_str(), &peer_address);
+    }else{
+        ipaddr_aton(config.wg_peer_address,&peer_address);
+    }
 
 wg_config.address = config.wg_local_address;
 wg_config.private_key = config.wg_private_key;;
@@ -147,8 +156,15 @@ void wireguard_setup()
     ipaddr_aton(config.wg_local_address,&ipaddr);
     ipaddr_aton(config.wg_netmask_address,&netmask);
     ipaddr_aton(config.wg_gw_address,&gateway);
-    ipaddr_aton(config.wg_peer_address,&peer_address);
+    //ipaddr_aton(config.wg_peer_address,&peer_address);
+    //dns_gethostbyname(config.wg_peer_address, &peer_address, NULL, NULL);
 
+    IPAddress hostIp;
+    if (WiFi.hostByName(config.wg_peer_address, hostIp)) {
+        ipaddr_aton(hostIp.toString().c_str(), &peer_address);
+    }else{
+        ipaddr_aton(config.wg_peer_address,&peer_address);
+    }
     // Setup the WireGuard device structure
     // wg.private_key = WG_CLIENT_PRIVATE_KEY;
     // wg.listen_port = WG_CLIENT_PORT;

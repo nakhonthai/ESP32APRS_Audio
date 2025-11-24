@@ -5909,6 +5909,7 @@ void handle_igate(AsyncWebServerRequest *request)
 			html = "Save config failed.";
 			request->send(501, "text/html", html); // Not Implemented
 		}
+		aprsClient.stop();
 	}
 	else if (request->hasArg("commitIGATEfilter"))
 	{
@@ -9364,8 +9365,10 @@ void handle_wireless(AsyncWebServerRequest *request)
 			{
 				if (request->arg(i) != "")
 				{
-					if (isValidNumber(request->arg(i)))
+					if (isValidNumber(request->arg(i))){
 						config.wifi_power = (int8_t)request->arg(i).toInt();
+						WiFi.setTxPower((wifi_power_t)config.wifi_power);
+					}
 				}
 			}
 		}
@@ -9388,7 +9391,7 @@ void handle_wireless(AsyncWebServerRequest *request)
 			html = "Save config failed.";
 			request->send(501, "text/html", html); // Not Implemented
 		}
-		WiFi.setTxPower((wifi_power_t)config.wifi_power);
+		
 	}
 	else if (request->hasArg("commitBluetooth"))
 	{
