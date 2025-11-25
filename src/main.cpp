@@ -3387,24 +3387,21 @@ void setup()
     // {
     //     pcnt_init_channel(PCNT_UNIT_1, config.counter1_gpio, config.counter1_active); // Initialize Unit 0 to pin 4
     // }
-    log_d("UART config");
-    #ifdef ARDUINO_USB_MODE
-        Serial.begin(config.uart0_baudrate);
-    #endif
-    if (config.uart0_enable)
-    {        
+#if ARDUINO_USB_MODE
+        Serial.begin(115200);
+#endif
+
+    if(config.uart0_enable)
+    {
         Serial0.begin(config.uart0_baudrate, SERIAL_8N1, config.uart0_rx_gpio, config.uart0_tx_gpio);
     }
     if (config.uart1_enable)
     {
-        pinMode(config.uart1_rx_gpio, INPUT_PULLUP); // Set RX pin to INPUT_PULLUP
-        pinMode(config.uart1_tx_gpio, OUTPUT);       // Set TX pin to OUTPUT
         Serial1.begin(config.uart1_baudrate, SERIAL_8N1, config.uart1_rx_gpio, config.uart1_tx_gpio);
     }
-    // if (config.uart2_enable)
-    // {
-    //     Serial2.begin(config.uart2_baudrate, SERIAL_8N1, config.uart2_rx_gpio, config.uart2_tx_gpio);
-    // }
+    #if SOC_UART_NUM > 2
+    Serial2.begin(config.uart2_baudrate, SERIAL_8N1, config.uart2_rx_gpio, config.uart2_tx_gpio);
+    #endif
     log_d("MODBUS config");
     if (config.modbus_enable)
     {
@@ -5744,12 +5741,10 @@ void taskGPS(void *pvParameters)
                 {
                     Serial1.println(config.gnss_at_command);
                 }
-#if SOC_UART_NUM > 2
                 else if (config.gnss_channel == 3)
                 {
-                    Serial2.println(config.gnss_at_command);
+                    // Serial2.println(config.gnss_at_command);
                 }
-#endif
             }
         }
     }
@@ -5768,18 +5763,18 @@ void taskGPS(void *pvParameters)
                     c = -1;
                     if (config.gnss_channel == 1)
                     {
-                        c = Serial.read();
+                        c = Serial0.read();
                     }
                     else if (config.gnss_channel == 2)
                     {
                         c = Serial1.read();
                     }
-#if SOC_UART_NUM > 2
+                    #if SOC_UART_NUM > 2
                     else if (config.gnss_channel == 3)
                     {
                         c = Serial2.read();
                     }
-#endif
+                    #endif
                     if (c > -1)
                     {
                         gps.encode((char)c);
@@ -5796,19 +5791,22 @@ void taskGPS(void *pvParameters)
                                 nmea[nmea_idx++] = (char)c;
                                 if ((char)c == '\r' || (char)c == '\n')
                                 {
-                                    // nmea[nmea_idx++] = 0;
+                                    // nmea[nmea_idx] = 0;
                                     if (nmea_idx > 10)
                                     {
-                                        if (ws_gnss.enabled() && !ws_gnss.getClients().isEmpty())
                                         // if (webServiceBegin == false)
+                                        if (ws_gnss.enabled() && !ws_gnss.getClients().isEmpty())
                                         {
-                                            handle_ws_gnss(nmea, nmea_idx);
+                                            // if (ws_gnss.availableForWriteAll())
+                                            {
+                                                handle_ws_gnss(nmea, nmea_idx);
+                                            }
                                         }
-                                        // log_d("%s",nmea);
+                                        // log_d("[%d]:%s",nmea_idx,nmea);
                                     }
                                     nmea_idx = 0;
                                     memset(nmea, 0, sizeof(nmea));
-                                    vTaskDelay(50 / portTICK_PERIOD_MS);
+                                    vTaskDelay(1 / portTICK_PERIOD_MS);
                                     break;
                                 }
                             }
@@ -5827,9 +5825,11 @@ void taskGPS(void *pvParameters)
                 {
                     if (!gnssClient.connected())
                     {
-                        gnssClient.connect(config.gnss_tcp_host, config.gnss_tcp_port);
+                        IPAddress ip;
+                        ip.fromString(config.gnss_tcp_host);
+                        gnssClient.connect(ip, config.gnss_tcp_port, 5000);
                         log_d("GNSS TCP ReConnect to %s:%d", config.gnss_tcp_host, config.gnss_tcp_port);
-                        delay(3000);
+                        delay(5000);
                     }
                     else
                     {
@@ -5847,12 +5847,13 @@ void taskGPS(void *pvParameters)
                                 }
                                 else
                                 {
-                                    // nmea[nmea_idx++] = c;
+                                    nmea[nmea_idx++] = c;
                                     if (c == '\r' || c == '\n')
                                     {
-                                        nmea[nmea_idx++] = 0;
+                                        // nmea[nmea_idx] = 0;
                                         if (nmea_idx > 10)
                                         {
+                                            // if (webServiceBegin == false)
                                             if (ws_gnss.enabled() && !ws_gnss.getClients().isEmpty())
                                             {
                                                 handle_ws_gnss(nmea, nmea_idx);
@@ -5861,7 +5862,6 @@ void taskGPS(void *pvParameters)
                                         }
                                         nmea_idx = 0;
                                         memset(nmea, 0, sizeof(nmea));
-                                        vTaskDelay(50 / portTICK_PERIOD_MS);
                                     }
                                 }
                             }
@@ -5870,29 +5870,34 @@ void taskGPS(void *pvParameters)
                 }
             }
 
-            if (firstGpsTime && gps.time.isValid())
+            if (gps.time.isValid())
             {
                 if (gps.time.isUpdated())
                 {
-                    time_t timeGps = getGpsTime(); // Local gps time
-                    if (timeGps > 1700000000 && timeGps < 2347462800)
+                    if (gnssTimeInterval > millis())
                     {
-                        setTime(timeGps);
-                        time_t rtc = timeGps;
-                        timeval tv = {rtc, 0};
-                        timezone tz = {TZ_SEC + DST_MN, 0};
-                        settimeofday(&tv, &tz);
-#ifdef DEBUG
-                        log_d("\nSET GPS Timestamp = %u Year=%d\n", timeGps, year());
-#endif
-                        // firstGpsTime = false;
-                        firstGpsTime = false;
-                        if (startTime == 0)
-                            startTime = now();
-                    }
-                    else
-                    {
-                        startTime = 0;
+                        gnssTimeInterval = millis() + 10000;
+                        time_t nowTime;
+                        time_t timeGps = getGpsTime(); // Local gps time
+                        time(&nowTime);
+                        int tdiff = abs(timeGps - nowTime);
+                        if (timeGps > 1700000000 && tdiff > 2) // && timeGps < 2347462800)
+                        {
+                            setTime(timeGps);
+                            time_t rtc = timeGps - (config.timeZone * SECS_PER_HOUR);
+                            timeval tv = {rtc, 0};
+                            timezone tz = {static_cast<int>(config.timeZone * SECS_PER_HOUR), 0};
+                            settimeofday(&tv, &tz);
+                            log_d("\nSET GPS Timestamp = %u Year=%d\n", timeGps, year());
+                            // firstGpsTime = false;
+                            firstGpsTime = false;
+                            if (startTime == 0)
+                                startTime = timeGps;
+                        }
+                        // else
+                        // {
+                        //     startTime = 0;
+                        // }
                     }
                 }
             }
@@ -5910,24 +5915,21 @@ void taskSerial(void *pvParameters)
     nmea_idx = 0;
     if (config.ext_tnc_enable)
     {
-        #ifdef ARDUINO_USB_MODE
-            Serial.setTimeout(10);
-        #endif
         if (config.ext_tnc_channel == 1)
         {
-            Serial0.setTimeout(10);
 
+#if ARDUINO_USB_MODE
+            Serial.setTimeout(10);
+#endif
         }
         else if (config.ext_tnc_channel == 2)
         {
             Serial1.setTimeout(10);
         }
-#if SOC_UART_NUM > 2        
         else if (config.ext_tnc_channel == 3)
         {
-            Serial2.setTimeout(10);
+            // Serial2.setTimeout(10);
         }
-#endif
     }
     if (config.wx_en)
     {
@@ -5991,36 +5993,35 @@ void taskSerial(void *pvParameters)
             // else if(config.wx_channel == 4){
             //     bool result=getM702Modbus(modbus);
             // }
-        }
+        }        
 
         if (config.ext_tnc_enable && (config.ext_tnc_mode > 0 && config.ext_tnc_mode < 5))
         {
             if (config.ext_tnc_mode == 1)
             { // KISS
-                // KISS MODE
+                // KISS MODE                
                 do
                 {
                     c = -1;
                     if (config.ext_tnc_channel == 1)
                     {
-                        if(Serial0.available()) c = Serial0.read();
+                        c = Serial0.read();
                     }
                     else if (config.ext_tnc_channel == 2)
                     {
-                        if(Serial1.available()) c = Serial1.read();
+                        c = Serial1.read();
                     }
-                    #ifdef ARDUINO_USB_MODE
-                    else if (config.ext_tnc_channel == 4)
-                    {
-                        if(Serial.available()) c = Serial.read();
-                    }
-                    #endif
-#if SOC_UART_NUM > 2                    
+                    #if SOC_UART_NUM > 2
                     else if (config.ext_tnc_channel == 3)
                     {
-                        if(Serial2.available()) c = Serial2.read();
+                        c = Serial2.read();
                     }
-#endif
+                    #endif
+                    else if (config.ext_tnc_channel == 4)
+                    {
+                        c = Serial.read();
+                    }
+
                     if (c > -1)
                         kiss_serial((uint8_t)c);
                     else
@@ -6032,24 +6033,23 @@ void taskSerial(void *pvParameters)
                 raw.clear();
                 if (config.ext_tnc_channel == 1)
                 {
-                     if(Serial0.available()) raw = Serial0.readStringUntil(0x0D);
+                    if(Serial0.available()) raw = Serial0.readStringUntil(0x0D);
                 }
                 else if (config.ext_tnc_channel == 2)
                 {
                     if(Serial1.available()) raw = Serial1.readStringUntil(0x0D);
                 }
-                #ifdef ARDUINO_USB_MODE
-                else if (config.ext_tnc_channel == 4)
-                {
-                    if(Serial.available()) raw = Serial.readStringUntil(0x0D);
-                }
-                #endif
-#if SOC_UART_NUM > 2                
+                #if SOC_UART_NUM > 2
                 else if (config.ext_tnc_channel == 3)
                 {
                     if(Serial2.available()) raw = Serial2.readStringUntil(0x0D);
                 }
-#endif
+                #endif
+                else if(config.ext_tnc_channel == 4)
+                {
+                    if(Serial.available()) raw = Serial.readStringUntil(0x0D);
+                }
+
                 log_d("Ext TNC2RAW RX:%s", raw.c_str());
                 String src_call = raw.substring(0, raw.indexOf('>'));
                 if ((src_call != "") && (src_call.length() < 10) && (raw.length() < sizeof(rawP)))
@@ -6058,13 +6058,15 @@ void taskSerial(void *pvParameters)
                     strcpy(call, src_call.c_str());
                     strcpy(rawP, raw.c_str());
                     uint16_t type = pkgType((const char *)rawP);
-                    pkgListUpdate(call, rawP, type, 1, 0);
+                    pkgListUpdate(call, rawP, type, 1);
                     if (config.rf2inet && aprsClient.connected())
                     {
                         // RF->INET
                         aprsClient.write(&rawP[0], strlen(rawP)); // Send binary frame packet to APRS-IS (aprsc)
                         aprsClient.write("\r\n");                 // Send CR LF the end frame packet
-                        igateTLM.RX++;
+                        status.rf2inet++;
+                        //igateTLM.RF2INET++;
+                        //igateTLM.RX++;
                     }
                 }
             }
@@ -6073,24 +6075,23 @@ void taskSerial(void *pvParameters)
                 String info = "";
                 if (config.ext_tnc_channel == 1)
                 {
-                    if(Serial0.available()) info = Serial0.readString();
+                    if(Serial0.available()) info = Serial0.readStringUntil(0x0D);
                 }
                 else if (config.ext_tnc_channel == 2)
                 {
-                    if(Serial1.available()) info = Serial1.readString();
+                    if(Serial1.available()) info = Serial1.readStringUntil(0x0D);
                 }
-                #ifdef ARDUINO_USB_MODE
-                else if (config.ext_tnc_channel == 4)
-                {
-                    if(Serial.available()) info = Serial.readString();
-                }
-                #endif
-#if SOC_UART_NUM > 2                
+                #if SOC_UART_NUM > 2
                 else if (config.ext_tnc_channel == 3)
                 {
-                    if(Serial2.available()) info = Serial2.readString();
+                    if(Serial2.available()) info = Serial2.readStringUntil(0x0D);
                 }
-#endif
+                #endif
+                else if(config.ext_tnc_channel == 4)
+                {
+                    if(Serial.available()) info = Serial.readStringUntil(0x0D);
+                }
+
                 //  log_d("Ext Yaesu Packet >> %s",info.c_str());
                 int ed = info.indexOf(" [");
                 if (info != "" && ed > 10)
@@ -6135,15 +6136,15 @@ void taskSerial(void *pvParameters)
                                 // }
                                 // log_d("HEX: %s",hstr.c_str());
                                 uint16_t type = pkgType((const char *)rawP);
-                                pkgListUpdate(call, rawP, type, 1, 0);
+                                pkgListUpdate(call, rawP, type, 1);
                                 if (config.rf2inet && aprsClient.connected())
                                 {
                                     // RF->INET
                                     aprsClient.write(&rawP[0], strlen(rawP)); // Send binary frame packet to APRS-IS (aprsc)
                                     aprsClient.write("\r\n");                 // Send CR LF the end frame packet
-                                    // status.rf2inet++;
-                                    // igateTLM.RF2INET++;
-                                    igateTLM.RX++;
+                                    status.rf2inet++;
+                                    //igateTLM.RF2INET++;
+                                    //igateTLM.RX++;
                                 }
                             }
                         }
@@ -6151,6 +6152,47 @@ void taskSerial(void *pvParameters)
                 }
             }
             //}
+        }
+
+        if(config.at_cmd_uart>0){
+            if(config.at_cmd_uart == 1){ // UART0
+                if(Serial0.available()){
+                    String cmd=Serial0.readStringUntil('\n');
+                    cmd.trim();
+                    String ret = handleATCommand(String((char *)cmd.c_str()));
+                    if(ret!="") Serial0.println(ret);
+                    log_d("AT-Command response: %s", ret.c_str());
+                }
+            }
+            else if(config.at_cmd_uart == 2){ // UART1
+                if(Serial1.available()){
+                    String cmd=Serial1.readStringUntil('\n');
+                    cmd.trim();
+                    String ret = handleATCommand(String((char *)cmd.c_str()));
+                    if(ret!="") Serial1.println(ret);
+                    log_d("AT-Command response: %s", ret.c_str());
+                }
+            }
+            #if SOC_UART_NUM > 2
+            else if(config.at_cmd_uart == 3){ // UART2
+                if(Serial2.available()){
+                    String cmd=Serial2.readStringUntil('\n');
+                    cmd.trim();
+                    String ret = handleATCommand(String((char *)cmd.c_str()));
+                    if(ret!="") Serial2.println(ret);
+                    log_d("AT-Command response: %s", ret.c_str());
+                }
+            }
+            #endif
+            else if(config.at_cmd_uart == 4){ // USB-CDC
+                if(Serial.available()){
+                    String cmd=Serial.readStringUntil('\n');
+                    cmd.trim();
+                    String ret = handleATCommand(String((char *)cmd.c_str()));
+                    if(ret!="") Serial.println(ret);
+                    log_d("AT-Command response: %s", ret.c_str());
+                }
+            }
         }
     }
 }
@@ -6308,6 +6350,14 @@ void taskAPRS(void *pvParameters)
                 {
                     kiss_serial((uint8_t)SerialBT.read());
                 }
+            }
+            else if (config.bt_mode == 3)
+            { // AT COMMAND
+                String cmd=SerialBT.readStringUntil('\n');
+                cmd.trim();
+                String ret = handleATCommand(String((char *)cmd.c_str()));
+                if(ret!="") SerialBT.println(ret);
+                log_d("AT-Command response: %s", ret.c_str());
             }
         }
 #endif
@@ -7766,17 +7816,6 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info)
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
         log_d("WiFi Disconnected");
         wifiDisCount++;        
-        // if(wifiDisCount%5==0){
-        //     log_d("WiFi Disconnected count=%d",wifiDisCount);            
-        //     WiFi.disconnect(false,false,500);                
-        //     WiFi.setHostname(config.host_name);
-        //     if (wifiMulti.run(5000,true) == WL_CONNECTED)
-        //     {
-        //         wifiDisCount=0;
-        //         pingTimeout = millis() + 60000;
-        //         //NTP_Timeout = millis() + 2000;
-        //     }
-        // }
         if(wifiDisconnecting==false && wifiDisCount>30){
             wifiDisCount=0;
             wifiDisconnecting = true; 
