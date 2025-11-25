@@ -11,8 +11,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#define VERSION "1.5"
-#define VERSION_BUILD 'c'
+#define VERSION "1.6"
+#define VERSION_BUILD ' '
 
 #include <Arduino.h>
 #include <AX25.h>
@@ -444,5 +444,6 @@ void radioDisp();
 void wifiDisp();
 void sensorDisp();
 void convertSecondsToDHMS(char *dmhs,unsigned long totalSeconds);
+void wifiConnection();
 
 #endif

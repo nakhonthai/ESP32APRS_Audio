@@ -7612,6 +7612,51 @@ bool vpnConnected = false;
 bool wifiDisconnecting = false;
 uint16_t wifiDisCount=0;
 unsigned long vpnTimeout=0;
+unsigned long mitiWifiTimeout=0;
+
+void wifiConnection()
+{
+    WiFi.disconnect(true, true, 500);
+                        WiFi.persistent(false);
+                        WiFi.mode(WIFI_OFF); // Switch WiFi off
+
+                        wifiTTL = 0;
+                        delay(1000);
+                        if (config.wifi_mode == WIFI_STA_FIX)
+                        { /**< WiFi station mode */
+                            WiFi.mode(WIFI_MODE_STA);
+                            //WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                        }
+                        else if (config.wifi_mode == WIFI_AP_FIX)
+                        { /**< WiFi soft-AP mode */
+                            WiFi.mode(WIFI_MODE_AP);
+                            //WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                        }
+                        else if (config.wifi_mode == WIFI_AP_STA_FIX)
+                        { /**< WiFi station + soft-AP mode */
+                            WiFi.mode(WIFI_MODE_APSTA);
+                            //WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                        }
+                        else
+                        {
+                            WiFi.mode(WIFI_MODE_NULL);
+                        }
+                        wifiMulti.APlistClean(); // Clean AP list        
+                        for (int i = 0; i < 5; i++)
+                        {
+                            if (config.wifi_sta[i].enable)
+                            {
+                                wifiMulti.addAP(config.wifi_sta[i].wifi_ssid, config.wifi_sta[i].wifi_pass);
+                            }
+                        }
+                        WiFi.setHostname(config.host_name);
+                        if (wifiMulti.run() == WL_CONNECTED)
+                        {
+                            wifiDisCount=0;
+                            pingTimeout = millis() + 60000;
+                            NTP_Timeout = millis() + 2000;
+                        }
+}
 
 void onEvent(arduino_event_id_t event, arduino_event_info_t info)
 {
@@ -7722,15 +7767,21 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info)
         log_d("WiFi Disconnected");
         wifiDisCount++;        
         // if(wifiDisCount%5==0){
-        //     log_d("WiFi Disconnected count=%d",wifiDisCount);
-        //     WiFi.disconnect(true,true);            
-        //     wifiMulti.run(); // Move to next AP             
-        //     WiFi.reconnect();
+        //     log_d("WiFi Disconnected count=%d",wifiDisCount);            
+        //     WiFi.disconnect(false,false,500);                
+        //     WiFi.setHostname(config.host_name);
+        //     if (wifiMulti.run(5000,true) == WL_CONNECTED)
+        //     {
+        //         wifiDisCount=0;
+        //         pingTimeout = millis() + 60000;
+        //         //NTP_Timeout = millis() + 2000;
+        //     }
         // }
-        if(wifiDisconnecting==false && wifiDisCount>10){
+        if(wifiDisconnecting==false && wifiDisCount>30){
             wifiDisCount=0;
             wifiDisconnecting = true; 
             pingTimeout = millis() + 10000;
+            wifiConnection();
             #ifdef MQTT
         if (config.en_mqtt)
         {
@@ -7918,18 +7969,19 @@ void taskNetwork(void *pvParameters)
 
     if (config.wifi_mode & WIFI_STA_FIX)
     {
-        for (int i = 0; i < 5; i++)
-        {
-            if (config.wifi_sta[i].enable)
-            {
-                wifiMulti.addAP(config.wifi_sta[i].wifi_ssid, config.wifi_sta[i].wifi_pass);
-            }
-        }
-        WiFi.setHostname(config.host_name);
-        if (wifiMulti.run() == WL_CONNECTED)
-        {
-            NTP_Timeout = millis() + 2000;
-        }
+        // for (int i = 0; i < 5; i++)
+        // {
+        //     if (config.wifi_sta[i].enable)
+        //     {
+        //         wifiMulti.addAP(config.wifi_sta[i].wifi_ssid, config.wifi_sta[i].wifi_pass);
+        //     }
+        // }
+        // WiFi.setHostname(config.host_name);
+        // if (wifiMulti.run() == WL_CONNECTED)
+        // {
+        //     NTP_Timeout = millis() + 2000;
+        // }
+        wifiConnection();
         
         wifiMulti.setStrictMode(false);  // Default is true.  Library will disconnect and forget currently connected AP if it's not in the AP list.
         wifiMulti.setAllowOpenAP(true);  // Default is false.  True adds open APs to the AP list.
@@ -7950,13 +8002,6 @@ void taskNetwork(void *pvParameters)
             // return;
         }
     }
-
-    // if (wifiMulti.run() == WL_CONNECTED)
-    // {
-    //     log_d("Wi-Fi CONNECTED!");
-    //     log_d("IP address: %s", WiFi.localIP().toString().c_str());
-    //     NTP_Timeout = millis() + 5000;
-    // }
 
     pingTimeout = millis() + 10000;
     unsigned long timeNetworkOld = millis();
@@ -8047,8 +8092,18 @@ void taskNetwork(void *pvParameters)
 
         wifiStatus = WL_DISCONNECTED;
         if (config.wifi_mode & WIFI_STA_FIX)
-        {
-            wifiStatus = wifiMulti.run(10000); // Timeout 10 sec
+        {            
+                if(WiFi.isConnected() == false)
+                { 
+                    if(millis()>mitiWifiTimeout){
+                        mitiWifiTimeout=millis()+30000;                
+                        log_d("WiFi Check Connection!");               
+                        wifiStatus = wifiMulti.run();
+                        vTaskDelay(2000 / portTICK_PERIOD_MS);
+                    }
+                }else{
+                    wifiStatus = WL_CONNECTED;
+                }
         }
         #ifdef PPPOS
         if ((wifiStatus == WL_CONNECTED) || (PPP.connected()))
@@ -8282,33 +8337,49 @@ void taskNetwork(void *pvParameters)
                     else
                     {
                         log_d("Ping WiFi Fail!\n");
-                        WiFi.disconnect();
-                        WiFi.persistent(false);
-                        WiFi.mode(WIFI_OFF); // Switch WiFi off
+                        wifiConnection();
+                        // WiFi.disconnect(true, true, 500);
+                        // WiFi.persistent(false);
+                        // WiFi.mode(WIFI_OFF); // Switch WiFi off
 
-                        wifiTTL = 0;
-                        delay(3000);
-                        if (config.wifi_mode == WIFI_STA_FIX)
-                        { /**< WiFi station mode */
-                            WiFi.mode(WIFI_MODE_STA);
-                            //WiFi.setTxPower((wifi_power_t)config.wifi_power);
-                        }
-                        else if (config.wifi_mode == WIFI_AP_FIX)
-                        { /**< WiFi soft-AP mode */
-                            WiFi.mode(WIFI_MODE_AP);
-                            //WiFi.setTxPower((wifi_power_t)config.wifi_power);
-                        }
-                        else if (config.wifi_mode == WIFI_AP_STA_FIX)
-                        { /**< WiFi station + soft-AP mode */
-                            WiFi.mode(WIFI_MODE_APSTA);
-                            //WiFi.setTxPower((wifi_power_t)config.wifi_power);
-                        }
-                        else
-                        {
-                            WiFi.mode(WIFI_MODE_NULL);
-                        }
-                        WiFi.reconnect();
-                        wifiMulti.run(5000);
+                        // wifiTTL = 0;
+                        // delay(3000);
+                        // if (config.wifi_mode == WIFI_STA_FIX)
+                        // { /**< WiFi station mode */
+                        //     WiFi.mode(WIFI_MODE_STA);
+                        //     //WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                        // }
+                        // else if (config.wifi_mode == WIFI_AP_FIX)
+                        // { /**< WiFi soft-AP mode */
+                        //     WiFi.mode(WIFI_MODE_AP);
+                        //     //WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                        // }
+                        // else if (config.wifi_mode == WIFI_AP_STA_FIX)
+                        // { /**< WiFi station + soft-AP mode */
+                        //     WiFi.mode(WIFI_MODE_APSTA);
+                        //     //WiFi.setTxPower((wifi_power_t)config.wifi_power);
+                        // }
+                        // else
+                        // {
+                        //     WiFi.mode(WIFI_MODE_NULL);
+                        // }
+                        // wifiMulti.APlistClean(); // Clean AP list        
+                        // for (int i = 0; i < 5; i++)
+                        // {
+                        //     if (config.wifi_sta[i].enable)
+                        //     {
+                        //         wifiMulti.addAP(config.wifi_sta[i].wifi_ssid, config.wifi_sta[i].wifi_pass);
+                        //     }
+                        // }
+                        // WiFi.setHostname(config.host_name);
+                        // if (wifiMulti.run() == WL_CONNECTED)
+                        // {
+                        //     wifiDisCount=0;
+                        //     pingTimeout = millis() + 60000;
+                        //     //NTP_Timeout = millis() + 2000;
+                        // }
+                        //wifiMulti.run(5000,true); // Timeout 5 sec
+                        //WiFi.reconnect();                        
                     }
                 }
                 // if (config.vpn)
