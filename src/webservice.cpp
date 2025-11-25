@@ -14,6 +14,7 @@
 #include <LibAPRSesp.h>
 #include <parse_aprs.h>
 #include "jquery_min_js.h"
+#include <ESPCPUTemp.h>
 
 #ifdef PPPOS
 #include <PPP.h>
@@ -643,6 +644,7 @@ void handle_sysinfo(AsyncWebServerRequest *request)
 	if(VBat_Flag)
 		html += "<th><span>VBat(V)</span></th>\n";
 	html += "<th><span>CPU(Mhz)</span></th>\n";
+	html += "<th><span>CPU.Temp(°C)</span></th>\n";
 
 	html += "</tr>\n";
 	html += "<tr>\n";
@@ -662,6 +664,12 @@ void handle_sysinfo(AsyncWebServerRequest *request)
 	if(VBat_Flag)
 		html += "<td><b>" + String(VBat, 2) + "</b></td>\n";
 	html += "<td><b>" + String(ESP.getCpuFreqMHz()) + "</b></td>\n";
+	ESPCPUTemp tempSensor;
+	if (tempSensor.begin()) {
+		html += "<td><b>" + String(tempSensor.getTemp(), 1) + "</b></td>\n";
+	}else{
+		html += "<td><b>N/A</b></td>\n";
+	}
 	// html += "<td style=\"background: #f00\"><b>" + String(ESP.getCycleCount()) + "</b></td>\n";
 	html += "</tr>\n";
 	html += "</table>\n";
@@ -8099,14 +8107,14 @@ void handle_sensor(AsyncWebServerRequest *request)
 
 	if (request->hasArg("commitSENSOR"))
 	{
-		vTaskSuspend(taskSensorHandle);
+		//vTaskSuspend(taskSensorHandle);
 		for (int x = 0; x < SENSOR_NUMBER; x++)
 		{
 			config.sensor[x].enable = false;
 		}
 		for (int i = 0; i < request->args(); i++)
 		{
-
+			//log_d("Arg %s: %s", request->argName(i).c_str(), request->arg(i).c_str());
 			for (int x = 0; x < SENSOR_NUMBER; x++)
 			{
 				arg = "En" + String(x);
@@ -8178,6 +8186,7 @@ void handle_sensor(AsyncWebServerRequest *request)
 			}
 		}
 
+		log_d("Sensor Config Updated.");
 		String html;
 		if (saveConfiguration("/default.cfg", config))
 		{
@@ -8189,7 +8198,7 @@ void handle_sensor(AsyncWebServerRequest *request)
 			html = "Save config failed.";
 			request->send(501, "text/html", html); // Not Implemented
 		}
-		vTaskResume(taskSensorHandle);
+		//vTaskResume(taskSensorHandle);
 	}
 	else
 	{
