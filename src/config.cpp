@@ -422,6 +422,12 @@ bool saveConfiguration(const char *filename, const Configuration &config)
     doc["uart1TX"] = config.uart1_tx_gpio;
     doc["uart1RX"] = config.uart1_rx_gpio;
     doc["uart1RTS"] = config.uart1_rts_gpio;
+#if SOC_UART_NUM > 2
+    doc["uart2En"] = config.uart2_enable;
+    doc["uart2BR"] = config.uart2_baudrate;
+    doc["uart2TX"] = config.uart2_tx_gpio;
+    doc["uart2RX"] = config.uart2_rx_gpio;
+#endif
     // MOD Modbus
     doc["modbusEn"] = config.modbus_enable;
     doc["modbusAddr"] = config.modbus_address;
@@ -916,6 +922,11 @@ bool loadConfiguration(const char *filename, Configuration &config)
         config.uart1_tx_gpio = doc["uart1TX"];
         config.uart1_rx_gpio = doc["uart1RX"];
         config.uart1_rts_gpio = doc["uart1RTS"];
+        // #if SOC_UART_NUM > 2
+        config.uart2_baudrate = doc["uart2BR"];
+        config.uart2_tx_gpio = doc["uart2TX"];
+        config.uart2_rx_gpio = doc["uart2RX"];
+        // #endif
         // MOD Modbus
         config.modbus_enable = doc["modbusEn"];
         config.modbus_address = doc["modbusAddr"];

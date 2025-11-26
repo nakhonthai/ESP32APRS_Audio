@@ -364,6 +364,13 @@ typedef struct Config_Struct
 	int8_t uart1_rx_gpio = -1;
 	int8_t uart1_rts_gpio = -1;
 
+	// #if SOC_UART_NUM > 2
+	bool uart2_enable = false;
+	unsigned long uart2_baudrate;
+	int8_t uart2_tx_gpio = -1;
+	int8_t uart2_rx_gpio = -1;
+	// #endif
+
 	bool modbus_enable = false;
 	uint8_t modbus_address = 0;
 	int8_t modbus_channel = -1;
