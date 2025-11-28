@@ -3513,6 +3513,7 @@ void handle_mod(AsyncWebServerRequest *request)
 	{
 		bool pppEn = false;
 		bool pppGnss = false;
+		bool pppNapt = false;
 		for (uint8_t i = 0; i < request->args(); i++)
 		{
 			if (request->argName(i) == "pppEn")
@@ -3533,6 +3534,17 @@ void handle_mod(AsyncWebServerRequest *request)
 					if (String(request->arg(i)) == "OK")
 					{
 						pppGnss = true;
+					}
+				}
+			}
+
+			if (request->argName(i) == "pppNapt")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+					{
+						pppNapt = true;
 					}
 				}
 			}
@@ -3617,6 +3629,7 @@ void handle_mod(AsyncWebServerRequest *request)
 		}
 		config.ppp_enable = pppEn;
 		config.ppp_gnss = pppGnss;
+		config.ppp_napt = pppNapt;
 		if (config.ppp_enable)
 		{
 			if (config.ppp_serial == 0)

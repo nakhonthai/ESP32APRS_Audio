@@ -450,6 +450,7 @@ typedef struct Config_Struct
 	uint8_t ppp_model = 0;
 	uint8_t ppp_flow_ctrl = 0;
 	bool ppp_gnss = false;
+	bool ppp_napt = true;
 
 	// MQTT Config
 #ifdef MQTT	

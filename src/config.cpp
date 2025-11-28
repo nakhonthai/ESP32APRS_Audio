@@ -492,6 +492,7 @@ bool saveConfiguration(const char *filename, const Configuration &config)
     doc["pppModel"] = config.ppp_model;
     doc["pppFlow"] = config.ppp_flow_ctrl;
     doc["pppGNSS"] = config.ppp_gnss;
+    doc["pppNAPT"] = config.ppp_napt;
 
     #ifdef MQTT
     doc["mqttEnable"] = config.en_mqtt;
@@ -990,6 +991,7 @@ bool loadConfiguration(const char *filename, Configuration &config)
         config.ppp_model = doc["pppModel"];
         config.ppp_flow_ctrl = doc["pppFlowCtrl"];
         config.ppp_gnss = doc["pppGNSS"];
+        config.ppp_napt = doc["pppNAPT"];
 
         #ifdef MQTT
         config.en_mqtt = doc["mqttEnable"];

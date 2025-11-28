@@ -7687,7 +7687,10 @@ uint8_t APStationNum = 0;
 unsigned long waitISRetry = 0;
 unsigned long lastHeardTimeout = 0;
 
+#ifdef PPPOS
 pppType pppStatus;
+long int pppTimeout = 0;
+#endif
 
 IPAddress ap_ip(192, 168, 4, 1);
 IPAddress ap_mask(255, 255, 255, 0);
@@ -8245,7 +8248,7 @@ void taskNetwork(void *pvParameters)
 #ifdef PPPOS
                                 if (PPP.connected())
                                 {
-                                    wireguard_setup((netif *)PPP.netif());
+                                    wireguard_setup();
                                     vpnConnected = true;
                                 }
 #endif
