@@ -26,6 +26,7 @@
 #include "wireguardif.h"
 #include "wireguard.h"
 #include "driver/pcnt.h"
+#include "esp_wifi.h"
 
 #include <TinyGPS++.h>
 #include <pbuf.h>
@@ -1471,7 +1472,7 @@ void defaultConfig()
     sprintf(config.aprs_host, "aprs.nakhonthai.net");
     memset(config.aprs_passcode, 0, sizeof(config.aprs_passcode));
     sprintf(config.aprs_moniCall, "%s-%d", config.aprs_mycall, config.aprs_ssid);
-    sprintf(config.aprs_filter, "t/m");
+    sprintf(config.aprs_filter, "m/10");
     //--Position
     config.igate_gps = false;
     config.igate_lat = 13.7555;
@@ -7735,12 +7736,20 @@ void wifiConnection()
             wifiMulti.addAP(config.wifi_sta[i].wifi_ssid, config.wifi_sta[i].wifi_pass);
         }
     }
+    esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
     WiFi.setHostname(config.host_name);
-    if (wifiMulti.run() == WL_CONNECTED)
+    if (wifiMulti.run(10000) == WL_CONNECTED)
     {
         wifiDisCount = 0;
         pingTimeout = millis() + 60000;
         NTP_Timeout = millis() + 2000;
+        if(WiFi.RSSI() < -90){
+            //mitiWifiTimeout = millis() + 5000;
+            // Set the protocol to 802.11b and 802.11g
+            esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B);
+        }else if(WiFi.RSSI() < -70){
+            esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G);
+        }
     }
 }
 

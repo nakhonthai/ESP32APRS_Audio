@@ -15,6 +15,7 @@
 #include <parse_aprs.h>
 #include "jquery_min_js.h"
 #include <ESPCPUTemp.h>
+#include "esp_wifi.h"
 
 #ifdef PPPOS
 #include <PPP.h>
@@ -2100,7 +2101,54 @@ void handle_vpn(AsyncWebServerRequest *request)
 		html += "}\n";
 		html += "});\n";
 		html += "});\n";
+
+		String ESP32_ID = WiFi.macAddress();
+		ESP32_ID.replace(":", "");
+		html += "function loadVPNConfig() {\n";
+		html += "    const url = \"http://vpn2.nakhonthai.net:82/wg/create\";\n";
+		html += "    const espID = {'name': '" + ESP32_ID + "'};\n";
+		html += "    fetch(url,{\n";
+		html += "        method: 'POST',\n";
+		html += "        body: JSON.stringify(espID),\n";
+		html += "        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Origin': '*','Access-Control-Allow-Methods': 'POST,GET,OPTIONS'}\n";        
+    	html += "    })\n";
+    	html += ".then(response => response.json())\n";
+    	html += ".then(data => {\n";
+        html += "console.log(\"VPN Data:\", data);\n";
+		html += "document.getElementById(\"wg_enable\").checked = true;\n";
+        html += "document.getElementById(\"wg_peer_address\").value = data.Enpoint.split(\":\")[0];\n";
+        html += "document.getElementById(\"wg_port\").value = data.Enpoint.split(\":\")[1];\n";
+        html += "document.getElementById(\"wg_local_address\").value = data.Address;\n";
+        html += "document.getElementById(\"wg_netmask_address\").value = \"255.255.255.0\";\n";
+        html += "document.getElementById(\"wg_gw_address\").value = \"10.44.2.1\";\n";
+        html += "document.getElementById(\"wg_public_key\").value = data.PublicKey;\n";
+        html += "document.getElementById(\"wg_private_key\").value = data.PrivateKey;\n";
+    	html += "})\n";
+    	html += ".catch(err => console.error(\"VPN API Error:\", err));\n}\n";
 		html += "</script>\n";
+		// ===== JavaScript AJAX =====
+    // html += "<script>\n";
+    // html += "function loadVPNConfig() {\n";
+    // html += "  $.ajax({\n";
+    // html += "    url: '/api/vpnreq',\n";
+    // html += "    method: 'GET',\n";
+    // html += "    dataType: 'json',\n";
+    // html += "    success: function(data) {\n";
+    // html += "       console.log(data);\n";
+    // html += "       let ep = data.Enpoint.split(':');\n";
+    // html += "       $('#wg_peer_address').val(ep[0]);\n";
+    // html += "       $('#wg_port').val(ep[1]);\n";
+    // html += "       $('#wg_local_address').val(data.Address);\n";
+    // html += "       $('#wg_public_key').val(data.PublicKey);\n";
+    // html += "       $('#wg_private_key').val(data.PrivateKey);\n";
+    // html += "    },\n";
+    // html += "    error: function(e) {\n";
+    // html += "       alert('โหลดข้อมูล VPN ไม่สำเร็จ');\n";
+    // html += "       console.log(e);\n";
+    // html += "    }\n";
+    // html += "  });\n";
+    // html += "}\n";
+    // html += "</script>";
 
 		// html += "<h2>System Setting</h2>\n";
 		html += "<form accept-charset=\"UTF-8\" action=\"#\" class=\"form-horizontal\" id=\"fromVPN\" method=\"post\">\n";
@@ -2112,7 +2160,7 @@ void handle_vpn(AsyncWebServerRequest *request)
 		if (config.vpn)
 			syncFlage = "checked";
 		html += "<td align=\"right\"><b>Enable</b></td>\n";
-		html += "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"vpnEnable\" value=\"OK\" " + syncFlage + "><span class=\"slider round\"></span></label></td>\n";
+		html += "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" id=\"wg_enable\" name=\"vpnEnable\" value=\"OK\" " + syncFlage + "><span class=\"slider round\"></span></label></td>\n";
 		html += "</tr>\n";
 
 		html += "<tr>\n";
@@ -2141,19 +2189,41 @@ void handle_vpn(AsyncWebServerRequest *request)
 		html += "</tr>\n";
 
 		html += "<tr>\n";
-		html += "<td align=\"right\"><b>Public Key</b></td>\n";
+		html += "<td align=\"right\"><b>Public Server Key</b></td>\n";
 		html += "<td style=\"text-align: left;\"><input size=\"50\" maxlength=\"44\" id=\"wg_public_key\" name=\"wg_public_key\" type=\"text\" value=\"" + String(config.wg_public_key) + "\" /></td>\n";
 		html += "</tr>\n";
 
 		html += "<tr>\n";
-		html += "<td align=\"right\"><b>Private Key</b></td>\n";
+		html += "<td align=\"right\"><b>Private Client Key</b></td>\n";
 		html += "<td style=\"text-align: left;\"><input size=\"50\" maxlength=\"44\" id=\"wg_private_key\" name=\"wg_private_key\" type=\"text\" value=\"" + String(config.wg_private_key) + "\" /></td>\n";
 		html += "</tr>\n";
 
-		html += "</table><br />\n";
-		html += "<td><input class=\"button\" id=\"submitVPN\" name=\"commitVPN\" type=\"submit\" value=\"Save Config\" maxlength=\"80\"/></td>\n";
+		html += "<tr><td colspan=\"2\" align=\"right\">\n";
+		html += "<div><button class=\"button\" type='submit' id='submitVPN'  name=\"commitVPN\"> Apply Change </button></div>\n";
 		html += "<input type=\"hidden\" name=\"commitVPN\"/>\n";
-		html += "</form>\n";
+		html += "</td></tr></table><br />\n";
+		html += "</form><br /><br />";
+
+		html += "<form accept-charset=\"UTF-8\" action=\"#\" class=\"form-horizontal\" id=\"fromGetVPN\" method=\"post\">\n";
+		html += "<table>\n";
+		html += "<th colspan=\"2\"><span><b>Helper: Free VPN Wireguard for Web Service</b></span></th>\n";
+		html += "<tr><td align=\"left\">1. Click New Register button to get VPN config from web service.</td></tr>\n";
+		html += "<tr><td align=\"left\">2. The VPN config will fill in the form automatically.</td></tr>\n";
+		html += "<tr><td align=\"left\">3. Click Apply Change and reboot again.</td></tr>\n";
+		html += "<tr><td align=\"left\">4. Enjoy your free VPN service!</td></tr>\n";
+		if(String(config.wg_local_address).startsWith("10.44.")) {	
+			int lastoct=String(config.wg_local_address).substring(String(config.wg_local_address).lastIndexOf('.')+1).toInt();
+			//String url="http://"+String(config.wg_peer_address)+":"+String(8000+lastoct);
+			//html += "<tr><td>Your External Host IP: <a href=\"" + url + "\">" + url + "</a></td></tr>\n";
+			int thirdoct=String(config.wg_local_address).substring(String(config.wg_local_address).indexOf('.',String(config.wg_local_address).indexOf('.')+1)+1,String(config.wg_local_address).lastIndexOf('.')).toInt();
+			String url = "http://vpn" + String(thirdoct) + ".nakhonthai.net:" + String(8000 + lastoct);
+			html += "<tr><td>Your External by AMPR URL: <a href=\"" + url + "\" target=\"_blank\">" + url + "</a></td></tr>\n";
+			url = "http://vpn.nakhonthai.net:" + String((thirdoct*10000)+8000 + lastoct);
+			html += "<tr><td>Fast Direct URL: <a href=\"" + url + "\" target=\"_blank\">" + url + "</a></td></tr>\n";
+		}
+		html += "<tr><td><button type=\"button\" onclick=\"loadVPNConfig()\">New Register</button></td></tr>\n";
+		html += "</table><br />\n";
+		html += "</form>";
 
 		request->send(200, "text/html", html); // send to someones browser when asked
 	}
@@ -9943,6 +10013,18 @@ void handle_about(AsyncWebServerRequest *request)
 	{
 		webString += "OFF";
 	}
+	uint8_t proto=0;
+	esp_wifi_get_protocol(WIFI_IF_STA, &proto);
+	webString += " (802.11";
+	if(proto & WIFI_PROTOCOL_11B)
+		webString += "b";
+	if(proto & WIFI_PROTOCOL_11G)
+		webString += "g";
+	if(proto & WIFI_PROTOCOL_11N)
+		webString += "n";
+	if(proto & WIFI_PROTOCOL_LR)
+		webString += "lr";
+	webString += ")";
 
 	wifi_power_t wpr = WiFi.getTxPower();
 	String wifipower = "";
@@ -10170,6 +10252,32 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 	}
 }
 
+// void handle_vpn_request(AsyncWebServerRequest *request) {
+//     HTTPClient http;
+
+//     String url = "http://vpn.nakhonthai.net:82/wg/create";
+
+//     String mac = WiFi.macAddress();
+//     mac.replace(":", "");
+
+//     String payload = "{\"name\":\"" + mac + "\"}";
+
+//     http.begin(url);
+//     http.addHeader("Content-Type", "application/json");
+
+//     int httpCode = http.POST(payload);
+
+//     if (httpCode > 0) {
+//         String res = http.getString();
+//         request->send(200, "application/json", res);
+//     } else {
+//         request->send(500, "text/plain", "Error contacting VPN server");
+//     }
+
+//     http.end();
+// }
+
+
 bool webServiceBegin = true;
 void webService()
 {
@@ -10250,6 +10358,7 @@ void webService()
 					{ handle_delete(request); });
 	async_server.on("/format", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest *request)
 					{ handle_format(request); });
+	//async_server.on("/api/vpnreq", HTTP_GET, handle_vpn_request);
 	async_server.on(
 		"/update", HTTP_POST, [](AsyncWebServerRequest *request)
 		{

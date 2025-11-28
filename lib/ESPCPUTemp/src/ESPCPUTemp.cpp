@@ -22,18 +22,18 @@ bool ESPCPUTemp::initTempSensorLegacy() {
     temp_sensor.dac_offset = TSENS_DAC_L2; // -10°C ~ 80°C
     esp_err_t ret = temp_sensor_set_config(temp_sensor);
     if (ret != ESP_OK) {
-        Serial.printf("Failed to configure legacy temperature sensor (err: %d)\n", ret);
+        log_d("Failed to configure legacy temperature sensor (err: %d)\n", ret);
         return false;
     }
     ret = temp_sensor_start();
     if (ret != ESP_OK) {
-        Serial.printf("Failed to start legacy temperature sensor (err: %d)\n", ret);
+        log_d("Failed to start legacy temperature sensor (err: %d)\n", ret);
         return false;
     }
-    Serial.println("Legacy temperature sensor initialized");
+    log_d("Legacy temperature sensor initialized");
     return true;
 #else
-    Serial.println("Legacy driver not available in this Arduino core");
+    log_d("Legacy driver not available in this Arduino core");
     return false;
 #endif
 }
@@ -46,18 +46,18 @@ bool ESPCPUTemp::initTempSensorNew() {
     };
     esp_err_t ret = temperature_sensor_install(&temp_sensor, &temp_sensor_handle);
     if (ret != ESP_OK) {
-        Serial.printf("Failed to install new temperature sensor (err: %d)\n", ret);
+        log_d("Failed to install new temperature sensor (err: %d)\n", ret);
         return false;
     }
     ret = temperature_sensor_enable(temp_sensor_handle);
     if (ret != ESP_OK) {
-        Serial.printf("Failed to enable new temperature sensor (err: %d)\n", ret);
+        log_d("Failed to enable new temperature sensor (err: %d)\n", ret);
         return false;
     }
-    Serial.println("New temperature sensor initialized");
+    log_d("New temperature sensor initialized");
     return true;
 #else
-    Serial.println("New driver not available in this Arduino core");
+    log_d("New driver not available in this Arduino core");
     return false;
 #endif
 }
@@ -65,7 +65,7 @@ bool ESPCPUTemp::initTempSensorNew() {
 bool ESPCPUTemp::begin() {
     chip_model = ESP.getChipModel();
 //    Serial.print("Detected chip model: ");
-//    Serial.println(chip_model);
+//    log_d(chip_model);
 
     sensor_available = false;
 
@@ -75,7 +75,7 @@ bool ESPCPUTemp::begin() {
         #ifdef LEGACY_DRIVER_AVAILABLE
         sensor_available = initTempSensorLegacy();
         #else
-        Serial.println("Legacy driver not available for ESP32 variants");
+        log_d("Legacy driver not available for ESP32 variants");
         #endif
     }
     // ESP32-S2, S3, C3, C6, H2: új driver
@@ -84,15 +84,15 @@ bool ESPCPUTemp::begin() {
         #ifdef NEW_DRIVER_AVAILABLE
         sensor_available = initTempSensorNew();
         #else
-        Serial.println("New driver not available for ESP32-S2/S3/C3/C6/H2");
+        log_d("New driver not available for ESP32-S2/S3/C3/C6/H2");
         #endif
     }
     else {
-        Serial.println("Unsupported chip model for temperature sensor");
+        log_d("Unsupported chip model for temperature sensor");
     }
 
     if (!sensor_available) {
-        Serial.println("ESP CPU temperature sensor initialization failed");
+        log_d("ESP CPU temperature sensor initialization failed");
     }
     return sensor_available;
 }
@@ -105,12 +105,12 @@ bool ESPCPUTemp::readTempLegacy(float &result) {
 #ifdef LEGACY_DRIVER_AVAILABLE
     esp_err_t ret = temp_sensor_read_celsius(&result);
     if (ret != ESP_OK) {
-        Serial.printf("Failed to read temperature (legacy, err: %d)\n", ret);
+        log_d("Failed to read temperature (legacy, err: %d)\n", ret);
         return false;
     }
     return true;
 #else
-    Serial.println("Legacy driver not available");
+    log_d("Legacy driver not available");
     return false;
 #endif
 }
@@ -119,19 +119,19 @@ bool ESPCPUTemp::readTempNew(float &result) {
 #ifdef NEW_DRIVER_AVAILABLE
     esp_err_t ret = temperature_sensor_get_celsius(temp_sensor_handle, &result);
     if (ret != ESP_OK) {
-        Serial.printf("Failed to read temperature (new, err: %d)\n", ret);
+        log_d("Failed to read temperature (new, err: %d)\n", ret);
         return false;
     }
     return true;
 #else
-    Serial.println("New driver not available");
+    log_d("New driver not available");
     return false;
 #endif
 }
 
 float ESPCPUTemp::getTemp() {
     if (!sensor_available) {
-        Serial.println("Temperature sensor not available");
+        log_d("Temperature sensor not available");
         return NAN;
     }
 
