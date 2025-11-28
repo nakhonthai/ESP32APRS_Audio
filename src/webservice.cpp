@@ -2105,7 +2105,7 @@ void handle_vpn(AsyncWebServerRequest *request)
 		String ESP32_ID = WiFi.macAddress();
 		ESP32_ID.replace(":", "");
 		html += "function loadVPNConfig() {\n";
-		html += "    const url = \"http://vpn2.nakhonthai.net:82/wg/create\";\n";
+		html += "    const url = \"http://vpn1.nakhonthai.net:81/wg/create\";\n";
 		html += "    const espID = {'name': '" + ESP32_ID + "'};\n";
 		html += "    fetch(url,{\n";
 		html += "        method: 'POST',\n";
@@ -2120,7 +2120,7 @@ void handle_vpn(AsyncWebServerRequest *request)
         html += "document.getElementById(\"wg_port\").value = data.Enpoint.split(\":\")[1];\n";
         html += "document.getElementById(\"wg_local_address\").value = data.Address;\n";
         html += "document.getElementById(\"wg_netmask_address\").value = \"255.255.255.0\";\n";
-        html += "document.getElementById(\"wg_gw_address\").value = \"10.44.2.1\";\n";
+        html += "document.getElementById(\"wg_gw_address\").value = data.Gateway;\n";
         html += "document.getElementById(\"wg_public_key\").value = data.PublicKey;\n";
         html += "document.getElementById(\"wg_private_key\").value = data.PrivateKey;\n";
     	html += "})\n";
@@ -2216,7 +2216,7 @@ void handle_vpn(AsyncWebServerRequest *request)
 			//String url="http://"+String(config.wg_peer_address)+":"+String(8000+lastoct);
 			//html += "<tr><td>Your External Host IP: <a href=\"" + url + "\">" + url + "</a></td></tr>\n";
 			int thirdoct=String(config.wg_local_address).substring(String(config.wg_local_address).indexOf('.',String(config.wg_local_address).indexOf('.')+1)+1,String(config.wg_local_address).lastIndexOf('.')).toInt();
-			String url = "http://vpn" + String(thirdoct) + ".nakhonthai.net:" + String(8000 + lastoct);
+			String url = "http://vpn" + String(thirdoct) + ".nakhonthai.net:" + String((thirdoct*10000)+8000 + lastoct);
 			html += "<tr><td>Your External by AMPR URL: <a href=\"" + url + "\" target=\"_blank\">" + url + "</a></td></tr>\n";
 			url = "http://vpn.nakhonthai.net:" + String((thirdoct*10000)+8000 + lastoct);
 			html += "<tr><td>Fast Direct URL: <a href=\"" + url + "\" target=\"_blank\">" + url + "</a></td></tr>\n";
