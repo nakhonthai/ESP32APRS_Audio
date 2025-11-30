@@ -7901,8 +7901,6 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info)
     }
 }
 
-long int pppTimeout = 0;
-
 #ifdef PPPOS
 
 void PPPOS_Start()
