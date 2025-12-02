@@ -39,7 +39,9 @@ AsyncWebSocket ws_gnss("/ws_gnss");
 extern PubSubClient clientMQTT;
 #endif
 
+#ifdef PPPOS
 extern pppType pppStatus;
+#endif
 
 // Create an Event Source on /events
 AsyncEventSource lastheard_events("/eventHeard");
@@ -10110,6 +10112,7 @@ void handle_about(AsyncWebServerRequest *request)
 	webString += "</td><td width=\"2%\" style=\"border:unset;\"></td>";
 	webString += "<td width=\"49%\" style=\"border:unset;\">";
 	webString += "<table>\n";
+	#ifdef PPPOS
 	webString += "<th colspan=\"2\"><span><b>PPPoS Status</b></span></th>\n";
 	webString += "<tr><td align=\"right\" width=\"30%\"><b>Manufacturer:</b></td>\n";
 	webString += "<td align=\"left\">" + String(pppStatus.manufacturer) + "</td></tr>\n";
@@ -10129,6 +10132,7 @@ void handle_about(AsyncWebServerRequest *request)
 	webString += "<td align=\"left\">" + String(IPAddress(pppStatus.gateway)) + "</td></tr>\n";
 	// webString += "<tr><td align=\"right\"><b>DNS:</b></td>\n";
 	// webString += "<td align=\"left\">" + String(IPAddress(pppStatus.dns)) + "</td></tr>\n";
+	#endif
 	webString += "</table>\n";
 	webString += "</td></tr></table><br />";
 
