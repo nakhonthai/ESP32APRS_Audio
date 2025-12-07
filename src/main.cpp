@@ -3536,7 +3536,7 @@ void setup()
     xTaskCreatePinnedToCore(
         taskNetwork,        /* Function to implement the task */
         "taskNetwork",      /* Name of the task */
-        12000,              /* Stack size in words */
+        8192,              /* Stack size in words */
         NULL,               /* Task input parameter */
         1,                  /* Priority of the task */
         &taskNetworkHandle, /* Task handle. */
@@ -3555,7 +3555,7 @@ void setup()
     xTaskCreatePinnedToCore(
         taskAPRS,        /* Function to implement the task */
         "taskAPRS",      /* Name of the task */
-        6000,            /* Stack size in words */
+        4096,            /* Stack size in words */
         NULL,            /* Task input parameter */
         2,               /* Priority of the task */
         &taskAPRSHandle, /* Task handle. */
@@ -7145,10 +7145,6 @@ void taskAPRS(void *pvParameters)
                         igateTLM.TX++;
                     }
                 }
-            }
-            if (config.digi_auto)
-            {
-                DiGiInterval = millis() + (config.digi_interval * 1000);
             }
         }
 
