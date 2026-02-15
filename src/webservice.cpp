@@ -1534,7 +1534,7 @@ void handle_storage(AsyncWebServerRequest *request)
 	}
 	adcEn = -1;
 	dacEn = -1;
-	delay(100);
+	delay(100);	
 
 	StandByTick = millis() + (config.pwr_stanby_delay * 1000);
 
@@ -1544,6 +1544,117 @@ void handle_storage(AsyncWebServerRequest *request)
 	unsigned long cardTotal = LITTLEFS.totalBytes();
 	unsigned long cardUsed = LITTLEFS.usedBytes();
 
+	if (request->hasArg("delete"))
+	{
+		for (uint8_t i = 0; i < request->args(); i++)
+		{
+			if (request->argName(i) == "FILE")
+			{
+				String path = request->arg(i);
+#ifdef DEBUG
+				Serial.println("Deleting file: " + path);
+#endif
+				if (LITTLEFS.remove("/" + path))
+				{
+					//html = "File deleted";
+#ifdef DEBUG
+					Serial.println("File deleted");
+#endif
+				}
+				else
+				{
+					//html = "Delete failed";
+#ifdef DEBUG
+					Serial.println("Delete failed");
+#endif
+				}
+				break;
+			}
+		}
+	}else if (request->hasArg("download"))
+	{
+		for (uint8_t i = 0; i < request->args(); i++)
+		{
+			if (request->argName(i) == "FILE")
+			{
+				String path = request->arg(i);
+				String dataType = "";
+				if (path.endsWith(".src"))
+					path = path.substring(0, path.lastIndexOf("."));
+				else if (path.endsWith(".htm"))
+					dataType = "text/html";
+				else if (path.endsWith(".csv"))
+					dataType = "text/csv";
+				else if (path.endsWith(".css"))
+					dataType = "text/css";
+				else if (path.endsWith(".xml"))
+					dataType = "text/xml";
+				else if (path.endsWith(".png"))
+					dataType = "image/png";
+				else if (path.endsWith(".gif"))
+					dataType = "image/gif";
+				else if (path.endsWith(".jpg"))
+					dataType = "image/jpeg";
+				else if (path.endsWith(".ico"))
+					dataType = "image/x-icon";
+				else if (path.endsWith(".svg"))
+					dataType = "image/svg+xml";
+				else if (path.endsWith(".ico"))
+					dataType = "image/x-icon";
+				else if (path.endsWith(".js"))
+					dataType = "application/javascript";
+				else if (path.endsWith(".pdf"))
+					dataType = "application/pdf";
+				else if (path.endsWith(".zip"))
+					dataType = "application/zip";
+				else if (path.endsWith(".cfg"))
+					dataType = "plain/text";
+				else if (path.endsWith(".json"))
+					dataType = "application/json";
+				else if (path.endsWith(".gz"))
+				{
+					if (path.startsWith("/gz/htm"))
+						dataType = "text/html";
+					else if (path.startsWith("/gz/css"))
+						dataType = "text/css";
+					else if (path.startsWith("/gz/csv"))
+						dataType = "text/csv";
+					else if (path.startsWith("/gz/xml"))
+						dataType = "text/xml";
+					else if (path.startsWith("/gz/js"))
+						dataType = "application/javascript";
+					else if (path.startsWith("/gz/svg"))
+						dataType = "image/svg+xml";
+					else
+						dataType = "application/x-gzip";
+				}else{
+					dataType = "application/octet-stream";
+					path = path.substring(0, path.lastIndexOf("."));
+					//html = "File type not support";
+					//request->send_P(404, PSTR("text/plain"), PSTR("File type not support"));
+					//break;
+				}
+
+				if (path != "" && dataType != "")
+				{
+					String file = "/" + path;
+					//request->send(LITTLEFS, file, dataType, true);
+					AsyncWebServerResponse *response = request->beginResponse(LITTLEFS, file, dataType, true);
+					//response->addHeader("Content-Disposition","attachment");
+					request->send(response);
+				}
+				else
+				{
+					if (dataType != "")
+						request->send_P(404, PSTR("text/plain"), PSTR("ContentType Not Support"));
+					else
+						request->send_P(404, PSTR("text/plain"), PSTR("File Not found"));
+				}
+				return;
+			}
+		}
+	}
+
 	// Using dynamic memory allocation instead of String
 	char *webString = allocateStringMemory(8192); // Initial buffer size, adjust as needed
 	if (!webString)
@@ -1551,7 +1662,88 @@ void handle_storage(AsyncWebServerRequest *request)
 		return; // Memory allocation failed
 	}
 
-	strcpy(webString, "<div style=\"font-size: 8pt;text-align:left;\">");
+	// strcpy(webString, "<script type=\"text/javascript\">\n");
+	// 	strcat(webString, "$('form').submit(function (e) {\n");
+	// 	strcat(webString, "e.preventDefault();\n");
+	// 	strcat(webString, "var data = new FormData(e.currentTarget);\n");
+	// 	strcat(webString, "if(e.currentTarget.id===\"formDownload\") document.getElementById(\"btnDownload\").disabled=true;\n");
+	// 	strcat(webString, "if(e.currentTarget.id===\"formDelete\") document.getElementById(\"btnDelete\").disabled=true;\n");
+	// 	strcat(webString, "$.ajax({\n");
+	// 	strcat(webString, "url: '/storage',\n");
+	// 	strcat(webString, "type: 'POST',\n");
+	// 	strcat(webString, "data: data,\n");
+	// 	strcat(webString, "contentType: false,\n");
+	// 	strcat(webString, "processData: false,\n");
+	// 	strcat(webString, "success: function (data) {\n");
+	// 	strcat(webString, "$(\"#contentmain\").load(\"/storage\");\n");
+	// 	//strcat(webString, "alert(\"Submited Successfully\");\n");
+	// 	strcat(webString, "},\n");
+	// 	strcat(webString, "error: function (data) {\n");
+	// 	strcat(webString, "alert(\"An error occurred.\");\n");
+	// 	strcat(webString, "}\n");
+	// 	strcat(webString, "});\n");
+	// 	strcat(webString, "});\n");
+		//strcat(webString, "</script>\n");
+
+		strcat(webString, "<script type=\"text/javascript\">\n"
+					  "function sub(obj){"
+					  "var fileName = obj.value.split('\\\\');"
+					  "document.getElementById('file-input').innerHTML = '   '+ fileName[fileName.length-1];"
+					  "}\n"
+					  //"var form = document.getElementById('upload_form');"
+					  "$('form').submit(function(e){"
+					  "e.preventDefault();"
+					  "var data = new FormData(e.currentTarget);\n"
+					  
+					  "if(e.currentTarget.id === 'upload_form'){ document.getElementById('upload_sumbit').disabled = true;"
+					  "var formUp = $('#upload_form')[0];"
+					  "var dataUp = new FormData(formUp);"					  
+					  //"document.getElementById('upload_sumbit').disabled = true;"
+					  "$.ajax({"
+					  "url: '/upload',"
+					  "type: 'POST',"
+					  "data: dataUp,"
+					  "contentType: false,"
+					  "processData:false,"
+					  "xhr: function() {"
+					  "var xhr = new window.XMLHttpRequest();"
+					  "xhr.upload.addEventListener('progress', function(evt) {"
+					  "if (evt.lengthComputable) {"
+					  "var per = evt.loaded / evt.total;"
+					  "$('#prg').html(Math.round(per*100) + '%');"
+					  "$('#bar').css('width',Math.round(per*100) + '%');"
+					  "}"
+					  "}, false);"
+					  "return xhr;"
+					  "},"
+					  "success:function(d, s) {"
+					  "alert('Upload Success');"
+					  "$(\"#contentmain\").load(\"/storage\");\n"
+					  "},"
+					  "error: function (a, b, c) {"
+					  "}"
+					  "});"
+					  //"});"
+					  "}else{"					  
+					  "$.ajax({"
+					  "url: '/storage',"
+					  "type: 'POST',"
+					  "data: data,"
+					  "contentType: false,"
+					  "processData:false,"					  
+					  "success:function(d, s) {"
+					  //"alert('Upload Success');"
+					  "if(e.currentTarget.id===\"formDelete\") $(\"#contentmain\").load(\"/storage\");\n"
+					  "},"
+					  "error: function (a, b, c) {"
+					  "}"
+					  "});"
+					  //"});"
+					  "}"
+					  "});"
+					  "</script>");
+
+	strcat(webString, "<div style=\"font-size: 8pt;text-align:left;\">");
 	strcat(webString, "<b>Total space: </b>");
 
 	char temp_buffer[512];
@@ -1586,7 +1778,7 @@ void handle_storage(AsyncWebServerRequest *request)
 	}
 
 	File file = root.openNextFile();
-	strcat(webString, "<table border=\"1\"><tr align=\"center\" bgcolor=\"#03DDFC\"><td><b>DIRECTORY</b></td><td width=\"150\"><b>FILE NAME</b></td><td width=\"100\"><b>SIZE(Byte)</b></td><td width=\"170\"><b>DATE TIME</b></td><td><b>DEL</b></td></tr>");
+	strcat(webString, "<table border=\"1\"><tr align=\"center\" bgcolor=\"#03DDFC\"><th width=\"100\"><b>DIRECTORY</b></th><th><b>FILE NAME</b></th><th width=\"100\"><b>SIZE(Byte)</b></th><th width=\"170\"><b>DATE TIME</b></th><th width=\"50\"><b>DELETE</b></th><th width=\"100\"><b>DOWNLOAD</b></th></tr>");
 	while (file)
 	{
 		if (file.isDirectory())
@@ -1609,42 +1801,41 @@ void handle_storage(AsyncWebServerRequest *request)
 			Serial.print(file.name());*/
 			// char *fName = String(file.name()).substring(1).c_str(); // Not needed for full path
 			const char *fName = file.name();
-			snprintf(temp_buffer, sizeof(temp_buffer), "<tr><td>/</td><td align=\"right\"><a href=\"/download?FILE=%s\" target=\"_blank\">%s</a></td>", fName, fName);
+			snprintf(temp_buffer, sizeof(temp_buffer), "<tr><td>/</td><td align=\"left\"><a href=\"/download?FILE=%s\" target=\"_blank\">%s</a></td>", fName, fName);
 			strcat(webString, temp_buffer);
 			// Serial.print("  SIZE: ");
 			snprintf(temp_buffer, sizeof(temp_buffer), "<td align=\"right\">%d</td>", file.size());
 			strcat(webString, temp_buffer);
 			time_t t = file.getLastWrite();
 			struct tm *tmstruct = localtime(&t);
-			sprintf(strTime, "<td align=\"right\">%d-%02d-%02d %02d:%02d:%02d</td>", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec);
+			sprintf(strTime, "<td align=\"center\">%d-%02d-%02d %02d:%02d:%02d</td>", (tmstruct->tm_year) + 1900, (tmstruct->tm_mon) + 1, tmstruct->tm_mday, tmstruct->tm_hour, tmstruct->tm_min, tmstruct->tm_sec);
 			strcat(webString, strTime);
-			snprintf(temp_buffer, sizeof(temp_buffer), "<td align=\"center\"><a href=\"/delete?FILE=%s\">X</a></td></tr>\n", fName);
+			snprintf(temp_buffer, sizeof(temp_buffer), "<td align=\"center\"><form accept-charset=\"UTF-8\" action=\"#\" enctype='multipart/form-data' id=\"formDelete\" method=\"post\"><input name=\"delete\" type=\"hidden\" /><input name=\"FILE\" type=\"hidden\" value=\"%s\" /><button name=\"commit\" id=\"btnDelete\" type=\"submit\" style=\"background-color:red;color:white\">X</button></form></td>\n", fName);
+			strcat(webString, temp_buffer);
+			snprintf(temp_buffer, sizeof(temp_buffer), "<td align=\"center\"><form accept-charset=\"UTF-8\" action=\"#\" enctype='multipart/form-data' id=\"formDownload\" method=\"post\"><input name=\"download\" type=\"hidden\" /><input name=\"FILE\" type=\"hidden\" value=\"%s\" /><button name=\"commit\" id=\"btnDownload\" type=\"submit\" style=\"background-color:green;color:white\">DOWNLOAD</button></form></td></tr>\n", fName);
 			strcat(webString, temp_buffer);
 		}
 		file = root.openNextFile();
 	}
 	strcat(webString, "</table>\n");
-	strcat(webString, "<form accept-charset=\"UTF-8\" action=\"/format\" class=\"form-horizontal\" id=\"format_form\" method=\"post\">\n");
-	strcat(webString, "<br><div><button class=\"button\" type='submit' id='format_form_sumbit'  name=\"commit\"> FORMAT </button></div>\n");
-	strcat(webString, "</form><br/>\n");
+	// strcat(webString, "<form accept-charset=\"UTF-8\" action=\"/format\" class=\"form-horizontal\" id=\"format_form\" method=\"post\">\n");
+	// strcat(webString, "<br><div><button class=\"button\" type='submit' id='format_form_sumbit'  name=\"commit\"> FORMAT </button></div>\n");
+	// strcat(webString, "</form><br/>\n");
 
-	// ===============================
-	// UPLOAD CONFIGURATION FILE (table style)
-	// ===============================
-	strcat(webString, "<br><form accept-charset=\"UTF-8\" action=\"/uploadcfg\" "
-					  "class=\"form-horizontal\" id=\"uploadcfg_form\" method=\"post\" "
+	// UPLOAD CONFIGURATION FILE
+	strcat(webString, "<br><form accept-charset=\"UTF-8\" action=\"#\" "
+					  "class=\"form-horizontal\" id=\"upload_form\" method=\"post\" "
 					  "enctype=\"multipart/form-data\">\n");
 
 	strcat(webString, "<table border=\"1\" style=\"margin-top:10px;width:100%;\">\n");
 	strcat(webString, "<tr align=\"center\" bgcolor=\"#03DDFC\">"
-					  "<td colspan=\"4\"><b>UPLOAD CONFIGURATION FILE</b></td>"
+					  "<th colspan=\"3\"><b>UPLOAD FILE</b></th>"
 					  "</tr>\n");
 
 	strcat(webString, "<tr align=\"center\">"
-					  "<td width=\"120\"><b>File:</b></td>"
-					  "<td align=\"left\"><input type=\"file\" name=\"cfg\" required></td>"
-					  "<td width=\"220\" style=\"font-size:8pt;\">Saved as <b>/default.cfg</b></td>"
-					  "<td width=\"120\"><button class=\"button\" type='submit'>UPLOAD</button></td>"
+					  "<td width=\"60\" align=\"right\"><b>File:</b></td>"
+					  "<td align=\"left\"><input type=\"file\" name=\"data\" required></td>"
+					  "<td width=\"120\"><button class=\"button\" type='submit' id='upload_sumbit'>UPLOAD</button></td>"
 					  "</tr>\n");
 
 	strcat(webString, "</table>\n");
@@ -12946,6 +13137,28 @@ void handle_default()
 	defaultSetting = false;
 }
 
+void handleUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+    if (!index) {
+        // Open the file in write mode on the first chunk
+        request->_tempFile = LITTLEFS.open("/" + filename, "w");
+    }
+    if (len < (LITTLEFS.totalBytes()-LITTLEFS.usedBytes())) {
+        // Write the data chunk to the file
+        request->_tempFile.write(data, len);
+    }else{
+		// Not enough space to write the file
+		request->_tempFile.close();
+		LITTLEFS.remove("/" + filename); // Remove the incomplete file
+		request->send(500, "text/plain", "Not enough space to upload the file");
+		return;
+	}
+    if (final) {
+        // Close the file on the last chunk and redirect
+        request->_tempFile.close();
+        request->redirect("/"); // Redirect back to the main page
+    }
+}
+
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len)
 {
 
@@ -13066,93 +13279,10 @@ void webService()
 					{ handle_delete(request); });
 	async_server.on("/format", HTTP_GET | HTTP_POST, [](AsyncWebServerRequest *request)
 					{ handle_format(request); });
-
-	// ===============================
-	// Upload default.cfg
-	// ===============================
-	static File gCfgUploadFile;
-	static bool gCfgUploadOk = true;
-	static size_t gCfgUploadTotal = 0;
-
-	async_server.on(
-		"/uploadcfg", HTTP_POST,
-		[](AsyncWebServerRequest *request)
-		{
-			if (!request->authenticate(config.http_username, config.http_password))
-				return request->requestAuthentication();
-
-			if (!gCfgUploadOk)
-			{
-				request->send(500, "text/html",
-							  "<html><head><meta charset='utf-8'></head><body>"
-							  "<script>"
-							  "alert('Upload FAILED\\nConfiguration file was not saved.');"
-							  "history.back();"
-							  "</script>"
-							  "</body></html>");
-				return;
-			}
-
-			request->send(200, "text/html",
-						  "<html><head><meta charset='utf-8'></head><body>"
-						  "<script>"
-						  "alert('Submitted Successfully\\nRequire hardware RESET!');"
-						  "history.back();"
-						  "</script>"
-						  "</body></html>");
-		},
-		[](AsyncWebServerRequest *request, String filename, size_t index,
-		   uint8_t *data, size_t len, bool final)
-		{
-			if (!request->authenticate(config.http_username, config.http_password))
-				return;
-
-			if (index == 0)
-			{
-				gCfgUploadOk = true;
-				gCfgUploadTotal = 0;
-
-				// Guardar SIEMPRE como /default.cfg (ignora nombre original)
-				gCfgUploadFile = LITTLEFS.open("/default.cfg", "w");
-				if (!gCfgUploadFile)
-				{
-					gCfgUploadOk = false;
-					return;
-				}
-			}
-
-			if (!gCfgUploadOk || !gCfgUploadFile)
-				return;
-
-			gCfgUploadTotal += len;
-			if (gCfgUploadTotal > (32 * 1024))
-			{
-				gCfgUploadOk = false;
-				gCfgUploadFile.close();
-				LITTLEFS.remove("/default.cfg");
-				return;
-			}
-
-			// Validación liviana: debe parecer JSON
-			if (index == 0 && len > 0 && data[0] != '{')
-			{
-				gCfgUploadOk = false;
-				gCfgUploadFile.close();
-				LITTLEFS.remove("/default.cfg");
-				return;
-			}
-
-			if (gCfgUploadFile.write(data, len) != len)
-			{
-				gCfgUploadOk = false;
-				gCfgUploadFile.close();
-				LITTLEFS.remove("/default.cfg");
-				return;
-			}
-
-			if (final)
-				gCfgUploadFile.close();
-		});
+	// Route to handle the file upload
+    async_server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request) {
+        request->send(200, "text/plain", "File uploaded successfully!");
+    }, handleUpload); // Pass the handleUpload function as the upload handler
 
 	// async_server.on("/api/vpnreq", HTTP_GET, handle_vpn_request);
 	async_server.on(
