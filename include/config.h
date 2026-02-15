@@ -82,6 +82,8 @@ typedef struct Config_Struct
 	bool synctime;
 	bool title;
 
+	uint8_t cpuFreq;
+
 	// WiFi/BT/RF
 	uint8_t wifi_mode; // WIFI_AP,WIFI_STA,WIFI_AP_STA,WIFI_OFF
 	int8_t wifi_power;

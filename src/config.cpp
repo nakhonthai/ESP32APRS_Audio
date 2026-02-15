@@ -53,6 +53,7 @@ bool saveConfiguration(const char *filename, const Configuration &config)
     JsonDocument doc;
     
     // Set the values in the document
+    doc["cpuFreq"] = config.cpuFreq;
     doc["txTimeSlot"] = config.tx_timeslot;
     doc["syncTime"] = config.synctime;
     doc["timeZone"] = config.timeZone;
@@ -585,6 +586,7 @@ bool loadConfiguration(const char *filename, Configuration &config)
             return false;
         }
 
+        config.cpuFreq = doc["cpuFreq"] | 160;
         config.tx_timeslot = doc["txTimeSlot"] | 2000;
         config.synctime = doc["syncTime"];
         config.timeZone = doc["timeZone"];

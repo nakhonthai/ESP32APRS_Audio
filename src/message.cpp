@@ -383,10 +383,26 @@ void sendAPRSMessage(const String &toCall, const String &message, bool encrypt)
         return;
     if (message == "")
         return;
+
+    // Normalize FROM callsign (mycall)
+    String myCallUP = String(config.msg_mycall);
+    myCallUP.trim();
+    myCallUP.toUpperCase();
+
+    // Normalize TO callsign
+    String toCallUP = toCall;
+    toCallUP.trim();
+    toCallUP.toUpperCase();
+
     // ฟอร์แมต: FROM>APRS,TCPIP*::TOCALL   :MESSAGE
     char toCallFixed[10];
     memset(toCallFixed, 0x20, 10);
-    memcpy(toCallFixed, toCall.c_str(), toCall.length());
+
+    size_t n = toCallUP.length();
+    if (n > 9)
+        n = 9;
+
+    memcpy(toCallFixed, toCallUP.c_str(), n);
     toCallFixed[9] = 0;
     // snprintf(toCallFixed, sizeof(toCallFixed), "%-9s", toCall.c_str()); // 9 char padded
 
@@ -412,7 +428,9 @@ void sendAPRSMessage(const String &toCall, const String &message, bool encrypt)
         path += ",";
         path += getPath(config.msg_path);
     }
-    String packet = String(config.msg_mycall) + ">APE32L" + path + "::" + String(toCallFixed) + ":" + encrypted + "{" + String(msgID);
+
+    String packet = myCallUP + ">APE32L" + path + "::" + String(toCallFixed) + ":" + encrypted + "{" + String(msgID);
+
     uint8_t SendMode = 0;
     if (config.msg_rf)
         SendMode |= RF_CHANNEL;

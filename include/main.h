@@ -11,8 +11,8 @@
 #ifndef MAIN_H
 #define MAIN_H
 
-#define VERSION "1.6"
-#define VERSION_BUILD 'a'
+#define VERSION "1.7"
+#define VERSION_BUILD ' '
 
 #include <Arduino.h>
 #include <AX25.h>

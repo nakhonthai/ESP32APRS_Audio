@@ -1363,6 +1363,11 @@ void logWeather(double lat, double lon, double speed, double course)
 void defaultConfig()
 {
     log_d("Default configure mode!");
+    #ifdef __XTENSA__
+    config.cpuFreq = 240;
+    #else
+    config.cpuFreq = 160;
+    #endif
     config.synctime = true;
     config.timeZone = 7;
     config.tx_timeslot = 2000; // ms
@@ -2438,11 +2443,19 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
             pkgList[i].length = len + 1;
             if (pkgList[i].raw != NULL)
             {
+                #ifdef BOARD_HAS_PSRAM
+                pkgList[i].raw = (char *)ps_realloc(pkgList[i].raw, pkgList[i].length);
+                #else
                 pkgList[i].raw = (char *)realloc(pkgList[i].raw, pkgList[i].length);
+                #endif
             }
             else
             {
+                #ifdef BOARD_HAS_PSRAM
+                pkgList[i].raw = (char *)ps_calloc(pkgList[i].length, sizeof(char));
+                #else
                 pkgList[i].raw = (char *)calloc(pkgList[i].length, sizeof(char));
+                #endif
             }
             if (pkgList[i].raw)
             {
@@ -2494,13 +2507,21 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
         len = strlen(raw);
         pkgList[i].length = len + 1;
         if (pkgList[i].raw != NULL)
-        {
-            pkgList[i].raw = (char *)realloc(pkgList[i].raw, pkgList[i].length);
-        }
-        else
-        {
-            pkgList[i].raw = (char *)calloc(pkgList[i].length, sizeof(char));
-        }
+            {
+                #ifdef BOARD_HAS_PSRAM
+                pkgList[i].raw = (char *)ps_realloc(pkgList[i].raw, pkgList[i].length);
+                #else
+                pkgList[i].raw = (char *)realloc(pkgList[i].raw, pkgList[i].length);
+                #endif
+            }
+            else
+            {
+                #ifdef BOARD_HAS_PSRAM
+                pkgList[i].raw = (char *)ps_calloc(pkgList[i].length, sizeof(char));
+                #else
+                pkgList[i].raw = (char *)calloc(pkgList[i].length, sizeof(char));
+                #endif
+            }
         if (pkgList[i].raw)
         {
             memset(pkgList[i].raw, 0, pkgList[i].length);
@@ -2676,7 +2697,7 @@ bool pkgTxSend()
                     APRS_setPreamble(config.preamble * 100); // Send packet to RF
                     APRS_sendTNC2Pkt((uint8_t *)txQueue[i].Info, txQueue[i].length);
                     igateTLM.TX++;
-
+                
                     // free(info);
                     //  for (int i = 0; i < 100; i++)
                     //  {
@@ -2747,36 +2768,36 @@ void printTime()
     // Serial.print("]");
 }
 
-uint8_t gwRaw[PKGLISTSIZE][66];
-uint8_t gwRawSize[PKGLISTSIZE];
-int gwRaw_count = 0, gwRaw_idx_rd = 0, gwRaw_idx_rw = 0;
+// uint8_t gwRaw[PKGLISTSIZE][66];
+// uint8_t gwRawSize[PKGLISTSIZE];
+// int gwRaw_count = 0, gwRaw_idx_rd = 0, gwRaw_idx_rw = 0;
 
-void pushGwRaw(uint8_t *raw, uint8_t size)
-{
-    if (gwRaw_count > PKGLISTSIZE)
-        return;
-    if (++gwRaw_idx_rw >= PKGLISTSIZE)
-        gwRaw_idx_rw = 0;
-    if (size > 65)
-        size = 65;
-    memcpy(&gwRaw[gwRaw_idx_rw][0], raw, size);
-    gwRawSize[gwRaw_idx_rw] = size;
-    gwRaw_count++;
-}
+// void pushGwRaw(uint8_t *raw, uint8_t size)
+// {
+//     if (gwRaw_count > PKGLISTSIZE)
+//         return;
+//     if (++gwRaw_idx_rw >= PKGLISTSIZE)
+//         gwRaw_idx_rw = 0;
+//     if (size > 65)
+//         size = 65;
+//     memcpy(&gwRaw[gwRaw_idx_rw][0], raw, size);
+//     gwRawSize[gwRaw_idx_rw] = size;
+//     gwRaw_count++;
+// }
 
-uint8_t popGwRaw(uint8_t *raw)
-{
-    uint8_t size = 0;
-    if (gwRaw_count <= 0)
-        return 0;
-    if (++gwRaw_idx_rd >= PKGLISTSIZE)
-        gwRaw_idx_rd = 0;
-    size = gwRawSize[gwRaw_idx_rd];
-    memcpy(raw, &gwRaw[gwRaw_idx_rd][0], size);
-    if (gwRaw_count > 0)
-        gwRaw_count--;
-    return size;
-}
+// uint8_t popGwRaw(uint8_t *raw)
+// {
+//     uint8_t size = 0;
+//     if (gwRaw_count <= 0)
+//         return 0;
+//     if (++gwRaw_idx_rd >= PKGLISTSIZE)
+//         gwRaw_idx_rd = 0;
+//     size = gwRawSize[gwRaw_idx_rd];
+//     memcpy(raw, &gwRaw[gwRaw_idx_rd][0], size);
+//     if (gwRaw_count > 0)
+//         gwRaw_count--;
+//     return size;
+// }
 
 bool SA868_waitResponse(String &data, String rsp, uint32_t timeout)
 {
@@ -3268,6 +3289,8 @@ void setup()
             defaultConfig();
     }
 
+    //setCpuFrequencyMhz(config.cpuFreq);
+
     LED_Status(255, 255, 255);
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
@@ -3536,7 +3559,11 @@ void setup()
     xTaskCreatePinnedToCore(
         taskNetwork,        /* Function to implement the task */
         "taskNetwork",      /* Name of the task */
-        8192,              /* Stack size in words */
+        #if (CORE_DEBUG_LEVEL > 0)
+        8192,            /* Stack size in words */
+        #else
+        6200,            /* Stack size in words */
+        #endif
         NULL,               /* Task input parameter */
         1,                  /* Priority of the task */
         &taskNetworkHandle, /* Task handle. */
@@ -3555,7 +3582,11 @@ void setup()
     xTaskCreatePinnedToCore(
         taskAPRS,        /* Function to implement the task */
         "taskAPRS",      /* Name of the task */
+        #if (CORE_DEBUG_LEVEL > 0)
+        8192,            /* Stack size in words */
+        #else
         4096,            /* Stack size in words */
+        #endif
         NULL,            /* Task input parameter */
         2,               /* Priority of the task */
         &taskAPRSHandle, /* Task handle. */
@@ -3665,7 +3696,7 @@ String compress_position(double nowLat, double nowLng, int alt_feed, double cour
     memset(aprs_position, 0, sizeof(aprs_position));
 
     base91encode(ltemp, aprs_position);
-    ltemp = 1073741824L + (longitude >> 1); // 180 degrees + longitude
+    ltemp = 1073741824L + (longitude / 2L); // 180 degrees + longitude
     base91encode(ltemp, aprs_position + 4);
     // Encode heading
     uint8_t c = (uint8_t)(course / 4);
@@ -3831,7 +3862,7 @@ String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, 
 
     // prepare buffers
     // char destCallsign[7];
-#if !RADIOLIB_STATIC_ONLY
+//#if !RADIOLIB_STATIC_ONLY
     size_t infoLen = 10;
     if (telemLen > 0)
     {
@@ -3852,10 +3883,15 @@ String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, 
             infoLen += 4;
         }
     }
-    char *info = new char[infoLen];
-#else
-    char info[RADIOLIB_STATIC_ARRAY_SIZE];
-#endif
+    //char *info = new char[infoLen];
+    char *info = (char *)calloc(1, infoLen);
+    if(info == NULL)
+    {
+        return strRet;
+    }
+// #else
+//     char info[RADIOLIB_STATIC_ARRAY_SIZE];
+// #endif
     size_t infoPos = 0;
 
     // the following is based on APRS Mic-E implementation by https://github.com/omegat
@@ -4017,6 +4053,7 @@ String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, 
     info[infoPos++] = '\0';
 
     strRet = String(info);
+    free(info);   
     return strRet;
 }
 
@@ -4338,9 +4375,9 @@ String trk_fix_position(String comment)
     {
         memset(strtmp, 0, 300);
         if (config.trk_ssid == 0)
-            sprintf(strtmp, "%s>APE32A", config.trk_mycall);
+            snprintf(strtmp, 300, "%s>APE32A", config.trk_mycall);
         else
-            sprintf(strtmp, "%s-%d>APE32A", config.trk_mycall, config.trk_ssid);
+            snprintf(strtmp, 300, "%s-%d>APE32A", config.trk_mycall, config.trk_ssid);
         tnc2Raw = String(strtmp);
         free(strtmp);
     }
@@ -5069,9 +5106,6 @@ void sendIsPkgMsg(char *raw)
     String tnc2Raw = String(str);
     if (aprsClient.connected())
         aprsClient.println(tnc2Raw); // Send packet to Inet
-    // if (config.tnc && config.tnc_digi)
-    //     pkgTxUpdate(str, 0);
-    // APRS_sendTNC2Pkt(tnc2Raw); // Send packet to RF
 }
 
 void sendTelemetry_0(char *raw, bool header)
@@ -5559,172 +5593,6 @@ WiFiClient gnssClient;
 
 extern AsyncWebSocket ws_gnss;
 unsigned long gnssTimeInterval = 0;
-
-// void taskGPSActive()
-// {
-//     int c;
-//     // log_d("GNSS Init");
-//     nmea_idx = 0;
-
-//     // if (config.gnss_enable)
-//     // {
-//     //     if ((config.gnss_channel > 0) && (config.gnss_channel < 4))
-//     //     {
-//     //         if (strstr("AT", config.gnss_at_command) >= 0)
-//     //         {
-//     //             if (config.gnss_channel == 1)
-//     //             {
-//     //                 Serial.println(config.gnss_at_command);
-//     //             }
-//     //             else if (config.gnss_channel == 2)
-//     //             {
-//     //                 Serial1.println(config.gnss_at_command);
-//     //             }
-//     //             else if (config.gnss_channel == 3)
-//     //             {
-//     //                 Serial2.println(config.gnss_at_command);
-//     //             }
-//     //         }
-//     //     }
-//     // }
-//     // for (;;)
-//     {
-//         if (config.gnss_enable)
-//         {
-//             if ((config.gnss_channel > 0) && (config.gnss_channel < 4))
-//             {
-//                 do
-//                 {
-//                     c = -1;
-//                     if (config.gnss_channel == 1)
-//                     {
-//                         c = Serial.read();
-//                     }
-//                     else if (config.gnss_channel == 2)
-//                     {
-//                         c = Serial1.read();
-//                     }
-// #ifdef __XTENSA__
-//                     else if (config.gnss_channel == 3)
-//                     {
-//                         c = Serial2.read();
-//                     }
-// #endif
-//                     if (c > -1)
-//                     {
-//                         gps.encode((char)c);
-//                         if (webServiceBegin == false)
-//                         {
-//                             if (nmea_idx > 195)
-//                             {
-//                                 nmea_idx = 0;
-//                                 memset(nmea, 0, sizeof(nmea));
-//                                 // SerialGNSS->flush();
-//                             }
-//                             else
-//                             {
-//                                 nmea[nmea_idx++] = (char)c;
-//                                 if ((char)c == '\r' || (char)c == '\n')
-//                                 {
-//                                     nmea[nmea_idx] = 0;
-//                                     if (nmea_idx > 5)
-//                                     {
-//                                         if (ws_gnss.enabled() && !ws_gnss.getClients().isEmpty())
-//                                         // if (webServiceBegin == false)
-//                                         {
-//                                             handle_ws_gnss(nmea, nmea_idx);
-//                                         }
-//                                         // log_d("%s",nmea);
-//                                     }
-//                                     nmea_idx = 0;
-//                                     break;
-//                                 }
-//                             }
-//                         }
-//                         //}
-//                     }
-//                     else
-//                     {
-//                         break;
-//                     }
-//                 } while (1);
-//             }
-//             else if (config.gnss_channel == 4)
-//             { // TCP
-//                 if (WiFi.isConnected())
-//                 {
-//                     if (!gnssClient.connected())
-//                     {
-//                         gnssClient.connect(config.gnss_tcp_host, config.gnss_tcp_port);
-//                         log_d("GNSS TCP ReConnect to %s:%d", config.gnss_tcp_host, config.gnss_tcp_port);
-//                         delay(3000);
-//                     }
-//                     else
-//                     {
-//                         while (gnssClient.available())
-//                         {
-//                             c = (char)gnssClient.read();
-//                             // Serial.print(c);
-//                             gps.encode(c);
-//                             if (webServiceBegin == false)
-//                             {
-//                                 if (nmea_idx > 195)
-//                                 {
-//                                     nmea_idx = 0;
-//                                     memset(nmea, 0, sizeof(nmea));
-//                                 }
-//                                 else
-//                                 {
-//                                     nmea[nmea_idx++] = c;
-//                                     if (c == '\r' || c == '\n')
-//                                     {
-//                                         nmea[nmea_idx] = 0;
-//                                         if (nmea_idx > 5)
-//                                         {
-//                                             if (ws_gnss.enabled() && !ws_gnss.getClients().isEmpty())
-//                                             {
-//                                                 handle_ws_gnss(nmea, nmea_idx);
-//                                             }
-//                                             // log_d("%s",nmea);
-//                                         }
-//                                         nmea_idx = 0;
-//                                     }
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-
-//             if (firstGpsTime && gps.time.isValid())
-//             {
-//                 if (gps.time.isUpdated())
-//                 {
-//                     time_t timeGps = getGpsTime(); // Local gps time
-//                     if (timeGps > 1700000000 && timeGps < 2347462800)
-//                     {
-//                         setTime(timeGps);
-//                         time_t rtc = timeGps;
-//                         timeval tv = {rtc, 0};
-//                         timezone tz = {TZ_SEC + DST_MN, 0};
-//                         settimeofday(&tv, &tz);
-// #ifdef DEBUG
-//                         log_d("\nSET GPS Timestamp = %u Year=%d\n", timeGps, year());
-// #endif
-//                         // firstGpsTime = false;
-//                         firstGpsTime = false;
-//                         if (startTime == 0)
-//                             startTime = now();
-//                     }
-//                     else
-//                     {
-//                         startTime = 0;
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
 
 void taskGPS(void *pvParameters)
 {
@@ -6273,16 +6141,16 @@ void taskAPRS(void *pvParameters)
     for (;;)
     {
 
-        // if (adcEn == 1)
-        // {
-        //     AFSK_TimerEnable(true);
-        //     adcEn = 0;
-        // }
-        // else if (adcEn == -1)
-        // {
-        //     AFSK_TimerEnable(false);
-        //     adcEn = 0;
-        // }
+        if (adcEn == 1)
+        {
+             AFSK_TimerEnable(true);
+             adcEn = 0;
+        }
+        else if (adcEn == -1)
+        {
+             AFSK_TimerEnable(false);
+             adcEn = 0;
+        }
 
         if (dacEn == 1)
         {
@@ -6395,10 +6263,13 @@ void taskAPRS(void *pvParameters)
         // {
         // Transmit in timeslot if enabled
         pkgTxSend();
-        //     timeSlot = millis() + 100;
-        // }
         Ax25TransmitBuffer(); // transmit buffer (will return if nothing to be transmitted)
         Ax25TransmitCheck();  // check for pending transmission request
+
+        //     timeSlot = millis() + 100;
+        // }
+        // Ax25TransmitBuffer(); // transmit buffer (will return if nothing to be transmitted)
+        // Ax25TransmitCheck();  // check for pending transmission request
 
         if (config.trk_en)
         { // TRACKER MODE
@@ -7146,6 +7017,10 @@ void taskAPRS(void *pvParameters)
                     }
                 }
             }
+            if (config.digi_auto)
+            {
+                DiGiInterval = millis() + (config.digi_interval * 1000);
+            }
         }
 
         // Digi Repeater Process
@@ -7394,9 +7269,10 @@ void taskAPRS(void *pvParameters)
                     // Packet recheck
                     pkgTxDuplicate(incomingPacket); // Search duplicate in tx and drop packet for renew
                     int dlyFlag = digiProcess(incomingPacket);
+                    log_d("Digi Process Flag=%d\n", dlyFlag);
                     if (dlyFlag > 0)
                     {
-                        int digiDelay;
+                        int digiDelay=0;
                         status.digiCount++;
                         if (dlyFlag == 1)
                         {
@@ -7413,7 +7289,8 @@ void taskAPRS(void *pvParameters)
                               // else if (digiCount > 0)
                               //   digiDelay = random(1500);
                               // else
-                                digiDelay = random(100);
+                                //digiDelay = random(3000);
+                                digiDelay = 0;
                             }
                             else
                             {
@@ -7423,8 +7300,8 @@ void taskAPRS(void *pvParameters)
 
                         String digiPkg;
                         packet2Raw(digiPkg, incomingPacket);
-                        log_d("DIGI_REPEAT: %s", digiPkg.c_str());
-                        log_d("DIGI delay=%d ms.", digiDelay);
+                        log_d("DIGI_REPEAT[%dms]: %s", digiDelay, digiPkg.c_str());
+                        //log_d("DIGI delay=%d ms.", digiDelay);
                         // char *rawP = (char *)calloc(digiPkg.length()+1, sizeof(char));
                         //  digiPkg.toCharArray(rawP, digiPkg.length());
                         // memcpy(rawP, digiPkg.c_str(), digiPkg.length());
@@ -7687,6 +7564,7 @@ pppType pppStatus;
 long int pppTimeout = 0;
 #endif
 
+IPAddress no_ip(0, 0, 0, 0);
 IPAddress ap_ip(192, 168, 4, 1);
 IPAddress ap_mask(255, 255, 255, 0);
 IPAddress ap_leaseStart(192, 168, 4, 2);
@@ -8069,8 +7947,8 @@ void taskNetwork(void *pvParameters)
         // }
         wifiConnection();
 
-        wifiMulti.setStrictMode(false); // Default is true.  Library will disconnect and forget currently connected AP if it's not in the AP list.
-        wifiMulti.setAllowOpenAP(true); // Default is false.  True adds open APs to the AP list.
+        wifiMulti.setStrictMode(true); // Default is true.  Library will disconnect and forget currently connected AP if it's not in the AP list.
+        wifiMulti.setAllowOpenAP(false); // Default is false.  True adds open APs to the AP list.
     }
 
     if (config.wifi_mode & WIFI_AP_FIX)
@@ -8094,6 +7972,17 @@ void taskNetwork(void *pvParameters)
     timeNetwork = 0;
 
 #ifdef PPPOS
+    //Initialize pppStatus
+    memset(&pppStatus, 0, sizeof(pppType));
+    strcpy(pppStatus.manufacturer, "N/A");
+    strcpy(pppStatus.model, "N/A");
+    strcpy(pppStatus.imei, "N/A");
+    strcpy(pppStatus.imsi, "N/A");
+    strcpy(pppStatus.oper, "N/A");
+    pppStatus.rssi= -127;
+    pppStatus.ip = 0;
+    pppStatus.gateway = 0;
+    
     PPPOS_Start(); // Start PPP connection if enabled
     pppTimeout = millis() + (600 * 1000);
 #endif

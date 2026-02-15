@@ -34,7 +34,11 @@ struct Ax25ProtoConfig Ax25Config;
 #include "fx25.h"
 #endif
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
 #define FRAME_MAX_COUNT (5) //max count of frames in buffer
+#else
+#define FRAME_MAX_COUNT (3) //max count of frames in buffer
+#endif
 #define FRAME_BUFFER_SIZE (FRAME_MAX_COUNT * AX25_FRAME_MAX_SIZE) //circular frame buffer length
 
 #define STATIC_HEADER_FLAG_COUNT 4 //number of flags sent before each frame
@@ -1024,8 +1028,8 @@ transmitTail:
 /**
  * @brief Initialize transmission and start when possible
  */
-void Ax25TransmitBuffer(void)
-{
+void Ax25TransmitBuffer()
+{	
 	 if(txInitStage == TX_INIT_WAITING)
 	 	return;
 	 if(txInitStage == TX_INIT_TRANSMITTING)
@@ -1033,7 +1037,7 @@ void Ax25TransmitBuffer(void)
 
 	 if((txFrameHead != txFrameTail) || txFrameBufferFull)
 	 {
-	 	txQuiet = (millis() + (Ax25Config.quietTime) + random(100, 2000)); //calculate required delay
+	 	txQuiet = (millis() + (Ax25Config.quietTime)); //calculate required delay
 	 	txInitStage = TX_INIT_WAITING;
 	 }
 }
@@ -1100,7 +1104,7 @@ void Ax25Init(uint8_t fx25Mode)
 {
 	txCrc = 0xFFFF;
     memset(&Ax25Config, 0, sizeof(Ax25Config));
-    Ax25Config.quietTime = 200;
+    Ax25Config.quietTime = 2000;
 	Ax25Config.txDelayLength = 300;
 	Ax25Config.txTailLength = 1;
 	if(fx25Mode==0){
@@ -1132,8 +1136,12 @@ void Ax25TxDelay(uint16_t delay_ms)
 
 void Ax25TimeSlot(uint16_t ts)
 {
-	Ax25Config.quietTime = ts;
-	txQuiet = (millis() + (Ax25Config.quietTime) + random(100, 1000)); //calculate required delay
+	if(ts>0){
+		Ax25Config.quietTime = ts;	
+		txQuiet = (millis() + (Ax25Config.quietTime) + random(100, 1000)); //calculate required delay
+	}else{
+		txQuiet = 0; //no delay
+	}
 }
 
 //////////////////////////////////

@@ -133,7 +133,7 @@ typedef struct
 } RingBuffer;
 
 // Initialize the ring buffer
-void RingBuffer_Init(RingBuffer *rb)
+void IRAM_ATTR RingBuffer_Init(RingBuffer *rb)
 {
   rb->head = 0;
   rb->tail = 0;
@@ -142,19 +142,19 @@ void RingBuffer_Init(RingBuffer *rb)
 }
 
 // Check if the buffer is full
-bool RingBuffer_IsFull(const RingBuffer *rb)
+bool IRAM_ATTR RingBuffer_IsFull(const RingBuffer *rb)
 {
   return rb->count == BUFFER_SIZE;
 }
 
 // Check if the buffer is empty
-bool RingBuffer_IsEmpty(const RingBuffer *rb)
+bool IRAM_ATTR RingBuffer_IsEmpty(const RingBuffer *rb)
 {
   return rb->count == 0;
 }
 
 // Add an element to the buffer (push)
-bool RingBuffer_Push(RingBuffer *rb, int16_t data)
+bool IRAM_ATTR RingBuffer_Push(RingBuffer *rb, int16_t data)
 {
   if (RingBuffer_IsFull(rb))
   {
@@ -171,7 +171,7 @@ bool RingBuffer_Push(RingBuffer *rb, int16_t data)
 }
 
 // Remove an element from the buffer (pop)
-bool RingBuffer_Pop(RingBuffer *rb, int16_t *data)
+bool IRAM_ATTR RingBuffer_Pop(RingBuffer *rb, int16_t *data)
 {
   if (RingBuffer_IsEmpty(rb))
   {
@@ -193,12 +193,12 @@ bool RingBuffer_Pop(RingBuffer *rb, int16_t *data)
 }
 
 // Get the number of elements in the buffer
-int RingBuffer_Size(const RingBuffer *rb)
+int IRAM_ATTR RingBuffer_Size(const RingBuffer *rb)
 {
   return rb->count;
 }
 
-RingBuffer fifo; // Declare a ring buffer
+RingBuffer fifo; // Declare a ring buffer statically (this will be in DRAM, but functions are in IRAM)
 
 /******************************************************************** */
 
@@ -714,11 +714,11 @@ void AFSK_TimerEnable(bool sts)
   // {
   // vTaskSuspendAll ();
   // adcq.flush();
-  RingBuffer_Init(&fifo);
-  portENTER_CRITICAL_ISR(&timerMux); // ISR start  
+  // Note: fifo is initialized in AFSK_hw_init, not here
+  portENTER_CRITICAL_ISR(&timerMux); // ISR start
   if (sts == true)
   {
-    
+
 #ifdef ADC_SAMPLE
     RingBuffer_IsEmpty(&fifo);
     timerStart(timer_adc);
@@ -1228,7 +1228,7 @@ void AFSK_hw_init(void)
   if (_pwr_pin > -1)
     digitalWrite(_pwr_pin, !_pwr_active);
 
-  RingBuffer_Init(&fifo);
+  RingBuffer_Init(&fifo); // Initialize the ring buffer
 
 #ifdef I2S_INTERNAL
   //  Initialize the I2S peripheral
