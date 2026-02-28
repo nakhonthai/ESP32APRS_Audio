@@ -134,6 +134,22 @@ extern Adafruit_SSD1306 display;
 
 bool defaultSetting = false;
 
+void saveConfig(AsyncWebServerRequest *request)
+{
+	String html;
+	if (saveConfiguration("/default.cfg", config))
+	{
+		html = "Setup completed successfully";
+		request->send(200, "text/html", html); // send to someones browser when asked
+	}
+	else
+	{
+		html = "Save config failed.";
+		request->send(501, "text/html", html); // Not Implemented
+	}
+	html.clear();
+}
+
 void serviceHandle()
 {
 	// server.handleClient();
@@ -814,6 +830,12 @@ void handle_sidebar(AsyncWebServerRequest *request)
 	else
 #endif
 		strcat(html, "<th style=\"background:#606060; color:#b0b0b0;border-radius: 10px;border: 2px solid white;\" aria-disabled=\"true\">PPPoS</th>\n");
+#ifdef MQTT
+	if (clientMQTT.connected())
+		strcat(html, "<th style=\"background:#0b0; color:#030; width:50%;border-radius: 10px;border: 2px solid white;\">MQTT</th>\n");
+	else
+		strcat(html, "<th style=\"background:#606060; color:#b0b0b0;border-radius: 10px;border: 2px solid white;\" aria-disabled=\"true\">MQTT</th>\n";);
+#endif
 	if (config.fx25_mode > 0)
 		strcat(html, "<th style=\"background:#0b0; color:#030; width:50%;border-radius: 10px;border: 2px solid white;\">FX.25</th>\n");
 	else
@@ -5685,50 +5707,29 @@ void handle_system(AsyncWebServerRequest *request)
 				break;
 			}
 		}
-		const char *html = "Setup completed successfully";
-		if (saveConfiguration("/default.cfg", config))
-		{
-			request->send(200, "text/html", html); // send to someones browser when asked
-		}
-		else
-		{
-			html = "Save config failed.";
-			request->send(501, "text/html", html); // Not Implemented
-		}
+		saveConfig(request);
 	}
 	else if (request->hasArg("updateHostName"))
 	{
 		for (uint8_t i = 0; i < request->args(); i++)
 		{
+			log_d("%s", request->arg(i).c_str());
 			if (request->argName(i) == "SetHostName")
 			{
 				if (request->arg(i) != "")
 				{
-					// Serial.println("WEB Config NTP");
-					strcpy(config.host_name, request->arg(i).c_str());
+					strncpy(config.host_name, request->arg(i).c_str(), sizeof(config.host_name) - 1);
+					config.host_name[sizeof(config.host_name) - 1] = '\0'; // Null terminate
 				}
 				break;
 			}
 		}
-		const char *html = "Setup completed successfully";
-		if (saveConfiguration("/default.cfg", config))
-		{
-			request->send(200, "text/html", html); // send to someones browser when asked
-		}
-		else
-		{
-			html = "Save config failed.";
-			request->send(501, "text/html", html); // Not Implemented
-		}
+		saveConfig(request);
 	}
 	else if (request->hasArg("updateTimeNtp"))
 	{
 		for (uint8_t i = 0; i < request->args(); i++)
 		{
-			// Serial.print("SERVER ARGS ");
-			// Serial.print(request->argName(i));
-			// Serial.print("=");
-			// Serial.println(request->arg(i));
 			if (request->argName(i) == "SetTimeNtp")
 			{
 				if (request->arg(i) != "")
@@ -5740,16 +5741,7 @@ void handle_system(AsyncWebServerRequest *request)
 				break;
 			}
 		}
-		const char *html = "Setup completed successfully";
-		if (saveConfiguration("/default.cfg", config))
-		{
-			request->send(200, "text/html", html); // send to someones browser when asked
-		}
-		else
-		{
-			html = "Save config failed.";
-			request->send(501, "text/html", html); // Not Implemented
-		}
+		saveConfig(request);
 	}
 	else if (request->hasArg("updateAutoReset"))
 	{
@@ -5765,25 +5757,12 @@ void handle_system(AsyncWebServerRequest *request)
 				break;
 			}
 		}
-		const char *html = "Setup completed successfully";
-		if (saveConfiguration("/default.cfg", config))
-		{
-			request->send(200, "text/html", html); // send to someones browser when asked
-		}
-		else
-		{
-			html = "Save config failed.";
-			request->send(501, "text/html", html); // Not Implemented
-		}
+		saveConfig(request);
 	}
 	else if (request->hasArg("updateTime"))
 	{
 		for (uint8_t i = 0; i < request->args(); i++)
 		{
-			// Serial.print("SERVER ARGS ");
-			// Serial.print(request->argName(i));
-			// Serial.print("=");
-			// Serial.println(request->arg(i));
 			if (request->argName(i) == "SetTime")
 			{
 				if (request->arg(i) != "")
@@ -5816,34 +5795,25 @@ void handle_system(AsyncWebServerRequest *request)
 					settimeofday(&tv, &tz);
 
 					// Serial.println("Update TIME " + request->arg(i));
-					Serial.print("Set New Time at ");
-					Serial.print(dd);
-					Serial.print("/");
-					Serial.print(mm);
-					Serial.print("/");
-					Serial.print(yyyy);
-					Serial.print(" ");
-					Serial.print(hh);
-					Serial.print(":");
-					Serial.print(ii);
-					Serial.print(":");
-					Serial.print(ss);
-					Serial.print(" ");
-					Serial.println(timeStamp);
+					// Serial.print("Set New Time at ");
+					// Serial.print(dd);
+					// Serial.print("/");
+					// Serial.print(mm);
+					// Serial.print("/");
+					// Serial.print(yyyy);
+					// Serial.print(" ");
+					// Serial.print(hh);
+					// Serial.print(":");
+					// Serial.print(ii);
+					// Serial.print(":");
+					// Serial.print(ss);
+					// Serial.print(" ");
+					// Serial.println(timeStamp);
 				}
 				break;
 			}
 		}
-		const char *html = "Setup completed successfully";
-		if (saveConfiguration("/default.cfg", config))
-		{
-			request->send(200, "text/html", html); // send to someones browser when asked
-		}
-		else
-		{
-			html = "Save config failed.";
-			request->send(501, "text/html", html); // Not Implemented
-		}
+		saveConfig(request);
 	}
 	else if (request->hasArg("REBOOT"))
 	{
@@ -5860,7 +5830,7 @@ void handle_system(AsyncWebServerRequest *request)
 	{
 		if (loadConfiguration("/default.cfg", config))
 		{
-			const char *html = "OK";
+			String html = "OK";
 			request->send(200, "text/html", html);
 		}
 	}
@@ -5868,10 +5838,6 @@ void handle_system(AsyncWebServerRequest *request)
 	{
 		for (uint8_t i = 0; i < request->args(); i++)
 		{
-			// Serial.print("SERVER ARGS ");
-			// Serial.print(request->argName(i));
-			// Serial.print("=");
-			// Serial.println(request->arg(i));
 			if (request->argName(i) == "webauth_user")
 			{
 				if (request->arg(i) != "")
@@ -5887,25 +5853,12 @@ void handle_system(AsyncWebServerRequest *request)
 				}
 			}
 		}
-		const char *html = "Setup completed successfully";
-		if (saveConfiguration("/default.cfg", config))
-		{
-			request->send(200, "text/html", html); // send to someones browser when asked
-		}
-		else
-		{
-			html = "Save config failed.";
-			request->send(501, "text/html", html); // Not Implemented
-		}
+		saveConfig(request);
 	}
 	else if (request->hasArg("commitPath"))
 	{
 		for (uint8_t i = 0; i < request->args(); i++)
 		{
-			// Serial.print("SERVER ARGS ");
-			// Serial.print(request->argName(i));
-			// Serial.print("=");
-			// Serial.println(request->arg(i));
 			if (request->argName(i) == "path1")
 			{
 				if (request->arg(i) != "")
@@ -5924,7 +5877,7 @@ void handle_system(AsyncWebServerRequest *request)
 			{
 				if (request->arg(i) != "")
 				{
-					strcpy(config.path[1], request->arg(i).c_str());
+					strcpy(config.path[2], request->arg(i).c_str());
 				}
 			}
 			if (request->argName(i) == "path4")
@@ -5935,16 +5888,7 @@ void handle_system(AsyncWebServerRequest *request)
 				}
 			}
 		}
-		const char *html = "Setup completed successfully";
-		if (saveConfiguration("/default.cfg", config))
-		{
-			request->send(200, "text/html", html); // send to someones browser when asked
-		}
-		else
-		{
-			html = "Save config failed.";
-			request->send(501, "text/html", html); // Not Implemented
-		}
+		saveConfig(request);
 	}
 	else if (request->hasArg("commitPWR"))
 	{
@@ -5953,10 +5897,6 @@ void handle_system(AsyncWebServerRequest *request)
 
 		for (uint8_t i = 0; i < request->args(); i++)
 		{
-			// Serial.print("SERVER ARGS ");
-			// Serial.print(request->argName(i));
-			// Serial.print("=");
-			// Serial.println(request->arg(i));
 			if (request->argName(i) == "pwr_active")
 			{
 				if (request->arg(i) != "")
@@ -6075,16 +6015,7 @@ void handle_system(AsyncWebServerRequest *request)
 			}
 		}
 		config.pwr_en = PwrEn;
-		const char *html = "Setup completed successfully";
-		if (saveConfiguration("/default.cfg", config))
-		{
-			request->send(200, "text/html", html); // send to someones browser when asked
-		}
-		else
-		{
-			html = "Save config failed.";
-			request->send(501, "text/html", html); // Not Implemented
-		}
+		saveConfig(request);
 	}
 	else if (request->hasArg("commitLOG"))
 	{
@@ -6093,11 +6024,6 @@ void handle_system(AsyncWebServerRequest *request)
 
 		for (uint8_t i = 0; i < request->args(); i++)
 		{
-			// Serial.print("SERVER ARGS ");
-			// Serial.print(request->argName(i));
-			// Serial.print("=");
-			// Serial.println(request->arg(i));
-
 			if (request->argName(i) == "logStatus")
 			{
 				if (request->arg(i) != "")
@@ -6143,16 +6069,7 @@ void handle_system(AsyncWebServerRequest *request)
 				}
 			}
 		}
-		const char *html = "Setup completed successfully";
-		if (saveConfiguration("/default.cfg", config))
-		{
-			request->send(200, "text/html", html); // send to someones browser when asked
-		}
-		else
-		{
-			html = "Save config failed.";
-			request->send(501, "text/html", html); // Not Implemented
-		}
+		saveConfig(request);
 	}
 	else if (request->hasArg("commitDISP"))
 	{
@@ -6167,10 +6084,6 @@ void handle_system(AsyncWebServerRequest *request)
 
 		for (uint8_t i = 0; i < request->args(); i++)
 		{
-			// Serial.print("SERVER ARGS ");
-			// Serial.print(request->argName(i));
-			// Serial.print("=");
-			// Serial.println(request->arg(i));
 			if (request->argName(i) == "oledEnable")
 			{
 				if (request->arg(i) != "")
@@ -6360,12 +6273,12 @@ void handle_system(AsyncWebServerRequest *request)
 		{
 			// display.begin(SSD1306_SWITCHCAPVCC, 0x3C, false); // initialize with the I2C addr 0x3C (for the 128x64)
 			//  Initialising the UI will init the display too.
-#ifdef SH1106
-			display.begin(SH1106_SWITCHCAPVCC, SCREEN_ADDRESS, false);
-#else
-			display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS, false, false);
-#endif
-			display.clearDisplay();
+			// #ifdef SH1106
+			// 			display.begin(SH1106_SWITCHCAPVCC, SCREEN_ADDRESS, false);
+			// #else
+			// 			display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS, false, false);
+			// #endif
+			//			display.clearDisplay();
 		}
 		config.oled_enable = oledEN;
 		config.dispINET = dispINET;
@@ -6374,34 +6287,25 @@ void handle_system(AsyncWebServerRequest *request)
 		config.tx_display = dispTX;
 		config.disp_flip = dispFlip;
 #endif // OLED
-		// config.filterMessage = filterMessage;
-		// config.filterStatus = filterStatus;
-		// config.filterTelemetry = filterTelemetry;
-		// config.filterWeather = filterWeather;
-		// config.filterTracker = filterTracker;
-		// config.filterMove = filterMove;
-		// config.filterPosition = filterPosition;
-		const char *html = "Setup completed successfully";
-		if (saveConfiguration("/default.cfg", config))
-		{
-			request->send(200, "text/html", html); // send to someones browser when asked
-		}
-		else
-		{
-			html = "Save config failed.";
-			request->send(501, "text/html", html); // Not Implemented
-		}
+	   // config.filterMessage = filterMessage;
+	   // config.filterStatus = filterStatus;
+	   // config.filterTelemetry = filterTelemetry;
+	   // config.filterWeather = filterWeather;
+	   // config.filterTracker = filterTracker;
+	   // config.filterMove = filterMove;
+	   // config.filterPosition = filterPosition;
+		saveConfig(request);
 	}
 	else
 	{
 		struct tm tmstruct;
-		char strTime[20];
+		char strTime[30];
 		tmstruct.tm_year = 0;
 		getLocalTime(&tmstruct, 100);
 		sprintf(strTime, "%d-%02d-%02d %02d:%02d:%02d", (tmstruct.tm_year) + 1900, (tmstruct.tm_mon) + 1, tmstruct.tm_mday, tmstruct.tm_hour, tmstruct.tm_min, tmstruct.tm_sec);
 
 		// Using dynamic memory allocation instead of String
-		char *html = allocateStringMemory(22000); // Initial buffer size, adjust as needed
+		char *html = allocateStringMemory(20000); // Initial buffer size, adjust as needed
 		if (!html)
 		{
 			return; // Memory allocation failed
@@ -6443,10 +6347,10 @@ void handle_system(AsyncWebServerRequest *request)
 		strcat(html, "<td style=\"text-align: right;\">Host Name:</td>\n");
 
 		// Building form with snprintf to avoid string concatenation
-		char temp_buffer[512];
+		char temp_buffer[300];
 		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><form accept-charset=\"UTF-8\" action=\"#\" enctype='multipart/form-data' id=\"formHostName\" method=\"post\"><input name=\"SetHostName\" type=\"text\" value=\"%s\" />\n", config.host_name);
 		strcat(html, temp_buffer);
-		strcat(html, "<button type='submit' id='updateHostName'  name=\"commit\"> Apply </button>\n");
+		strcat(html, "<button type='submit' id='updateHostName'  name=\"updateHostName\"> Apply </button>\n");
 		strcat(html, "<input type=\"hidden\" name=\"updateHostName\"/></form>\n</td>\n");
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>");
@@ -6541,7 +6445,7 @@ void handle_system(AsyncWebServerRequest *request)
 		strcat(html, "<th colspan=\"2\"><span><b>Power Save Mode</b></span></th>\n");
 		strcat(html, "<tr>");
 
-		char enFlage[20] = "";
+		char enFlage[10] = "";
 		if (config.pwr_en)
 			strcpy(enFlage, "checked");
 		strcat(html, "<td align=\"right\"><b>Enable</b></td>\n");
@@ -6550,7 +6454,7 @@ void handle_system(AsyncWebServerRequest *request)
 		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
-		char LowFlag[30] = "", HighFlag[30] = "";
+		char LowFlag[20] = "", HighFlag[20] = "";
 		strcpy(LowFlag, "");
 		strcpy(HighFlag, "");
 		if (config.pwr_active)
@@ -6605,7 +6509,7 @@ void handle_system(AsyncWebServerRequest *request)
 		strcat(html, "<legend>Events</legend>\n<table style=\"text-align:unset;border-width:0px;background:unset\">\n");
 		strcat(html, "<tr style=\"background:unset;\">");
 
-		char filterFlageEn[20] = "";
+		char filterFlageEn[10] = "";
 		if (config.pwr_sleep_activate & ACTIVATE_TRACKER)
 			strcpy(filterFlageEn, "checked");
 		else
@@ -6765,9 +6669,7 @@ void handle_system(AsyncWebServerRequest *request)
 		strcat(html, "<input type=\"hidden\" name=\"commitPath\"/>\n");
 		strcat(html, "</td></tr></table>\n");
 		strcat(html, "</form><br /><br />");
-		// delay(1);
-// log_d("%s",html.c_str());
-// log_d("Length: %d",html.length());
+
 #if defined OLED || defined ST7735_160x80
 		strcat(html, "<form id='formDisp' method=\"POST\" action='#' enctype='multipart/form-data'>\n");
 		// html += "<h2>Display Setting</h2>\n";
@@ -6775,15 +6677,16 @@ void handle_system(AsyncWebServerRequest *request)
 		strcat(html, "<th colspan=\"2\"><span><b>Display Setting</b></span></th>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td style=\"text-align: right;\"><b>OLED/TFT Enable</b></td>\n");
-		char oledFlageEn[20] = "";
+		char oledFlageEn[10] = "";
 		if (config.oled_enable == true)
 			strcpy(oledFlageEn, "checked");
 		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"oledEnable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
-		strcpy(oledFlageEn, "");
 		if (config.disp_flip == true)
 			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td style=\"text-align: right;\"><b>Flip Rotate</b></td>\n");
 
@@ -6792,26 +6695,29 @@ void handle_system(AsyncWebServerRequest *request)
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td style=\"text-align: right;\"><b>TX Display</b></td>\n");
-		char txdispFlageEn[20] = "";
 		if (config.tx_display == true)
-			strcpy(txdispFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"txdispEnable\" value=\"OK\" %s><span class=\"slider round\"></span></label><label style=\"vertical-align: bottom;font-size: 8pt;\"> <i>*All TX Packet for display affter filter.</i></label></td>\n", txdispFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"txdispEnable\" value=\"OK\" %s><span class=\"slider round\"></span></label><label style=\"vertical-align: bottom;font-size: 8pt;\"> <i>*All TX Packet for display affter filter.</i></label></td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td style=\"text-align: right;\"><b>RX Display</b></td>\n");
-		char rxdispFlageEn[20] = "";
 		if (config.rx_display == true)
-			strcpy(rxdispFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"rxdispEnable\" value=\"OK\" %s><span class=\"slider round\"></span></label><label style=\"vertical-align: bottom;font-size: 8pt;\"> <i>*All RX Packet for display affter filter.</i></label></td>\n", rxdispFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"rxdispEnable\" value=\"OK\" %s><span class=\"slider round\"></span></label><label style=\"vertical-align: bottom;font-size: 8pt;\"> <i>*All RX Packet for display affter filter.</i></label></td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td style=\"text-align: right;\"><b>Head Up</b></td>\n");
-		char hupFlageEn[20] = "";
 		if (config.h_up == true)
-			strcpy(hupFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"hupEnable\" value=\"OK\" %s><span class=\"slider round\"></span></label><label style=\"vertical-align: bottom;font-size: 8pt;\"> <i>*The compass will rotate in the direction of movement.</i></label></td>\n", hupFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"hupEnable\" value=\"OK\" %s><span class=\"slider round\"></span></label><label style=\"vertical-align: bottom;font-size: 8pt;\"> <i>*The compass will rotate in the direction of movement.</i></label></td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
@@ -6898,59 +6804,67 @@ void handle_system(AsyncWebServerRequest *request)
 
 		// html += "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"dispINET\" name=\"dispINET\" type=\"checkbox\" value=\"OK\" " + inetFlageEn + "/>From INET</td>\n";
 
-		char filterMessageFlageEn[20] = "";
 		if (config.dispFilter & FILTER_MESSAGE)
-			strcpy(filterMessageFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterMessage\" name=\"filterMessage\" type=\"checkbox\" value=\"OK\" %s/>Message</td>\n", filterMessageFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterMessage\" name=\"filterMessage\" type=\"checkbox\" value=\"OK\" %s/>Message</td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
-
-		char filterStatusFlageEn[20] = "";
 		if (config.dispFilter & FILTER_STATUS)
-			strcpy(filterStatusFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterStatus\" name=\"filterStatus\" type=\"checkbox\" value=\"OK\" %s/>Status</td>\n", filterStatusFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterStatus\" name=\"filterStatus\" type=\"checkbox\" value=\"OK\" %s/>Status</td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 
-		char filterTelemetryFlageEn[20] = "";
 		if (config.dispFilter & FILTER_TELEMETRY)
-			strcpy(filterTelemetryFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterTelemetry\" name=\"filterTelemetry\" type=\"checkbox\" value=\"OK\" %s/>Telemetry</td>\n", filterTelemetryFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterTelemetry\" name=\"filterTelemetry\" type=\"checkbox\" value=\"OK\" %s/>Telemetry</td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 
-		char filterWeatherFlageEn[20] = "";
 		if (config.dispFilter & FILTER_WX)
-			strcpy(filterWeatherFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterWeather\" name=\"filterWeather\" type=\"checkbox\" value=\"OK\" %s/>Weather</td>\n", filterWeatherFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterWeather\" name=\"filterWeather\" type=\"checkbox\" value=\"OK\" %s/>Weather</td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 
-		char filterObjectFlageEn[20] = "";
 		if (config.dispFilter & FILTER_OBJECT)
-			strcpy(filterObjectFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterObject\" name=\"filterObject\" type=\"checkbox\" value=\"OK\" %s/>Object</td>\n", filterObjectFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterObject\" name=\"filterObject\" type=\"checkbox\" value=\"OK\" %s/>Object</td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 
-		char filterItemFlageEn[20] = "";
 		if (config.dispFilter & FILTER_ITEM)
-			strcpy(filterItemFlageEn, "checked");
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
 		strcat(html, "</tr><tr style=\"background:unset;\"><td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterItem\" name=\"filterItem\" type=\"checkbox\" value=\"OK\" ");
-		strcat(html, filterItemFlageEn);
+		strcat(html, oledFlageEn);
 		strcat(html, "/>Item</td>\n");
 
-		char filterQueryFlageEn[20] = "";
 		if (config.dispFilter & FILTER_QUERY)
-			strcpy(filterQueryFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterQuery\" name=\"filterQuery\" type=\"checkbox\" value=\"OK\" %s/>Query</td>\n", filterQueryFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterQuery\" name=\"filterQuery\" type=\"checkbox\" value=\"OK\" %s/>Query</td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 
-		char filterBuoyFlageEn[20] = "";
 		if (config.dispFilter & FILTER_BUOY)
-			strcpy(filterBuoyFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterBuoy\" name=\"filterBuoy\" type=\"checkbox\" value=\"OK\" %s/>Buoy</td>\n", filterBuoyFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterBuoy\" name=\"filterBuoy\" type=\"checkbox\" value=\"OK\" %s/>Buoy</td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 
-		char filterPositionFlageEn[20] = "";
 		if (config.dispFilter & FILTER_POSITION)
-			strcpy(filterPositionFlageEn, "checked");
-		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterPosition\" name=\"filterPosition\" type=\"checkbox\" value=\"OK\" %s/>Position</td>\n", filterPositionFlageEn);
+			strcpy(oledFlageEn, "checked");
+		else
+			strcpy(oledFlageEn, "");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"border:unset;\"><input class=\"field_checkbox\" id=\"filterPosition\" name=\"filterPosition\" type=\"checkbox\" value=\"OK\" %s/>Position</td>\n", oledFlageEn);
 		strcat(html, temp_buffer);
 
 		strcat(html, "<td style=\"border:unset;\"></td>\n");
@@ -12215,6 +12129,57 @@ void handle_wireless(AsyncWebServerRequest *request)
 		strcat(html, "<input type=\"hidden\" name=\"commitWiFiAP\"/>\n");
 		strcat(html, "</td></tr></table><br />\n");
 		strcat(html, "</form><br />");
+		/************************ WiFi AP **************************/
+		strcat(html, "<form id='formWiFiAP' method=\"POST\" action='#' enctype='multipart/form-data'>\n");
+		// strcat(html, "<h2>WiFi Access Point</h2>\n");
+		strcat(html, "<table>\n");
+		// strcat(html, "<tr>\n");
+		// strcat(html, "<th width=\"200\"><span><b>Setting</b></span></th>\n");
+		// strcat(html, "<th><span><b>Value</b></span></th>\n");
+		// strcat(html, "</tr>\n");
+		strcat(html, "<th colspan=\"2\"><span><b>WiFi Access Point</b></span></th>\n");
+		strcat(html, "<tr>\n");
+		strcat(html, "<td align=\"right\" width=\"120\"><b>Enable:</b></td>\n");
+		const char *wifiAPEnFlag = (config.wifi_mode & WIFI_AP_FIX) ? "checked" : "";
+		{
+			char *temp_flag = allocateStringMemory(512);
+			if (temp_flag)
+			{
+				snprintf(temp_flag, 512, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"wifiAP\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", wifiAPEnFlag);
+				strcat(html, temp_flag);
+				free(temp_flag);
+			}
+		}
+		strcat(html, "</tr>\n");
+		strcat(html, "<tr>\n");
+		strcat(html, "<td align=\"right\"><b>WiFi AP SSID:</b></td>\n");
+		{
+			char *temp_ssid = allocateStringMemory(512);
+			if (temp_ssid)
+			{
+				snprintf(temp_ssid, 512, "<td style=\"text-align: left;\"><input size=\"32\" maxlength=\"32\" class=\"form-control\" id=\"wifi_ssidAP\" name=\"wifi_ssidAP\" type=\"text\" value=\"%s\" /></td>\n", config.wifi_ap_ssid);
+				strcat(html, temp_ssid);
+				free(temp_ssid);
+			}
+		}
+		strcat(html, "</tr>\n");
+		strcat(html, "<tr>\n");
+		strcat(html, "<td align=\"right\"><b>WiFi AP PASSWORD:</b></td>\n");
+		{
+			char *temp_pass = allocateStringMemory(512);
+			if (temp_pass)
+			{
+				snprintf(temp_pass, 512, "<td style=\"text-align: left;\"><input size=\"63\" maxlength=\"63\" class=\"form-control\" id=\"wifi_passAP\" name=\"wifi_passAP\" type=\"password\" value=\"%s\" /></td>\n", config.wifi_ap_pass);
+				strcat(html, temp_pass);
+				free(temp_pass);
+			}
+		}
+		strcat(html, "</tr>\n");
+		strcat(html, "<tr><td colspan=\"2\" align=\"right\">\n");
+		strcat(html, "<div><button class=\"button\" type='submit' id='submitWiFiAP'  name=\"commitWiFiAP\"> Apply Change </button></div>\n");
+		strcat(html, "<input type=\"hidden\" name=\"commitWiFiAP\"/>\n");
+		strcat(html, "</td></tr></table><br />\n");
+		strcat(html, "</form><br />");
 		/************************ WiFi Client **************************/
 		strcat(html, "<br />\n");
 		strcat(html, "<form id='formWiFiClient' method=\"POST\" action='#' enctype='multipart/form-data'>\n");
@@ -12225,15 +12190,8 @@ void handle_wireless(AsyncWebServerRequest *request)
 		String wifiClientEnFlag = "";
 		if (config.wifi_mode & WIFI_STA_FIX)
 			wifiClientEnFlag = "checked";
-		{
-			char *temp_wifi_flag = allocateStringMemory(512);
-			if (temp_wifi_flag)
-			{
-				snprintf(temp_wifi_flag, 512, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"wificlient\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", wifiClientEnFlag);
-				strcat(html, temp_wifi_flag);
-				free(temp_wifi_flag);
-			}
-		}
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"wificlient\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", wifiClientEnFlag);
+		strcat(html, tempHtml);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>WiFi RF Power:</b></td>\n");
@@ -12241,18 +12199,11 @@ void handle_wireless(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"wifi_pwr\" id=\"wifi_pwr\">\n");
 		for (int i = 0; i < 12; i++)
 		{
-			{
-				char *temp_option = allocateStringMemory(256);
-				if (temp_option)
-				{
-					if (config.wifi_power == (int8_t)wifiPwr[i][0])
-						snprintf(temp_option, 256, "<option value=\"%d\" selected>%.1f dBm</option>\n", (int8_t)wifiPwr[i][0], wifiPwr[i][1]);
-					else
-						snprintf(temp_option, 256, "<option value=\"%d\" >%.1f dBm</option>\n", (int8_t)wifiPwr[i][0], wifiPwr[i][1]);
-					strcat(html, temp_option);
-					free(temp_option);
-				}
-			}
+			if (config.wifi_power == (int8_t)wifiPwr[i][0])
+				snprintf(tempHtml, sizeof(tempHtml), "<option value=\"%d\" selected>%.1f dBm</option>\n", (int8_t)wifiPwr[i][0], wifiPwr[i][1]);
+			else
+				snprintf(tempHtml, sizeof(tempHtml), "<option value=\"%d\" >%.1f dBm</option>\n", (int8_t)wifiPwr[i][0], wifiPwr[i][1]);
+			strcat(html, tempHtml);
 		}
 		strcat(html, "</select>\n");
 		strcat(html, "</td>\n");
@@ -12260,71 +12211,34 @@ void handle_wireless(AsyncWebServerRequest *request)
 		for (int n = 0; n < 5; n++)
 		{
 			strcat(html, "<tr>\n");
-			{
-				char *temp_station = allocateStringMemory(256);
-				if (temp_station)
-				{
-					snprintf(temp_station, 256, "<td align=\"right\"><b>Station #%d:</b></td>\n", n + 1);
-					strcat(html, temp_station);
-					free(temp_station);
-				}
-			}
+			snprintf(tempHtml, sizeof(tempHtml), "<td align=\"right\"><b>Station #%d:</b></td>\n", n + 1);
+			strcat(html, tempHtml);
 			strcat(html, "<td align=\"center\">\n");
-			{
-				char *temp_fieldset = allocateStringMemory(256);
-				if (temp_fieldset)
-				{
-					snprintf(temp_fieldset, 256, "<fieldset id=\"filterDispGrp%d\">\n", n + 1);
-					strcat(html, temp_fieldset);
-					free(temp_fieldset);
-				}
-			}
-			{
-				char *temp_legend = allocateStringMemory(256);
-				if (temp_legend)
-				{
-					snprintf(temp_legend, 256, "<legend>WiFi Station #%d</legend>\n<table style=\"text-align:unset;border-width:0px;background:unset\">", n + 1);
-					strcat(html, temp_legend);
-					free(temp_legend);
-				}
-			}
+			snprintf(tempHtml, sizeof(tempHtml), "<fieldset id=\"filterDispGrp%d\">\n", n + 1);
+			strcat(html, tempHtml);
+			snprintf(tempHtml, sizeof(tempHtml), "<legend>WiFi Station #%d</legend>\n<table style=\"text-align:unset;border-width:0px;background:unset\">", n + 1);
+			strcat(html, tempHtml);
 			strcat(html, "<tr style=\"background:unset;\">");
 			// strcat(html, "<tr>\n";
 			strcat(html, "<td align=\"right\" width=\"120\"><b>Enable:</b></td>\n");
-			const char *wifiClientEnFlag = config.wifi_sta[n].enable ? "checked" : "";
-			{
-				char *temp_wifi_station = allocateStringMemory(256);
-				if (temp_wifi_station)
-				{
-					snprintf(temp_wifi_station, 256, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"wifiStation%d\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", n, wifiClientEnFlag);
-					strcat(html, temp_wifi_station);
-					free(temp_wifi_station);
-				}
-			}
+			char wifiClientEnFlag[10];
+			if (config.wifi_sta[n].enable)
+				strcpy(wifiClientEnFlag, "checked");
+			else
+				strcpy(wifiClientEnFlag, "");
+
+			snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"wifiStation%d\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", n, wifiClientEnFlag);
+			strcat(html, tempHtml);
 			strcat(html, "</tr>\n");
 			strcat(html, "<tr>\n");
 			strcat(html, "<td align=\"right\"><b>WiFi SSID:</b></td>\n");
-			{
-				char *temp_wifi_ssid = allocateStringMemory(512);
-				if (temp_wifi_ssid)
-				{
-					snprintf(temp_wifi_ssid, 512, "<td style=\"text-align: left;\"><input size=\"32\" maxlength=\"32\" name=\"wifi_ssid%d\" type=\"text\" value=\"%s\" /></td>\n", n, config.wifi_sta[n].wifi_ssid);
-					strcat(html, temp_wifi_ssid);
-					free(temp_wifi_ssid);
-				}
-			}
+			snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><input size=\"32\" maxlength=\"32\" name=\"wifi_ssid%d\" type=\"text\" value=\"%s\" /></td>\n", n, config.wifi_sta[n].wifi_ssid);
+			strcat(html, tempHtml);
 			strcat(html, "</tr>\n");
 			strcat(html, "<tr>\n");
 			strcat(html, "<td align=\"right\"><b>WiFi PASSWORD:</b></td>\n");
-			{
-				char *temp_wifi_pass = allocateStringMemory(512);
-				if (temp_wifi_pass)
-				{
-					snprintf(temp_wifi_pass, 512, "<td style=\"text-align: left;\"><input size=\"63\" maxlength=\"63\" name=\"wifi_pass%d\" type=\"password\" value=\"%s\" /></td>\n", n, config.wifi_sta[n].wifi_pass);
-					strcat(html, temp_wifi_pass);
-					free(temp_wifi_pass);
-				}
-			}
+			snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><input size=\"63\" maxlength=\"63\" name=\"wifi_pass%d\" type=\"password\" value=\"%s\" /></td>\n", n, config.wifi_sta[n].wifi_pass);
+			strcat(html, tempHtml);
 			strcat(html, "</tr>\n");
 			strcat(html, "</tr></table></fieldset>\n");
 			strcat(html, "</td></tr>\n");
@@ -12347,93 +12261,49 @@ void handle_wireless(AsyncWebServerRequest *request)
 		strcat(html, "<th colspan=\"2\"><span><b>Bluetooth Master (BLE)</b></span></th>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>Enable:</b></td>\n");
-		const char* btEnFlag = config.bt_master ? "checked" : "";
-		{
-			char *temp_bt_flag = allocateStringMemory(256);
-			if (temp_bt_flag)
-			{
-				snprintf(temp_bt_flag, 256, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"btMaster\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", btEnFlag);
-				strcat(html, temp_bt_flag);
-				free(temp_bt_flag);
-			}
-		}
+		char tempHtml[256];
+		char btFlag[10];
+		if (config.bt_master)
+			strcpy(btFlag, "checked");
+		else
+			strcpy(btFlag, "");
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"btMaster\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", btFlag);
+		strcat(html, tempHtml);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>NAME:</b></td>\n");
-		{
-			char *temp_bt_name = allocateStringMemory(256);
-			if (temp_bt_name)
-			{
-				snprintf(temp_bt_name, 256, "<td style=\"text-align: left;\"><input maxlength=\"20\" id=\"bt_name\" name=\"bt_name\" type=\"text\" value=\"%s\" /></td>\n", config.bt_name);
-				strcat(html, temp_bt_name);
-				free(temp_bt_name);
-			}
-		}
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><input maxlength=\"20\" id=\"bt_name\" name=\"bt_name\" type=\"text\" value=\"%s\" /></td>\n", config.bt_name);
+		strcat(html, tempHtml);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>PIN:</b></td>\n");
-		{
-			char *temp_bt_pin = allocateStringMemory(256);
-			if (temp_bt_pin)
-			{
-				snprintf(temp_bt_pin, 256, "<td style=\"text-align: left;\"><input min=\"0\" max=\"999999\" id=\"bt_pin\" name=\"bt_pin\" type=\"number\" value=\"%d\" /></td> <i>*Value 0 is no auth.</i>\n", config.bt_pin);
-				strcat(html, temp_bt_pin);
-				free(temp_bt_pin);
-			}
-		}
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><input min=\"0\" max=\"999999\" id=\"bt_pin\" name=\"bt_pin\" type=\"number\" value=\"%d\" /></td> <i>*Value 0 is no auth.</i>\n", config.bt_pin);
+		strcat(html, tempHtml);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>UUID:</b></td>\n");
-		{
-			char *temp_bt_uuid = allocateStringMemory(512);
-			if (temp_bt_uuid)
-			{
-				snprintf(temp_bt_uuid, 512, "<td style=\"text-align: left;\"><input maxlength=\"37\" size=\"38\" id=\"bt_uuid\" name=\"bt_uuid\" type=\"text\" value=\"%s\" /></td>\n", config.bt_uuid);
-				strcat(html, temp_bt_uuid);
-				free(temp_bt_uuid);
-			}
-		}
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><input maxlength=\"37\" size=\"38\" id=\"bt_uuid\" name=\"bt_uuid\" type=\"text\" value=\"%s\" /></td>\n", config.bt_uuid);
+		strcat(html, tempHtml);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>UUID RX:</b></td>\n");
-		{
-			char *temp_bt_uuid_rx = allocateStringMemory(512);
-			if (temp_bt_uuid_rx)
-			{
-				snprintf(temp_bt_uuid_rx, 512, "<td style=\"text-align: left;\"><input maxlength=\"37\" size=\"38\" id=\"bt_uuid_rx\" name=\"bt_uuid_rx\" type=\"text\" value=\"%s\" /></td>\n", config.bt_uuid_rx);
-				strcat(html, temp_bt_uuid_rx);
-				free(temp_bt_uuid_rx);
-			}
-		}
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><input maxlength=\"37\" size=\"38\" id=\"bt_uuid_rx\" name=\"bt_uuid_rx\" type=\"text\" value=\"%s\" /></td>\n", config.bt_uuid_rx);
+		strcat(html, tempHtml);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>UUID TX:</b></td>\n");
-		{
-			char *temp_bt_uuid_tx = allocateStringMemory(512);
-			if (temp_bt_uuid_tx)
-			{
-				snprintf(temp_bt_uuid_tx, 512, "<td style=\"text-align: left;\"><input maxlength=\"37\" size=\"38\" id=\"bt_uuid_tx\" name=\"bt_uuid_tx\" type=\"text\" value=\"%s\" /></td>\n", config.bt_uuid_tx);
-				strcat(html, temp_bt_uuid_tx);
-				free(temp_bt_uuid_tx);
-			}
-		}
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><input maxlength=\"37\" size=\"38\" id=\"bt_uuid_tx\" name=\"bt_uuid_tx\" type=\"text\" value=\"%s\" /></td>\n", config.bt_uuid_tx);
+		strcat(html, tempHtml);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<td align=\"right\"><b>MODE:</b></td>\n");
 		strcat(html, "<td style=\"text-align: left;\">\n");
 		strcat(html, "<select name=\"bt_mode\" id=\"bt_mode\">\n");
-		const char* btModeOff = (config.bt_mode == 0) ? "selected" : "";
-		const char* btModeTNC2 = (config.bt_mode == 1) ? "selected" : "";
-		const char* btModeKISS = (config.bt_mode == 2) ? "selected" : "";
-		{
-			char *temp_bt_options = allocateStringMemory(512);
-			if (temp_bt_options)
-			{
-				snprintf(temp_bt_options, 512, "<option value=\"0\" %s>NONE</option>\n<option value=\"1\" %s>TNC2</option>\n<option value=\"2\" %s>KISS</option>\n", btModeOff, btModeTNC2, btModeKISS);
-				strcat(html, temp_bt_options);
-				free(temp_bt_options);
-			}
-		}
+		const char *btModeOff = (config.bt_mode == 0) ? "selected" : "";
+		const char *btModeTNC2 = (config.bt_mode == 1) ? "selected" : "";
+		const char *btModeKISS = (config.bt_mode == 2) ? "selected" : "";
+		snprintf(tempHtml, sizeof(tempHtml), "<option value=\"0\" %s>NONE</option>\n<option value=\"1\" %s>TNC2</option>\n<option value=\"2\" %s>KISS</option>\n", btModeOff, btModeTNC2, btModeKISS);
+		strcat(html, tempHtml);
 		strcat(html, "</select>\n");
 
 		strcat(html, "<label style=\"font-size: 8pt;text-align: right;\">*See the following for generating UUIDs: <a href=\"https://www.uuidgenerator.net\" target=\"_blank\">https://www.uuidgenerator.net</a></label></td>\n");

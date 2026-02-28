@@ -232,8 +232,12 @@ float rssi = 0;
 float snr = 0;
 float freqErr = 0;
 
-extern int8_t adcEn;
-extern int8_t dacEn;
+extern volatile int8_t adcEn;
+extern volatile int8_t dacEn;
+extern volatile bool pttOff;
+extern volatile uint32_t adcIsrCount;
+extern volatile int fifoSampleCount;
+extern volatile uint32_t frameDecodeCount;
 
 long timeNetwork, timeAprs, timeGui;
 long autoResetTimeout = 0;
@@ -2356,6 +2360,11 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
         sz = 10;
     // strncpy(callsign, call, sz);
     memcpy(callsign, call, sz);
+
+    if(!isValidToken(callsign,false)){
+        log_d("CheckValidCall Fail!");
+        return -1;
+    }
 
 #ifdef BOARD_HAS_PSRAM
     while (psramBusy)
@@ -6161,6 +6170,15 @@ void taskAPRS(void *pvParameters)
         {
             DAC_TimerEnable(false);
             dacEn = 0;
+        }
+        // Deferred PTT off from ModemTransmitStop() ISR.
+        // setPtt() calls LED_Status2() → strip->show() (NeoPixel RMT write)
+        // which is NOT safe from ISR context — overflows the ISR stack.
+        if (pttOff)
+        {
+            setPtt(false);
+            pttOff = false;
+            log_i("[TX-END] PTT released, fifo=%d frames=%u", fifoSampleCount, frameDecodeCount);
         }
         long now = millis();
         // wdtSensorTimer = now;

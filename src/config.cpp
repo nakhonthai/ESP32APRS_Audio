@@ -22,8 +22,8 @@ extern TaskHandle_t taskAPRSPollHandle;
 
 //JsonDocument doc;
 
-extern int8_t adcEn;
-extern int8_t dacEn;
+extern volatile int8_t adcEn;
+extern volatile int8_t dacEn;
 
 // Saves the configuration to a file
 bool saveConfiguration(const char *filename, const Configuration &config)

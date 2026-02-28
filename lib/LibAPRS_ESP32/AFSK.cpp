@@ -72,7 +72,9 @@ uint8_t adc_atten;
 static const adc_unit_t unit = ADC_UNIT_1;
 
 void sample_dac_isr();
-bool hw_afsk_dac_isr = false;
+volatile bool hw_afsk_dac_isr = false;
+volatile uint32_t adcIsrCount = 0;  // Diagnostic: counts ADC ISR firings
+volatile int fifoSampleCount = 0;   // Diagnostic: snapshot of FIFO count
 
 bool holdADC = false;
 
@@ -200,6 +202,11 @@ int IRAM_ATTR RingBuffer_Size(const RingBuffer *rb)
 
 RingBuffer fifo; // Declare a ring buffer statically (this will be in DRAM, but functions are in IRAM)
 
+// Flush the ADC FIFO — called from ModemTransmitStop() to discard stale samples
+void IRAM_ATTR AFSK_FlushFifo(void)
+{
+  RingBuffer_Init(&fifo);
+}
 /******************************************************************** */
 
 // #define MARK_INC (uint16_t)(DIV_ROUND(SIN_LEN * (uint32_t)1200, CONFIG_AFSK_DAC_SAMPLERATE))
@@ -519,8 +526,9 @@ uint16_t CountOnesFromInteger(uint16_t value)
 // cppQueue adcq(sizeof(int16_t), 768 * 2, IMPLEMENTATION, true); // Instantiate queue
 // #endif
 
-int8_t adcEn = 0;
-int8_t dacEn = 0;
+volatile int8_t adcEn = 0;
+volatile int8_t dacEn = 0;
+volatile bool pttOff = false;
 
 #ifdef I2S_INTERNAL
 #define ADC_PATT_LEN_MAX (16)
@@ -681,6 +689,7 @@ static const char *TAG = "--(TAG ADC DMA)--";
 #define ADC_OUTPUT_TYPE ADC_DIGI_OUTPUT_FORMAT_TYPE1
 void IRAM_ATTR sample_adc_isr()
 {
+  adcIsrCount++;
   if (!hw_afsk_dac_isr)
   {
     fifo.lock = true;
@@ -977,9 +986,11 @@ int16_t adcPush;
 //  adc_oneshot_unit_handle_t adc1_handle;
 static bool IRAM_ATTR s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const adc_continuous_evt_data_t *edata, void *user_data)
 {
-  // BaseType_t mustYield = pdFALSE;
-  // Notify that ADC continuous driver has done enough number of conversions
-  // vTaskNotifyGiveFromISR(s_task_handle, &mustYield);
+   // Don't fill FIFO during TX — matches sample_adc_isr() gate on original ESP32.
+  // Without this, ~33,000 garbage samples accumulate during TX and corrupt
+  // the demodulator state when drained, causing permanent RX freeze.
+  if(hw_afsk_dac_isr)
+    return true;
   portENTER_CRITICAL_ISR(&timerMux);
   fifo.lock = true;
   for (uint32_t k = 0; k < edata->size; k += SOC_ADC_DIGI_RESULT_BYTES)
@@ -1426,7 +1437,7 @@ bool sqlActiveOld = false;
 
 void AFSK_Poll(bool SA818, bool RFPower)
 {
-
+  fifoSampleCount = fifo.count;  // Diagnostic snapshot
   int mV;
   int x = 0;
   int16_t adc = 0;

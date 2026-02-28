@@ -592,19 +592,18 @@ void ModemTxTestStart(enum ModemTxTestMode type)
 	setPtt(true); // PTT on
 	txTestState = type;
 }
-extern int8_t adcEn;
-extern int8_t dacEn;
-extern bool hw_afsk_dac_isr;
+extern volatile int8_t adcEn;
+extern volatile int8_t dacEn;
+extern volatile bool hw_afsk_dac_isr;
+extern volatile bool pttOff;
+extern void AFSK_FlushFifo(void);
 void ModemTxTestStop(void)
 {
 	txTestState = TEST_DISABLED;
 
 	hw_afsk_dac_isr = false;
-	// DAC_TimerEnable(false);
-	dacEn = -1;
-	adcEn = 1;
-	// timerStop(timer_dac);
-	// AFSK_TimerEnable(true);
+	DAC_TimerEnable(false);
+	AFSK_TimerEnable(true);
 	setPtt(false); // PTT off
 }
 
@@ -623,16 +622,24 @@ void ModemTransmitStart(void)
 
 /**
  * @brief Stop TX and go back to RX
+ * * Called from DAC timer ISR (via Ax25GetTxBit). Must be ISR-safe.
+ * setPtt() is deferred to task context — it calls LED_Status2() → strip->show()
+ * which uses the RMT peripheral and overflows the ISR stack.
+ *
+ * Order matters:
+ * 1. Stop DAC timer first (no more TX audio)
+ * 2. Flush FIFO while hw_afsk_dac_isr is still true (s_conv_done_cb gate blocks
+ *    new pushes, so flush is race-free)
+ * 3. Clear hw_afsk_dac_isr to re-enable ADC FIFO filling with fresh RX audio
+ * 4. Signal deferred PTT release
  */
 void ModemTransmitStop(void)
 {
-	setPtt(false);
-	hw_afsk_dac_isr = false;
 	DAC_TimerEnable(false);
-	// dacEn=-1;
-	adcEn = 1;
-	// DAC_TimerEnable(false);
-	// AFSK_TimerEnable(true);
+	AFSK_FlushFifo();        // Discard stale samples accumulated before/during TX
+	hw_afsk_dac_isr = false; // Re-enable ADC FIFO filling (s_conv_done_cb gate)
+	AFSK_TimerEnable(true);  // No-op on ESP32-S3, restarts ADC timer on ESP32
+	pttOff = true;           // Deferred PTT off — taskAPRS handles within 10ms
 	log_d("ModemTransmitStop");
 }
 

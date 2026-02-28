@@ -297,14 +297,14 @@ void I2S_Init(i2s_mode_t MODE, i2s_bits_per_sample_t BPS);
 #define AFSK_DAC_IRQ_START()         \
     do                               \
     {                                \
-        extern bool hw_afsk_dac_isr; \
+        extern volatile bool hw_afsk_dac_isr; \
         hw_afsk_dac_isr = true;      \
         digitalWrite(LED_TX_PIN,HIGH);\
     } while (0)
 #define AFSK_DAC_IRQ_STOP()          \
     do                               \
     {                                \
-        extern bool hw_afsk_dac_isr; \
+        extern volatile bool hw_afsk_dac_isr; \
         hw_afsk_dac_isr = false;     \
         digitalWrite(LED_TX_PIN,LOW);\
     } while (0)
