@@ -18,6 +18,10 @@
 #include "esp_wifi.h"
 #include "esp_heap_caps.h"
 
+extern SemaphoreHandle_t psramMutex;
+extern bool psramLock(TickType_t timeout = portMAX_DELAY);
+extern void psramUnlock();
+
 // Helper function to allocate memory with PSRAM support
 char *allocateStringMemory(size_t size)
 {
@@ -119,11 +123,12 @@ AsyncEventSource message_events("/eventMsg");
 char *webString;
 
 extern unsigned long waitISRetry;
-extern int8_t adcEn;
-extern int8_t dacEn;
+extern volatile int8_t adcEn;
+extern volatile int8_t dacEn;
 extern unsigned long upTimeStamp;
 extern double VBat;
 extern bool VBat_Flag;
+
 #ifdef OLED
 #ifdef SH1106
 extern Adafruit_SH1106 display;
@@ -12050,6 +12055,7 @@ void handle_wireless(AsyncWebServerRequest *request)
 	else
 	{
 		// Allocate initial memory for HTML content
+		char tempHtml[256] = "";
 		char *html = allocateStringMemory(12000); // Start with 12KB buffer
 		if (!html)
 		{
@@ -12140,12 +12146,12 @@ void handle_wireless(AsyncWebServerRequest *request)
 		strcat(html, "<th colspan=\"2\"><span><b>WiFi Access Point</b></span></th>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\" width=\"120\"><b>Enable:</b></td>\n");
-		const char *wifiAPEnFlag = (config.wifi_mode & WIFI_AP_FIX) ? "checked" : "";
+		const char *wifiAPEnFlagMode = (config.wifi_mode & WIFI_AP_FIX) ? "checked" : "";
 		{
 			char *temp_flag = allocateStringMemory(512);
 			if (temp_flag)
 			{
-				snprintf(temp_flag, 512, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"wifiAP\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", wifiAPEnFlag);
+				snprintf(temp_flag, 512, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"wifiAP\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", wifiAPEnFlagMode);
 				strcat(html, temp_flag);
 				free(temp_flag);
 			}

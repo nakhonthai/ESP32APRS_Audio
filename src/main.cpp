@@ -2011,33 +2011,28 @@ void defaultConfig()
 unsigned long NTP_Timeout;
 unsigned long pingTimeout;
 
-bool psramBusy = false;
+SemaphoreHandle_t psramMutex = NULL;
 
-bool waitPSRAM(bool state)
+bool psramLock(TickType_t timeout = portMAX_DELAY)
+    {
+    if(psramMutex == NULL)
+    {
+        return true;
+    }
+    if(xSemaphoreTake(psramMutex, timeout) == pdTRUE)
+    {
+        return true;
+    }
+    log_e("psramMutex timeout!");
+    return false;
+}
+
+void psramUnlock()
 {
-#ifdef BOARD_HAS_PSRAM
-    if (state)
+    if(psramMutex != NULL)
     {
-        int i = 0;
-        while (psramBusy)
-        {
-            delay(1);
-            if (i++ > 1000)
-            {
-                log_e("PSRAM Busy Timeout");
-                return false;
-            }
-        }
-        return true;
+        xSemaphoreGive(psramMutex);
     }
-    else
-    {
-        psramBusy = false;
-        return true;
-    }
-#else
-    return true;
-#endif
 }
 
 const char *lastTitle = "LAST HEARD";
@@ -2136,11 +2131,7 @@ void sort(pkgListType a[], int size)
     char *ptr2;
     char *ptr3;
     ptr1 = (char *)&t;
-#ifdef BOARD_HAS_PSRAM
-    while (psramBusy)
-        delay(1);
-    psramBusy = true;
-#endif
+    psramLock();
     for (int i = 0; i < (size - 1); i++)
     {
         for (int o = 0; o < (size - (i + 1)); o++)
@@ -2155,7 +2146,7 @@ void sort(pkgListType a[], int size)
             }
         }
     }
-    psramBusy = false;
+    psramUnlock();
 }
 
 void sortPkgDesc(pkgListType a[], int size)
@@ -2165,11 +2156,7 @@ void sortPkgDesc(pkgListType a[], int size)
     char *ptr2;
     char *ptr3;
     ptr1 = (char *)&t;
-#ifdef BOARD_HAS_PSRAM
-    while (psramBusy)
-        delay(1);
-    psramBusy = true;
-#endif
+    psramLock();
     for (int i = 0; i < (size - 1); i++)
     {
         for (int o = 0; o < (size - (i + 1)); o++)
@@ -2184,7 +2171,7 @@ void sortPkgDesc(pkgListType a[], int size)
             }
         }
     }
-    psramBusy = false;
+    psramUnlock();
 }
 
 uint16_t pkgType(const char *raw)
@@ -2330,15 +2317,11 @@ uint16_t pkgType(const char *raw)
 pkgListType getPkgList(int idx)
 {
     pkgListType ret;
-#ifdef BOARD_HAS_PSRAM
-    while (psramBusy)
-        delay(1);
-    psramBusy = true;
-#endif
+    psramLock();
     memset(&ret, 0, sizeof(pkgListType));
     if (idx < PKGLISTSIZE)
         memcpy(&ret, &pkgList[idx], sizeof(pkgListType));
-    psramBusy = false;
+    psramUnlock();
     return ret;
 }
 
@@ -2361,16 +2344,7 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
     // strncpy(callsign, call, sz);
     memcpy(callsign, call, sz);
 
-    if(!isValidToken(callsign,false)){
-        log_d("CheckValidCall Fail!");
-        return -1;
-    }
-
-#ifdef BOARD_HAS_PSRAM
-    while (psramBusy)
-        delay(1);
-    psramBusy = true;
-#endif
+    psramLock();
     int i = -1;
 
     memset(object, 0, sizeof(object));
@@ -2423,7 +2397,7 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
 
     if (i > PKGLISTSIZE)
     {
-        psramBusy = false;
+        psramUnlock();
         return -1;
     }
     if (i > -1)
@@ -2480,7 +2454,7 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
         i = pkgListOld(); // Search free in array
         if (i > PKGLISTSIZE || i < 0)
         {
-            psramBusy = false;
+            psramUnlock();
             return -1;
         }
         // memset(&pkgList[i], 0, sizeof(pkgListType));
@@ -2539,7 +2513,7 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
             log_d("New: pkgList_idx=%d callsign:%s object:%s", i, callsign, object);
         }
     }
-    psramBusy = false;
+    psramUnlock();
     lastHeard_Flag = true;
     lastHeardTimeout = millis() + 1000;
     return i;
@@ -2547,11 +2521,7 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
 
 bool pkgTxDuplicate(AX25Msg ax25)
 {
-#ifdef BOARD_HAS_PSRAM
-    while (psramBusy)
-        delay(1);
-    psramBusy = true;
-#endif
+    psramLock();
     char callsign[12];
     for (int i = 0; i < PKGTXSIZE; i++)
     {
@@ -2573,14 +2543,14 @@ bool pkgTxDuplicate(AX25Msg ax25)
                 if (strncmp(ecs1, (const char *)ax25.info, strlen(ecs1)) >= 0)
                 { // Check duplicate aprs info
                     txQueue[i].Active = false;
-                    psramBusy = false;
+                    psramUnlock();
                     return true;
                 }
             }
         }
     }
 
-    psramBusy = false;
+    psramUnlock();
     return false;
 }
 
@@ -2602,11 +2572,7 @@ bool pkgTxPush(const char *info, size_t len, int dly, uint8_t Ch)
     char *ecs = strstr(info, ">");
     if (ecs == NULL)
         return false;
-#ifdef BOARD_HAS_PSRAM
-    while (psramBusy)
-        delay(1);
-    psramBusy = true;
-#endif
+    psramLock();
     // for (int i = 0; i < PKGTXSIZE; i++)
     // {
     //   if (txQueue[i].Active)
@@ -2618,7 +2584,7 @@ bool pkgTxPush(const char *info, size_t len, int dly, uint8_t Ch)
     //       memcpy(&txQueue[i].Info[0], info, len);
     //       txQueue[i].Delay = dly;
     //       txQueue[i].timeStamp = millis();
-    //       psramBusy = false;
+    //       psramUnlock();
     //       return true;
     //     }
     //   }
@@ -2641,7 +2607,7 @@ bool pkgTxPush(const char *info, size_t len, int dly, uint8_t Ch)
             break;
         }
     }
-    psramBusy = false;
+    psramUnlock();
     return true;
 }
 
@@ -2649,11 +2615,7 @@ bool pkgTxSend()
 {
 //   if (getReceive())
 //     return false;
-#ifdef BOARD_HAS_PSRAM
-    while (psramBusy)
-        delay(1);
-    psramBusy = true;
-#endif
+    psramLock();
     // char info[300];
     for (int i = 0; i < PKGTXSIZE; i++)
     {
@@ -2670,12 +2632,19 @@ bool pkgTxSend()
                 {
                     if (aprsClient.connected())
                     {
-                        // status.txCount++;
-                        // aprsClient.printf("%s\r\n", txQueue[i].Info); // Send packet to Inet
-                        aprsClient.write(txQueue[i].Info, txQueue[i].length); // Send binary frame packet to APRS-IS (aprsc)
-                        aprsClient.write("\r\n");                             // Send CR LF the end frame packet
+                        // Copy data and release mutex before blocking TCP write
+                        char infoTmp[sizeof(txQueue[i].Info)];
+                        memcpy(infoTmp, txQueue[i].Info, txQueue[i].length);
+                        infoTmp[txQueue[i].length] = '\0';
+                        size_t lenTmp = txQueue[i].length;
                         txQueue[i].Channel &= ~INET_CHANNEL;
-                        log_d("TX->INET: %s", txQueue[i].Info);
+                        psramUnlock();
+
+                        aprsClient.write(infoTmp, lenTmp); // Send binary frame packet to APRS-IS (aprsc)
+                        aprsClient.write("\r\n");           // Send CR LF the end frame packet
+                        log_d("TX->INET: %s", infoTmp);
+
+                        psramLock();
                         continue;
                     }
                 }
@@ -2685,7 +2654,7 @@ bool pkgTxSend()
                 if (txQueue[i].Channel & RF_CHANNEL)
                 {
 
-                    psramBusy = false;
+                    psramUnlock();
                     if (config.rf_en)
                     {
                         if ((config.rf_type == RF_SR_1WV) || (config.rf_type == RF_SR_1WU) || (config.rf_type == RF_SR_1W350))
@@ -2717,6 +2686,7 @@ bool pkgTxSend()
                     //  }
                     // digitalWrite(config.rf_pwr_gpio, !config.rf_pwr_active); // OFF RF Power H/L
                     // pinMode(config.rf_pwr_gpio, OUTPUT);
+                    psramLock();
                     txQueue[i].Channel &= ~RF_CHANNEL;
                 }
             }
@@ -2728,7 +2698,7 @@ bool pkgTxSend()
             }
         }
     }
-    psramBusy = false;
+    psramUnlock();
     return true;
 }
 
@@ -3436,9 +3406,12 @@ void setup()
         Serial1.begin(config.uart1_baudrate, SERIAL_8N1, config.uart1_rx_gpio, config.uart1_tx_gpio);
     }
 #if SOC_UART_NUM > 2
+    if(config.uart2_enable && config.uart2_baudrate > 0)
+    {
     pinMode(config.uart2_rx_gpio, INPUT_PULLUP); // Set RX pin to INPUT_PULLUP
     pinMode(config.uart2_tx_gpio, OUTPUT);       // Set TX pin to OUTPUT
     Serial2.begin(config.uart2_baudrate, SERIAL_8N1, config.uart2_rx_gpio, config.uart2_tx_gpio);
+    }
 #endif
     log_d("MODBUS config");
     if (config.modbus_enable)
@@ -3533,6 +3506,8 @@ void setup()
             }
         }
     }
+    psramMutex = xSemaphoreCreateMutex();
+
     log_d("Start Task");
 #ifdef __XTENSA__
     // if (config.wifi_mode != 0)
@@ -3557,7 +3532,11 @@ void setup()
     xTaskCreatePinnedToCore(
         taskAPRS,        /* Function to implement the task */
         "taskAPRS",      /* Name of the task */
+#if (CORE_DEBUG_LEVEL > 0)
+        8192,            /* Stack size in words (debug) */
+#else
         4096,            /* Stack size in words */
+#endif
         NULL,            /* Task input parameter */
         2,               /* Priority of the task */
         &taskAPRSHandle, /* Task handle. */
@@ -3892,15 +3871,11 @@ String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, 
             infoLen += 4;
         }
     }
-    //char *info = new char[infoLen];
     char *info = (char *)calloc(1, infoLen);
     if(info == NULL)
     {
         return strRet;
     }
-// #else
-//     char info[RADIOLIB_STATIC_ARRAY_SIZE];
-// #endif
     size_t infoPos = 0;
 
     // the following is based on APRS Mic-E implementation by https://github.com/omegat
