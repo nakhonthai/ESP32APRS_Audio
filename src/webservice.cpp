@@ -12084,65 +12084,10 @@ void handle_wireless(AsyncWebServerRequest *request)
 		strcat(html, "});\n");
 		strcat(html, "});\n");
 		strcat(html, "</script>\n");
+		
 		/************************ WiFi AP **************************/
 		strcat(html, "<form id='formWiFiAP' method=\"POST\" action='#' enctype='multipart/form-data'>\n");
-		// strcat(html, "<h2>WiFi Access Point</h2>\n");
 		strcat(html, "<table>\n");
-		// strcat(html, "<tr>\n");
-		// strcat(html, "<th width=\"200\"><span><b>Setting</b></span></th>\n");
-		// strcat(html, "<th><span><b>Value</b></span></th>\n");
-		// strcat(html, "</tr>\n");
-		strcat(html, "<th colspan=\"2\"><span><b>WiFi Access Point</b></span></th>\n");
-		strcat(html, "<tr>\n");
-		strcat(html, "<td align=\"right\" width=\"120\"><b>Enable:</b></td>\n");
-		const char *wifiAPEnFlag = (config.wifi_mode & WIFI_AP_FIX) ? "checked" : "";
-		{
-			char *temp_flag = allocateStringMemory(512);
-			if (temp_flag)
-			{
-				snprintf(temp_flag, 512, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"wifiAP\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", wifiAPEnFlag);
-				strcat(html, temp_flag);
-				free(temp_flag);
-			}
-		}
-		strcat(html, "</tr>\n");
-		strcat(html, "<tr>\n");
-		strcat(html, "<td align=\"right\"><b>WiFi AP SSID:</b></td>\n");
-		{
-			char *temp_ssid = allocateStringMemory(512);
-			if (temp_ssid)
-			{
-				snprintf(temp_ssid, 512, "<td style=\"text-align: left;\"><input size=\"32\" maxlength=\"32\" class=\"form-control\" id=\"wifi_ssidAP\" name=\"wifi_ssidAP\" type=\"text\" value=\"%s\" /></td>\n", config.wifi_ap_ssid);
-				strcat(html, temp_ssid);
-				free(temp_ssid);
-			}
-		}
-		strcat(html, "</tr>\n");
-		strcat(html, "<tr>\n");
-		strcat(html, "<td align=\"right\"><b>WiFi AP PASSWORD:</b></td>\n");
-		{
-			char *temp_pass = allocateStringMemory(512);
-			if (temp_pass)
-			{
-				snprintf(temp_pass, 512, "<td style=\"text-align: left;\"><input size=\"63\" maxlength=\"63\" class=\"form-control\" id=\"wifi_passAP\" name=\"wifi_passAP\" type=\"password\" value=\"%s\" /></td>\n", config.wifi_ap_pass);
-				strcat(html, temp_pass);
-				free(temp_pass);
-			}
-		}
-		strcat(html, "</tr>\n");
-		strcat(html, "<tr><td colspan=\"2\" align=\"right\">\n");
-		strcat(html, "<div><button class=\"button\" type='submit' id='submitWiFiAP'  name=\"commitWiFiAP\"> Apply Change </button></div>\n");
-		strcat(html, "<input type=\"hidden\" name=\"commitWiFiAP\"/>\n");
-		strcat(html, "</td></tr></table><br />\n");
-		strcat(html, "</form><br />");
-		/************************ WiFi AP **************************/
-		strcat(html, "<form id='formWiFiAP' method=\"POST\" action='#' enctype='multipart/form-data'>\n");
-		// strcat(html, "<h2>WiFi Access Point</h2>\n");
-		strcat(html, "<table>\n");
-		// strcat(html, "<tr>\n");
-		// strcat(html, "<th width=\"200\"><span><b>Setting</b></span></th>\n");
-		// strcat(html, "<th><span><b>Value</b></span></th>\n");
-		// strcat(html, "</tr>\n");
 		strcat(html, "<th colspan=\"2\"><span><b>WiFi Access Point</b></span></th>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\" width=\"120\"><b>Enable:</b></td>\n");
