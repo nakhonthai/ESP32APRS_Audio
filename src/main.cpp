@@ -7570,6 +7570,12 @@ uint16_t wifiDisCount = 0;
 unsigned long vpnTimeout = 0;
 unsigned long mitiWifiTimeout = 0;
 
+// WiFi current AP tracking for stable reconnection
+String currentAPSSID = "";
+int8_t currentAPIndex = -1;
+unsigned long lastReconnectAttempt = 0;
+unsigned long lastAPCheck = 0;
+
 void wifiConnection()
 {
     WiFi.disconnect(true, true, 500);
@@ -7612,6 +7618,20 @@ void wifiConnection()
         wifiDisCount = 0;
         pingTimeout = millis() + 60000;
         NTP_Timeout = millis() + 2000;
+
+        // Track current AP for stable reconnection
+        currentAPSSID = WiFi.SSID();
+        currentAPIndex = -1;
+        for (int i = 0; i < 5; i++)
+        {
+            if (config.wifi_sta[i].enable &&
+                strcmp(config.wifi_sta[i].wifi_ssid, currentAPSSID.c_str()) == 0)
+            {
+                currentAPIndex = i;
+                log_d("Connected to AP[%d]: %s", i, currentAPSSID.c_str());
+                break;
+            }
+        }
         if(WiFi.RSSI() < -90){
             //mitiWifiTimeout = millis() + 5000;
             // Set the protocol to 802.11b and 802.11g
@@ -7733,12 +7753,28 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info)
     case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
         log_d("WiFi Disconnected");
         wifiDisCount++;
-        if (wifiDisconnecting == false && wifiDisCount > 30)
-        {
-            wifiDisCount = 0;
-            wifiDisconnecting = true;
-            pingTimeout = millis() + 10000;
-            wifiConnection();
+
+        // Try immediate reconnect to current AP (don't wait for 30 disconnects)
+        if(millis() > lastReconnectAttempt + 5000) { // 5 seconds between attempts
+            lastReconnectAttempt = millis();
+
+            if(currentAPIndex >= 0 && config.wifi_sta[currentAPIndex].enable) {
+                log_d("Immediate reconnect attempt to AP[%d]: %s",
+                      currentAPIndex, config.wifi_sta[currentAPIndex].wifi_ssid);
+                WiFi.begin(
+                    config.wifi_sta[currentAPIndex].wifi_ssid,
+                    config.wifi_sta[currentAPIndex].wifi_pass
+                );
+            }
+
+            // Full reconnect only after multiple failed attempts (reduced from 30 to 10)
+            if (wifiDisconnecting == false && wifiDisCount > 10)
+            {
+                wifiDisCount = 0;
+                wifiDisconnecting = true;
+                pingTimeout = millis() + 10000;
+                log_d("Multiple disconnects - performing full WiFi reconnection");
+                wifiConnection();
 #ifdef MQTT
             if (config.en_mqtt)
             {
@@ -8066,7 +8102,19 @@ void taskNetwork(void *pvParameters)
                 {
                     mitiWifiTimeout = millis() + 30000;
                     log_d("WiFi Check Connection!");
-                    wifiStatus = wifiMulti.run();
+
+                    // Try to reconnect to current AP first for stability
+                    if(currentAPIndex >= 0 && config.wifi_sta[currentAPIndex].enable) {
+                        log_d("Reconnecting to current AP: %s", config.wifi_sta[currentAPIndex].wifi_ssid);
+                        wifiStatus = WiFi.begin(
+                            config.wifi_sta[currentAPIndex].wifi_ssid,
+                            config.wifi_sta[currentAPIndex].wifi_pass
+                        );
+                    } else {
+                        // Fallback to wifiMulti only if no current AP or current AP is disabled
+                        log_d("Using wifiMulti to find available AP");
+                        wifiStatus = wifiMulti.run();
+                    }
                     vTaskDelay(2000 / portTICK_PERIOD_MS);
                 }
             }
