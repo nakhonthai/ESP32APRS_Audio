@@ -81,7 +81,7 @@ uint8_t GfPolyAdd(uint8_t *p1, uint8_t o1, uint8_t *p2, uint8_t o2, uint8_t *out
     {
         for(uint8_t i = 0; i < o1; i++)
         {
-            out[i] = p1[i] ^ p2[2];
+            out[i] = p1[i] ^ p2[i];
         }
         return o2;
     }

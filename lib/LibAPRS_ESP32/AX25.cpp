@@ -299,11 +299,9 @@ void ax25_decode(uint8_t *buf,size_t len,uint16_t mVrms, AX25Msg *msg)
 #ifdef ENABLE_FX25
 static void removeLastFrameFromRxBuffer(void)
 {
-	rxBufferHead = rxFrame[rxFrameHead].start;
-	if(rxFrameHead == 0)
-		rxFrameHead = FRAME_MAX_COUNT - 1;
-	else
-		rxFrameHead--;
+	// Reset buffer head to previous frame's start position
+	uint8_t prevFrameHead = (rxFrameHead == 0) ? FRAME_MAX_COUNT - 1 : rxFrameHead - 1;
+	rxBufferHead = rxFrame[prevFrameHead].start;
 	rxFrameBufferFull = false;
 }
 
@@ -442,12 +440,11 @@ static struct FrameHandle* parseFx25Frame(uint8_t *frame, uint16_t size, uint16_
 {
 	struct FrameHandle *h = &rxFrame[rxFrameHead];
 	uint16_t initialRxBufferHead = rxBufferHead;
+	uint8_t tempRxFrameHead = rxFrameHead;
+
 	if(!rxFrameBufferFull)
 	{
-		rxFrame[rxFrameHead++].start = rxBufferHead;
-		rxFrameHead %= FRAME_MAX_COUNT;
-		if(rxFrameHead == txFrameHead)
-			rxFrameBufferFull = true;
+		rxFrame[tempRxFrameHead].start = rxBufferHead;
 	}
 	else
 		return NULL;
@@ -529,6 +526,11 @@ endParseFx25Frame:
 		if(Ax25Config.allowNonAprs || (((rxBuffer[(pathEnd + 1) % FRAME_BUFFER_SIZE] == 0x03) && (rxBuffer[(pathEnd + 2) % FRAME_BUFFER_SIZE] == 0xF0))))
 		{
 			h->size = k - 2;
+			// Only increment rxFrameHead after successful validation
+			rxFrameHead = tempRxFrameHead + 1;
+			rxFrameHead %= FRAME_MAX_COUNT;
+			if(rxFrameHead == txFrameHead)
+				rxFrameBufferFull = true;
 			return h;
 		}
 	}
@@ -785,6 +787,11 @@ void Ax25BitParse(uint8_t bit, uint8_t modem,uint16_t mV)
 				else
 					h->corrected = AX25_NOT_FX25;
 				lastCrc = crc;
+			}
+			else
+			{
+				// FX.25 parsing failed - cleanup buffer state
+				removeLastFrameFromRxBuffer();
 			}
 			rx->rx = RX_STAGE_FLAG;
 			rx->receivedByte = 0;

@@ -14,10 +14,62 @@ extern WiFiClient aprsClient;
 extern Configuration config;
 extern statusType status;
 
+// Duplicate packet cache
+static struct DupPacketCache dupCache[DUP_PACKET_CACHE_SIZE];
+static uint8_t dupCacheIndex = 0;
+
+// Simple hash function for packet deduplication
+static void packetHash(AX25Msg &Packet, char *hash)
+{
+    sprintf(hash, "%s%d%d", Packet.src.call, Packet.src.ssid, Packet.len);
+    for(int i = 0; i < std::min(16, (int)Packet.len); i++) {
+        hash[i % 15] ^= Packet.info[i];
+    }
+}
+
+bool isDuplicatePacket(AX25Msg &Packet)
+{
+    char hash[16];
+    packetHash(Packet, hash);
+
+    unsigned long now = millis();
+    clearExpiredDuplicates();
+
+    for(uint8_t i = 0; i < DUP_PACKET_CACHE_SIZE; i++) {
+        if(dupCache[i].timestamp > 0 && strncmp(dupCache[i].hash, hash, 16) == 0) {
+            log_d("Duplicate packet detected: %s", hash);
+            return true;
+        }
+    }
+
+    // Add to cache
+    strncpy(dupCache[dupCacheIndex].hash, hash, 16);
+    dupCache[dupCacheIndex].timestamp = now;
+    dupCacheIndex = (dupCacheIndex + 1) % DUP_PACKET_CACHE_SIZE;
+
+    return false;
+}
+
+void clearExpiredDuplicates(void)
+{
+    unsigned long now = millis();
+    for(uint8_t i = 0; i < DUP_PACKET_CACHE_SIZE; i++) {
+        if(dupCache[i].timestamp > 0 && (now - dupCache[i].timestamp) > DUP_PACKET_TIMEOUT_MS) {
+            dupCache[i].timestamp = 0;
+        }
+    }
+}
+
 int igateProcess(AX25Msg &Packet)
 {
     int idx;
     String header;
+
+    // Check for duplicate packets
+    if(isDuplicatePacket(Packet)) {
+        status.dupCount++;  // Increment duplicate counter
+        return 0;
+    }
 
     if (Packet.len < 2)
     {

@@ -271,6 +271,7 @@ typedef struct statisticStruct
 	uint32_t inet2rf;
 	uint32_t txCount;
 	uint32_t rxCount;
+	uint32_t dupCount;
 } statusType;
 
 typedef struct digiTLM_struct
