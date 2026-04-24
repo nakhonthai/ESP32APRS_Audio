@@ -1465,7 +1465,7 @@ void taskSensor(void *pvParameters)
             if (config.sensor[i].enable)
             {
                 if (tick > sen[i].timeTick)
-                {   
+                {
                     if(getSensor(i)){
                         sen[i].timeTick = millis() + ((unsigned long)config.sensor[i].samplerate * 1000);
                     }else{
@@ -1482,4 +1482,42 @@ void taskSensor(void *pvParameters)
             dispSensor();
         }
     }
+}
+
+// Critical memory leak fix: cleanup dynamically allocated sensor objects
+void cleanupSensors()
+{
+    log_d("Cleaning up sensor objects to free memory");
+
+    if (bme != NULL) {
+        delete bme;
+        bme = NULL;
+        log_d("BME280 sensor object deleted");
+    }
+
+    if (bmp280 != NULL) {
+        delete bmp280;
+        bmp280 = NULL;
+        log_d("BMP280 sensor object deleted");
+    }
+
+    if (Si7021 != NULL) {
+        delete Si7021;
+        Si7021 = NULL;
+        log_d("Si7021 sensor object deleted");
+    }
+
+    if (ccs != NULL) {
+        delete ccs;
+        ccs = NULL;
+        log_d("CCS811 sensor object deleted");
+    }
+
+    if (sht != NULL) {
+        delete sht;
+        sht = NULL;
+        log_d("SHT sensor object deleted");
+    }
+
+    log_d("Sensor cleanup completed - freed memory");
 }

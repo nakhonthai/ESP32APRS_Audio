@@ -166,64 +166,88 @@ int igateProcess(AX25Msg &Packet)
         }
     }
 
-    header = String(Packet.src.call);
+    // Memory optimization: Use char array instead of String concatenation
+    char header[300]; // Fixed buffer to prevent heap fragmentation
+    int headerLen = 0;
+
+    // Build source part
     if (Packet.src.ssid > 0)
     {
-        header += String(F("-"));
-        header += String(Packet.src.ssid);
+        headerLen = snprintf(header, sizeof(header), "%s-%d>%s",
+                           Packet.src.call, Packet.src.ssid, Packet.dst.call);
     }
-    header += String(F(">"));
-    header += String(Packet.dst.call);
+    else
+    {
+        headerLen = snprintf(header, sizeof(header), "%s>%s",
+                           Packet.src.call, Packet.dst.call);
+    }
+
+    // Add destination SSID if present
     if (Packet.dst.ssid > 0)
     {
-        header += String(F("-"));
-        header += String(Packet.dst.ssid);
+        headerLen += snprintf(&header[headerLen], sizeof(header) - headerLen,
+                               "-%d", Packet.dst.ssid);
     }
 
     // Add Path
     for (int i = 0; i < Packet.rpt_count; i++)
     {
-        header += String(",");
-        header += String(Packet.rpt_list[i].call);
+        headerLen += snprintf(&header[headerLen], sizeof(header) - headerLen,
+                               ",%s", Packet.rpt_list[i].call);
         if (Packet.rpt_list[i].ssid > 0)
         {
-            header += String("-");
-            header += String(Packet.rpt_list[i].ssid);
+            headerLen += snprintf(&header[headerLen], sizeof(header) - headerLen,
+                                   "-%d", Packet.rpt_list[i].ssid);
         }
         if (Packet.rpt_flags & (1 << i))
-            header += "*";
+        {
+            headerLen += snprintf(&header[headerLen], sizeof(header) - headerLen,
+                                   "*");
+        }
     }
 
+    // Add IGATE object
     if (strlen((const char *)config.igate_object) >= 3)
     {
-        header += "," + String(config.aprs_mycall);
         if (config.aprs_ssid > 0)
         {
-            header += String(F("-"));
-            header += String(config.aprs_ssid);
+            headerLen += snprintf(&header[headerLen], sizeof(header) - headerLen,
+                                   ",%s-%d*,qAO,%s",
+                                   config.aprs_mycall, config.aprs_ssid, config.igate_object);
         }
-        header += "*,qAO," + String(config.igate_object);
+        else
+        {
+            headerLen += snprintf(&header[headerLen], sizeof(header) - headerLen,
+                                   ",%s*,qAO,%s",
+                                   config.aprs_mycall, config.igate_object);
+        }
     }
     else
     {
-        // Add qAR,callSSID: qAR - Packet is placed on APRS-IS by an IGate from RF
-        header += String(F(",qAR,"));
-        header += String(config.aprs_mycall);
+        // Add qAR path for standard IGATE
         if (config.aprs_ssid > 0)
         {
-            header += String(F("-"));
-            header += String(config.aprs_ssid);
+            headerLen += snprintf(&header[headerLen], sizeof(header) - headerLen,
+                                   ",qAR,%s-%d",
+                                   config.aprs_mycall, config.aprs_ssid);
+        }
+        else
+        {
+            headerLen += snprintf(&header[headerLen], sizeof(header) - headerLen,
+                                   ",qAR,%s",
+                                   config.aprs_mycall);
         }
     }
 
-    // Add Information
-    header += String(F(":"));
+    // Add Information field separator
+    headerLen += snprintf(&header[headerLen], sizeof(header) - headerLen, ":");
+
     uint8_t *Raw = (uint8_t *)calloc(500,sizeof(uint8_t));
     if (Raw)
     {
         memset(Raw, 0, 500); // Clear frame packet
-        size_t hSize = strlen(header.c_str());
-        memcpy(&Raw[0], header.c_str(), hSize);           // Copy header to frame packet
+        size_t hSize = headerLen; // Use actual header length instead of strlen()
+        memcpy(&Raw[0], header, hSize);           // Copy header to frame packet
         memcpy(&Raw[hSize], &Packet.info[0], Packet.len); // Copy info to frame packet
         uint8_t *ptr = &Raw[0];
         int i, rmv = 0;

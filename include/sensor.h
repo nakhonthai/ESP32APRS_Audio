@@ -108,4 +108,5 @@ void dispSensor();
 void dispSensor(int i);
 void taskSensor(void *pvParameters);
 void sensorInit(bool resetAll);
+void cleanupSensors(); // Memory leak fix: cleanup dynamically allocated sensor objects
 #endif

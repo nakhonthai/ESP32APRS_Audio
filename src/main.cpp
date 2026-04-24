@@ -2426,11 +2426,15 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
             pkgList[i].length = len + 1;
             if (pkgList[i].raw != NULL)
             {
-                #ifdef BOARD_HAS_PSRAM
-                pkgList[i].raw = (char *)ps_realloc(pkgList[i].raw, pkgList[i].length);
-                #else
-                pkgList[i].raw = (char *)realloc(pkgList[i].raw, pkgList[i].length);
-                #endif
+                // Check if reallocation is needed (only if new size is larger)
+                if (pkgList[i].length > pkgList[i].currentLength) {
+                    #ifdef BOARD_HAS_PSRAM
+                    pkgList[i].raw = (char *)ps_realloc(pkgList[i].raw, pkgList[i].length);
+                    #else
+                    pkgList[i].raw = (char *)realloc(pkgList[i].raw, pkgList[i].length);
+                    #endif
+                    pkgList[i].currentLength = pkgList[i].length;
+                }
             }
             else
             {
@@ -2439,6 +2443,7 @@ int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t a
                 #else
                 pkgList[i].raw = (char *)calloc(pkgList[i].length, sizeof(char));
                 #endif
+                pkgList[i].currentLength = pkgList[i].length;
             }
             if (pkgList[i].raw)
             {
@@ -7578,6 +7583,9 @@ unsigned long lastAPCheck = 0;
 
 void wifiConnection()
 {
+    // Cleanup sensor objects before WiFi reconnection to prevent memory leaks
+    cleanupSensors();
+
     WiFi.disconnect(true, true, 500);
     WiFi.persistent(false);
     WiFi.mode(WIFI_OFF); // Switch WiFi off
@@ -7796,6 +7804,7 @@ void onEvent(arduino_event_id_t event, arduino_event_info_t info)
                 //}
             }
 #endif
+            }
         }
         break;
     default:
