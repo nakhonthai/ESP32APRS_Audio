@@ -12,7 +12,7 @@
 #define MAIN_H
 
 #define VERSION "1.7"
-#define VERSION_BUILD 'b'
+#define VERSION_BUILD 'e'
 
 #include <Arduino.h>
 #include <AX25.h>
@@ -254,6 +254,7 @@ typedef struct
 	float freqErr;
 	char *raw;
 	size_t length;
+	size_t currentLength;
 	//char raw[256];
 } pkgListType;
 

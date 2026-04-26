@@ -1381,6 +1381,50 @@ void AFSK_init(int8_t adc_pin, int8_t dac_pin, int8_t ptt_pin, int8_t sql_pin, i
   AFSK_hw_init();
 }
 
+// ADC memory cleanup function to prevent heap leaks
+void AFSK_deinit()
+{
+  log_d("AFSK deinitialization - cleaning up ADC resources");
+
+  // Stop ADC if running
+  if (AdcHandle != NULL)
+  {
+    adc_continuous_stop(AdcHandle);
+    log_d("ADC continuous stopped");
+  }
+
+  // Free audio buffer memory
+  if (audio_buffer != NULL)
+  {
+    free(audio_buffer);
+    audio_buffer = NULL;
+    log_d("Audio buffer freed");
+  }
+
+  // Delete ADC calibration handle to free calibration memory
+  if (AdcCaliHandle != NULL)
+  {
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    adc_cali_delete_scheme_line_fitting(AdcCaliHandle);
+    log_d("ADC calibration handle (line fitting) deleted");
+#else
+    adc_cali_delete_scheme_curve_fitting(AdcCaliHandle);
+    log_d("ADC calibration handle (curve fitting) deleted");
+#endif
+    AdcCaliHandle = NULL;
+  }
+
+  // Delete ADC continuous handle to free ADC memory
+  if (AdcHandle != NULL)
+  {
+    adc_continuous_delete(AdcHandle);
+    log_d("ADC continuous handle deleted");
+    AdcHandle = NULL;
+  }
+
+  log_d("AFSK deinitialization completed - ADC memory freed");
+}
+
 int offset = 0;
 int dc_offset = 620;
 // void afskSetDCOffset(int val)

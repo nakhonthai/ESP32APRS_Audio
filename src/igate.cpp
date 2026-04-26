@@ -63,7 +63,6 @@ void clearExpiredDuplicates(void)
 int igateProcess(AX25Msg &Packet)
 {
     int idx;
-    String header;
 
     // Check for duplicate packets
     if(isDuplicatePacket(Packet)) {

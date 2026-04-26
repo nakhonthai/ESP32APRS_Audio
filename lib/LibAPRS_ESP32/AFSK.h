@@ -419,6 +419,7 @@ typedef struct TCB { // TNC Control Block
 extern int offset;
 
 void AFSK_init(int8_t adc_pin, int8_t dac_pin, int8_t ptt_pin, int8_t sql_pin, int8_t pwr_pin, int8_t led_tx_pin, int8_t led_rx_pin, int8_t led_strip_pin,bool ptt_act,bool sql_act,bool pwr_act);
+void AFSK_deinit();
 void AFSK_Poll(bool SA818,bool RFPower);
 void AFSK_TimerEnable(bool sts);
 void DAC_TimerEnable(bool sts);

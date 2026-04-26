@@ -5025,7 +5025,7 @@ void loop()
     {
         // esp_task_wdt_reset();
         timeCheck = millis() + 1000;
-        if (ESP.getFreeHeap() < 30000)
+        if (ESP.getFreeHeap() < 60000)
             esp_restart();
         // Serial.println(String(ESP.getFreeHeap()));
 
@@ -7585,6 +7585,9 @@ void wifiConnection()
 {
     // Cleanup sensor objects before WiFi reconnection to prevent memory leaks
     cleanupSensors();
+
+    // Cleanup ADC resources to prevent memory leaks
+    AFSK_deinit();
 
     WiFi.disconnect(true, true, 500);
     WiFi.persistent(false);
