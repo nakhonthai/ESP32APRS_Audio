@@ -1417,7 +1417,7 @@ void AFSK_deinit()
   // Delete ADC continuous handle to free ADC memory
   if (AdcHandle != NULL)
   {
-    adc_continuous_delete(AdcHandle);
+    adc_continuous_deinit(AdcHandle);
     log_d("ADC continuous handle deleted");
     AdcHandle = NULL;
   }
