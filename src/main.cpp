@@ -3671,50 +3671,85 @@ void DD_DDDDDtoDDMMSS(float DD_DDDDD, int *DD, int *MM, int *SS)
 String compress_position(double nowLat, double nowLng, int alt_feed, double course, uint16_t spdKnot, char table, char symbol, bool gps)
 {
     String str_comp = "";
-    // String lat, lon;
-    // lat = deg2lat(nowLat);
-    // lon = deg2lon(nowLng);
-    char lat[15], lon[15];
-    memset(lat, 0, sizeof(lat));
-    memset(lon, 0, sizeof(lon));
-    deg2lat(lat, nowLat);
-    deg2lon(lon, nowLng);
-    // ESP_LOGE("GPS", "Aprs Compress");
-    //  Translate from semicircles to Base91 format
-    char aprs_position[15];
-    long latitude = semicircles(lat, (nowLat < 0));
-    long longitude = semicircles(lon, (nowLng < 0));
-    long ltemp = 1073741824L - latitude; // 90 degrees - latitude
-    // ESP_LOGE("GPS", "lat=%u lon=%u", latitude, longitude);
+
+    char aprs_position[16];
     memset(aprs_position, 0, sizeof(aprs_position));
 
-    base91encode(ltemp, aprs_position);
-    ltemp = 1073741824L + (longitude / 2L); // 180 degrees + longitude
-    base91encode(ltemp, aprs_position + 4);
-    // Encode heading
-    uint8_t c = (uint8_t)(course / 4);
-    // Scan lookup table to encode speed
-    uint8_t s = (uint8_t)(log(spdKnot + 1) / log(1.08));
+    // APRS compressed position (APRS 1.0.1 spec, Appendix A)
+    // Direct formula avoids the double→DMM_string→semicircles roundtrip that
+    // causes ~1.66 km errors when decimal minutes truncate to imm=100 carry.
+    long lat_val = (long)((90.0 - nowLat) * 380926.0 + 0.5);
+    long lon_val = (long)((180.0 + nowLng) * 190463.0 + 0.5);
+    if (lat_val < 0L) lat_val = 0L;
+    if (lat_val > 68574960L) lat_val = 68574960L; // 91^4 - 1
+    if (lon_val < 0L) lon_val = 0L;
+    if (lon_val > 68574960L) lon_val = 68574960L;
+
+    long tmp = lat_val;
+    aprs_position[0] = '!' + tmp / 753571; tmp %= 753571; // 91^3
+    aprs_position[1] = '!' + tmp / 8281;   tmp %= 8281;   // 91^2
+    aprs_position[2] = '!' + tmp / 91;
+    aprs_position[3] = '!' + tmp % 91;
+
+    tmp = lon_val;
+    aprs_position[4] = '!' + tmp / 753571; tmp %= 753571;
+    aprs_position[5] = '!' + tmp / 8281;   tmp %= 8281;
+    aprs_position[6] = '!' + tmp / 91;
+    aprs_position[7] = '!' + tmp % 91;
+
+    // Encode heading (course/4) and speed
+    int c = (int)(course / 4.0);
+    if (c < 0)
+        c = 0;
+    if (c > 90)
+        c = 90; // cap into valid range
+
+    // compute speed index (same formula as before) but cap it
+    int s = 0;
+    if (spdKnot > 0)
+    {
+        double tmp = log((double)spdKnot + 1.0) / log(1.08);
+        if (tmp < 0)
+            tmp = 0;
+        s = (int)tmp;
+    }
+    else
+    {
+        s = 0;
+    }
+    if (s < 0)
+        s = 0;
+    if (s > 90)
+        s = 90; // cap into safe range
+
     if ((spdKnot <= 5) && (alt_feed > 0) && config.trk_altitude)
     {
         if (gps)
         {
             // Send Altitude
-            aprs_position[11] = '!' + 0x30; // t current,GGA
+            aprs_position[11] = (char)('!' + 0x30); // t current,GGA
             int alt = (int)alt_feed;
-            int cs = (int)(log(alt) / log(1.002));
-            c = (uint8_t)(cs / 91);
-            s = (uint8_t)(cs - ((int)c * 91));
-            if (s > 91)
-                s = 91;
-            aprs_position[9] = '!' + c;  // c
-            aprs_position[10] = '!' + s; // s
+            int cs = 0;
+            if (alt > 0)
+            {
+                cs = (int)(log((double)alt) / log(1.002));
+            }
+            if (cs < 0)
+                cs = 0;
+            int cc = cs / 91;
+            int ss = cs - (cc * 91);
+            if (ss > 90)
+                ss = 90;
+            if (cc > 90)
+                cc = 90;
+            aprs_position[9] = (char)('!' + cc);
+            aprs_position[10] = (char)('!' + ss);
         }
         else
         {
             // Send Range
-            aprs_position[11] = '!' + 0x00; //
-            aprs_position[9] = '{';         // c = {
+            aprs_position[11] = (char)('!' + 0x00);
+            aprs_position[9] = '{'; // special case as original
             if (!config.rf_power)
             {
                 s = 10;
@@ -3723,27 +3758,31 @@ String compress_position(double nowLat, double nowLng, int alt_feed, double cour
             {
                 s = 30;
             }
-            aprs_position[10] = '!' + s; // s
+            if (s > 90)
+                s = 90;
+            aprs_position[10] = (char)('!' + s);
         }
     }
     else
     {
-        // Send course and speed
-        aprs_position[9] = '!' + c;  // c
-        aprs_position[10] = '!' + s; // s
+        // Normal: course and speed
+        aprs_position[9] = (char)('!' + c);
+        aprs_position[10] = (char)('!' + s);
 
         if (gps)
         {
-            aprs_position[11] = '!' + 0x20 + 0x18 + 0x06; // t 0x20 1=current,0x18 11=RMC,0x06 110=Other tracker
+            aprs_position[11] = (char)('!' + 0x20 + 0x18 + 0x06);
         }
         else
         {
-            aprs_position[11] = '!' + 0x00 + 0x18 + 0x06; // t
+            aprs_position[11] = (char)('!' + 0x00 + 0x18 + 0x06);
         }
     }
-    aprs_position[12] = 0;
-    // waveFlag = false;
-    aprs_position[8] = symbol; // Symbol
+
+    aprs_position[12] = 0;     // terminator
+    aprs_position[8] = symbol; // symbol code at index 8
+
+    // Compose final: table char + compressed 12 bytes
     str_comp = String(table) + String(aprs_position);
     return str_comp;
 }
@@ -3855,42 +3894,26 @@ String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, 
 
     // prepare buffers
     // char destCallsign[7];
-//#if !RADIOLIB_STATIC_ONLY
-    size_t infoLen = 10;
-    if (telemLen > 0)
-    {
-        infoLen += 1 + telemLen;
-    }
-    else
-    {
-        if (grid != NULL)
-        {
-            infoLen += strlen(grid) + 2;
-        }
-        if (status != NULL)
-        {
-            infoLen += strlen(status);
-        }
-        if (alt > RADIOLIB_APRS_MIC_E_ALTITUDE_UNUSED)
-        {
-            infoLen += 4;
-        }
-    }
-    char *info = (char *)calloc(1, infoLen);
-    if(info == NULL)
-    {
-        return strRet;
-    }
+    char info[300];
     size_t infoPos = 0;
 
     // the following is based on APRS Mic-E implementation by https://github.com/omegat
     // as discussed in https://github.com/jgromes/RadioLib/issues/430
 
-    // latitude first, because that is in the destination field
+    // convert float lat/lon to integer hundredths-of-minutes to avoid float
+    // truncation errors at minute boundaries (e.g. 13.7333°→43.9998' truncates to 43 not 44)
     float lat_abs = abs(lat);
-    int lat_deg = (int)lat_abs;
-    int lat_min = (lat_abs - (float)lat_deg) * 60.0f;
-    int lat_hun = (((lat_abs - (float)lat_deg) * 60.0f) - lat_min) * 100.0f;
+    int32_t lat_total = (int32_t)(lat_abs * 6000.0f + 0.5f);
+    int lat_deg = lat_total / 6000;
+    int lat_min = (lat_total % 6000) / 100;
+    int lat_hun = lat_total % 100;
+
+    float lon_abs = abs(lon);
+    int32_t lon_total = (int32_t)(lon_abs * 6000.0f + 0.5f);
+    int32_t lon_deg = lon_total / 6000;
+    int32_t lon_min = (lon_total % 6000) / 100;
+    int32_t lon_hun = lon_total % 100;
+
     destCallsign[0] = lat_deg / 10;
     destCallsign[1] = lat_deg % 10;
     destCallsign[2] = lat_min / 10;
@@ -3915,7 +3938,7 @@ String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, 
     {
         destCallsign[3] += RADIOLIB_APRS_MIC_E_DEST_BIT_OFFSET;
     }
-    if (lon >= 100 || lon <= -100)
+    if (lon_deg >= 100 || lon_deg < 10)
     {
         destCallsign[4] += RADIOLIB_APRS_MIC_E_DEST_BIT_OFFSET;
     }
@@ -3942,11 +3965,6 @@ String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, 
     info[infoPos++] = RADIOLIB_APRS_MIC_E_GPS_DATA_CURRENT;
 
     // encode the longtitude
-    float lon_abs = abs(lon);
-    int32_t lon_deg = (int32_t)lon_abs;
-    int32_t lon_min = (lon_abs - (float)lon_deg) * 60.0f;
-    int32_t lon_hun = (((lon_abs - (float)lon_deg) * 60.0f) - lon_min) * 100.0f;
-
     if (lon_deg <= 9)
     {
         info[infoPos++] = lon_deg + 118;
@@ -3981,14 +3999,7 @@ String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, 
     int32_t head_hun = heading / 100;
     int32_t head_ten_uni = heading % 100;
 
-    if (speed <= 199)
-    {
-        info[infoPos++] = speed_hun_ten + 'l';
-    }
-    else
-    {
-        info[infoPos++] = speed_hun_ten + '0';
-    }
+    info[infoPos++] = speed_hun_ten + 'l';
 
     info[infoPos++] = speed_uni * 10 + head_hun + 32;
     info[infoPos++] = head_ten_uni + 28;
@@ -4016,18 +4027,28 @@ String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, 
     {
         if (grid != NULL)
         {
-            memcpy(&(info[infoPos]), grid, strlen(grid));
-            infoPos += strlen(grid);
+            size_t gridLen = strlen(grid);
+            if (gridLen > sizeof(info) - infoPos - 3)
+            {
+                gridLen = sizeof(info) - infoPos - 3;
+            }
+            memcpy(&(info[infoPos]), grid, gridLen);
+            infoPos += gridLen;
             info[infoPos++] = '/';
             info[infoPos++] = 'G';
         }
         if (status != NULL)
         {
+            size_t statusLen = strlen(status);
+            if (statusLen > sizeof(info) - infoPos - 2)
+            {
+                statusLen = sizeof(info) - infoPos - 2;
+            }
             info[infoPos++] = ' ';
-            memcpy(&(info[infoPos]), status, strlen(status));
-            infoPos += strlen(status);
+            memcpy(&(info[infoPos]), status, statusLen);
+            infoPos += statusLen;
         }
-        if (alt > RADIOLIB_APRS_MIC_E_ALTITUDE_UNUSED)
+        if ((alt > RADIOLIB_APRS_MIC_E_ALTITUDE_UNUSED) && (infoPos + 5 <= sizeof(info)))
         {
             // altitude is offset by -10 km
             int32_t alt_val = alt + 10000;
@@ -4042,7 +4063,6 @@ String compressMicE(char *destCallsign, float lat, float lon, uint16_t heading, 
     info[infoPos++] = '\0';
 
     strRet = String(info);
-    free(info);   
     return strRet;
 }
 
