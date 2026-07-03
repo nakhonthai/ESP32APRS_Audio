@@ -11491,16 +11491,74 @@ void handle_about(AsyncWebServerRequest *request)
 	strcat(webString, "<th colspan=\"2\"><span><b>System Information</b></span></th>\n");
 	// strcat(webString, "<tr><th width=\"200\"><span><b>Name</b></span></th><th><span><b>Information</b></span></th></tr>";
 	strcat(webString, "<tr><td align=\"right\"><b>Hardware Version: </b></td><td align=\"left\">");
-#if defined(CONFIG_IDF_TARGET_ESP32)
-	strcat(webString, "ESP32-WROOM,ESP32 DoIt DevKit");
-#elif defined(ESP32C3_MINI)
-	strcat(webString, "ESP32C3-Mini,ESP32-C3 DIY");
+	
+	char FirmwareOTA[50];
+	// Build a dot-free version string for use in firmware filenames
+	char verNoDot[20];
+	{
+		const char *src = VERSION;
+		char *dst = verNoDot;
+		while (*src) { if (*src != '.') *dst++ = *src; src++; }
+		*dst = '\0';
+	}
+	char ver[20];
+	sprintf(ver, "V%s%s.bin", verNoDot, VERSION_BUILD);
+#if defined(CONFIG_IDF_TARGET_ESP32)	
+	#ifdef SH1106
+		strcat(webString, ",ESP32-WROOM,SH1106 OLED");
+		sprintf(FirmwareOTA, "ESP32_SH1106_%s", ver);
+	#elif defined(SSD1306)
+		strcat(webString, ",ESP32-WROOM,SSD1306 OLED");
+		sprintf(FirmwareOTA, "ESP32_SSD1306_%s", ver);
+	#elif defined(NO_OTA)
+		strcat(webString, "ESP32-WROOM_NOOTA,ESP32 DoIt DevKit");
+		sprintf(FirmwareOTA, "ESP32_NOOTA_%s", ver);
+	#else
+		strcat(webString, "ESP32-WROOM,ESP32 DoIt DevKit");
+		sprintf(FirmwareOTA, "ESP32_NODISP_%s", ver);	
+	#endif
 #elif defined(CONFIG_IDF_TARGET_ESP32C3)
-	strcat(webString, "ESP32C3,ESP32-C3 DIY");
+	#ifdef SH1106
+		strcat(webString, "ESP32C3,SH1106 OLED");
+		sprintf(FirmwareOTA, "ESP32C3_SH1106_%s", ver);
+	#elif defined(SSD1306)
+		strcat(webString, "ESP32C3,SSD1306 OLED");
+		sprintf(FirmwareOTA, "ESP32C3_SSD1306_%s", ver);
+	#elif defined(NO_OTA)
+		strcat(webString, "ESP32C3_NOOTA,ESP32-C3 DIY");
+		sprintf(FirmwareOTA, "ESP32C3_NOOTA_%s", ver);
+	#else	
+		strcat(webString, "ESP32C3,ESP32-C3 DIY");
+		sprintf(FirmwareOTA, "ESP32C3_NODISP_%s", ver);
+	#endif
 #elif defined(CONFIG_IDF_TARGET_ESP32C6)
-	strcat(webString, "ESP32C6,ESP32-C6 DIY");
+	#ifdef SH1106
+		strcat(webString, "ESP32C6,SH1106 OLED");
+		sprintf(FirmwareOTA, "ESP32C6_SH1106_%s", ver);
+	#elif defined(SSD1306)	
+		strcat(webString, "ESP32C6,SSD1306 OLED");
+		sprintf(FirmwareOTA, "ESP32C6_SSD1306_%s", ver);
+	#elif defined(NO_OTA)
+		strcat(webString, "ESP32C6_NOOTA,ESP32-C6 DIY");
+		sprintf(FirmwareOTA, "ESP32C6_NOOTA_%s", ver);
+	#else
+		strcat(webString, "ESP32C6,ESP32-C6 DIY");
+		sprintf(FirmwareOTA, "ESP32C6_%s", ver);
+	#endif
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
-	strcat(webString, "ESP32-S3-DevKit,ESP32-S3-WROOM");
+	#ifdef ESP32S3_N16R8
+		strcat(webString, "ESP32-S3_16MB,ESP32-S3-DevKit");
+		sprintf(FirmwareOTA, "ESP32S3_N16R8_%s", ver);
+	#elif defined(SH1106)
+		strcat(webString, "ESP32-S3_8MB,SH1106 OLED");
+		sprintf(FirmwareOTA, "ESP32S3_SH1106_%s", ver);	
+	#elif defined(SSD1306)
+		strcat(webString, "ESP32-S3_8MB,SSD1306 OLED");
+		sprintf(FirmwareOTA, "ESP32S3_SSD1306_%s", ver);
+	#elif defined(NO_OTA)
+		strcat(webString, "ESP32-S3_4MB,No OTA");
+		sprintf(FirmwareOTA, "ESP32S3_NOOTA_%s", ver);
+	#endif
 #else
 	strcat(webString, "UNKNOWN,ESP32 DIY");
 #endif
@@ -11716,7 +11774,7 @@ void handle_about(AsyncWebServerRequest *request)
 	#ifndef NO_OTA
 	strcat(webString, "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form' class=\"form-horizontal\">\n");
 	strcat(webString, "<table>");
-	strcat(webString, "<th colspan=\"2\"><span><b>Firmware Update</b></span></th>\n");
+	strcat(webString, "<th colspan=\"2\"><span><b>Manual Firmware Update</b></span></th>\n");
 	strcat(webString, "<tr><td align=\"right\"><b>File:</b></td><td align=\"left\"><input id=\"file\" name=\"update\" type=\"file\" onchange='sub(this)' /></td></tr>\n");
 	strcat(webString, "<tr><td align=\"right\"><b>Progress:</b></td><td><div id='prgbar'><div id='bar' style=\"width: 0px;\"><label id='prg'></label></div></div></td></tr>\n");
 	strcat(webString, "<tr><td align=\"right\"><b>Support Firmware:</b></td><td align=\"left\"><a target=\"_download\" href=\"https://github.com/nakhonthai/ESP32APRS_Audio/releases\">https://github.com/nakhonthai/ESP32APRS_Audio/releases</a></td></tr>\n");
@@ -11757,6 +11815,52 @@ void handle_about(AsyncWebServerRequest *request)
 					  "alert('Wait for system reboot 10sec');"
 					  "},"
 					  "error: function (a, b, c) {"
+					  "}"
+					  "});"
+					  "});"
+					  "</script>");
+	{
+		char ota_url_buf[200];
+		snprintf(ota_url_buf, sizeof(ota_url_buf), "http://fw.nakhonthai.net/Audio/%s", FirmwareOTA);
+		strcat(webString, "<table>");
+		strcat(webString, "<th colspan=\"2\"><span><b>OTA Online Firmware Update</b></span></th>\n");
+		char ota_row[512];
+		snprintf(ota_row, sizeof(ota_row),
+			"<tr><td align=\"right\"><b>Firmware File:</b></td><td align=\"left\"><a href=\"%s\" target=\"_blank\">%s</a></td></tr>\n",
+			ota_url_buf, FirmwareOTA);
+		strcat(webString, ota_row);
+		snprintf(ota_row, sizeof(ota_row),
+			"<tr><td align=\"right\"><b>Current Version:</b></td><td align=\"left\">V%s%s</td></tr>\n",
+			VERSION, VERSION_BUILD);
+		strcat(webString, ota_row);
+		strcat(webString, "<tr><td align=\"right\"><b>Status:</b></td><td><span id='ota_prg'>Ready</span></td></tr>\n");
+		snprintf(ota_row, sizeof(ota_row),
+			"<tr><td colspan=\"2\" align=\"right\"><div class=\"col-sm-3 col-xs-4\">"
+			"<input type='hidden' id='ota_url' value='%s'>"
+			"<input type='button' class=\"btn btn-danger\" id=\"ota_sumbit\" value='Firmware Update'>"
+			"</div></td></tr>\n",
+			ota_url_buf);
+		strcat(webString, ota_row);
+		strcat(webString, "</table><br />\n");
+	}
+
+	strcat(webString, "<script>"
+					  "document.getElementById('ota_sumbit').addEventListener('click', function(){"
+					  "if (!confirm('Download and install firmware from URL?\\n' + document.getElementById('ota_url').value)) return;"
+					  "document.getElementById('ota_sumbit').disabled = true;"
+					  "document.getElementById('ota_prg').innerHTML = 'Downloading... Please wait ~30 sec';"
+					  "$.ajax({"
+					  "url: '/ota_url',"
+					  "type: 'POST',"
+					  "data: { url: document.getElementById('ota_url').value },"
+					  "success: function(d, s) {"
+					  "document.getElementById('ota_prg').innerHTML = 'Update started. Rebooting...';"
+					  "alert('OTA update started. Wait for system reboot (~30sec).');"
+					  "},"
+					  "error: function(a, b, c) {"
+					  "document.getElementById('ota_prg').innerHTML = 'Error: ' + c;"
+					  "document.getElementById('ota_sumbit').disabled = false;"
+					  "alert('OTA update failed: ' + c);"
 					  "}"
 					  "});"
 					  "});"
