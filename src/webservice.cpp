@@ -6086,6 +6086,9 @@ void handle_system(AsyncWebServerRequest *request)
 						config.dispFilter |= FILTER_POSITION;
 				}
 			}
+			snprintf(tempHtml, sizeof(tempHtml), "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"rf2inetFilterAll\" type=\"checkbox\" value=\"OK\" %s/>ALL</td>\n",
+				 (config.rf2inetFilter & FILTER_ENABLE_ALL) ? "checked" : "");
+			strcat(html, tempHtml);
 
 			if (request->argName(i) == "dispRF")
 			{
@@ -7190,6 +7193,14 @@ void handle_igate(AsyncWebServerRequest *request)
 				{
 					if (String(request->arg(i)) == "OK")
 						config.rf2inetFilter |= FILTER_POSITION;
+				}
+			}
+			if (request->argName(i) == "rf2inetFilterAll")
+			{
+				if (request->arg(i) != "")
+				{
+					if (String(request->arg(i)) == "OK")
+						config.rf2inetFilter |= FILTER_ENABLE_ALL;
 				}
 			}
 			// config inet2rf filter

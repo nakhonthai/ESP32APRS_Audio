@@ -7020,7 +7020,7 @@ void taskAPRS(void *pvParameters)
                     int ret = 0;
                     // uint16_t type = pkgType((const char *)&incomingPacket.info[0]);
                     //  IGate Filter RF->INET
-                    if ((type & config.rf2inetFilter))
+                    if ((config.rf2inetFilter & FILTER_ENABLE_ALL) || (type & config.rf2inetFilter))
                         ret = igateProcess(incomingPacket);
                     if (ret == 0)
                     {
