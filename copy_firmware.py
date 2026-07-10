@@ -1,5 +1,5 @@
 Import("env")
-import os, re, shutil
+import os, re, shutil, json, datetime
 
 FIRMWARE_NAMES = {
     "esp32-nodisp":     "ESP32_NODISP",
@@ -13,6 +13,7 @@ FIRMWARE_NAMES = {
     "esp32s3-sh1106":   "ESP32S3_SH1106",
     "esp32s3-noota":    "ESP32S3_NOOTA",
     "esp32s3-N16R8":    "ESP32S3_N16R8",
+    "TTGO-TWR":         "ESP32S3_TWR",
 }
 
 def copy_firmware(source, target, env):
@@ -22,7 +23,8 @@ def copy_firmware(source, target, env):
         if isinstance(item, (list, tuple)) and len(item) == 2:
             defines[str(item[0])] = str(item[1])
 
-    version = re.sub(r'[\\"\']', '', defines.get("VERSION", "0.0")).replace(".", "")
+    version_raw = re.sub(r'[\\"\']', '', defines.get("VERSION", "0.0"))
+    version = version_raw.replace(".", "")
     version_build = re.sub(r'[\\"\']', '', defines.get("VERSION_BUILD", "a"))
 
     env_name = env["PIOENV"]
@@ -36,5 +38,18 @@ def copy_firmware(source, target, env):
 
     shutil.copy2(src, dst)
     print("\n*** Firmware saved: {} ***\n".format(dst))
+
+    # Write version info (used by webservice.cpp handle_check_version to detect
+    # new firmware releases). JSON is used instead of plain text so it can be
+    # parsed easily with ArduinoJson on the device.
+    version_info = {
+        "version": version_raw,
+        "build": version_build,
+        "date": datetime.date.today().isoformat(),
+    }
+    version_info_path = os.path.join(output_dir, "version.json")
+    with open(version_info_path, "w") as f:
+        json.dump(version_info, f, indent=2)
+    print("*** Version info saved: {} ***\n".format(version_info_path))
 
 env.AddPostAction("$BUILD_DIR/firmware.bin", copy_firmware)

@@ -4,8 +4,8 @@
  Author:	HS5TQA/Atten
  Github:	https://github.com/nakhonthai
  Facebook:	https://www.facebook.com/atten
- Support IS: host:aprs.dprns.com port:14580 or aprs.hs5tqa.ampr.org:14580
- Support IS monitor: http://aprs.dprns.com:14501 or http://aprs.hs5tqa.ampr.org:14501
+ Support IS: host:aprs.nakhonthai.net port:14580 or aprs.hs5tqa.ampr.org:14580
+ Support IS monitor: http://aprs.nakhonthai.net:14501 or http://aprs.hs5tqa.ampr.org:14501
 */
 #include <Arduino.h>
 #include "webservice.h"
@@ -17,26 +17,33 @@
 #include <ESPCPUTemp.h>
 #include "esp_wifi.h"
 #include "esp_heap_caps.h"
+#include <ArduinoJson.h>
 
 extern SemaphoreHandle_t psramMutex;
 extern bool psramLock(TickType_t timeout = portMAX_DELAY);
 extern void psramUnlock();
 
+extern int offset;
+
 // Helper function to allocate memory with PSRAM support
 char *allocateStringMemory(size_t size)
 {
+	char *ptr = NULL;
 #ifdef BOARD_HAS_PSRAM
 	// Try to allocate in PSRAM first
 	size*=2; // overallocation to reduce fragmentation
-	char *ptr = (char *)ps_calloc(size, sizeof(char));
+	ptr = (char *)ps_calloc(size, sizeof(char));
 	if (ptr != NULL)
 	{
+		memset(ptr, 0, size); // Initialize memory to zero
 		return ptr;
 	}
 	// If PSRAM allocation fails, fall back to regular heap
 #endif
 	// Regular heap allocation
-	return (char *)calloc(size, sizeof(char));
+	ptr = (char *)calloc(size, sizeof(char));
+	memset(ptr, 0, size); // Initialize memory to zero
+	return ptr;
 }
 
 // Helper function to format integers to string using allocateStringMemory
@@ -135,6 +142,8 @@ extern Adafruit_SH1106 display;
 #else
 extern Adafruit_SSD1306 display;
 #endif
+#elif defined(GUI_LCD)
+extern Adafruit_SH1106 display;
 #endif // OLED
 
 bool defaultSetting = false;
@@ -202,7 +211,7 @@ void setMainPage(AsyncWebServerRequest *request)
 	strcat(webString, "<meta name=\"KeyWords\" content=\"ESP32,ESP32C3,AFSK,APRS\" />\n");
 	strcat(webString, "<meta http-equiv=\"Cache-Control\" content=\"no-cache, no-store, must-revalidate\" />\n");
 	strcat(webString, "<meta http-equiv=\"pragma\" content=\"no-cache\" />\n");
-	strcat(webString, "<link rel=\"shortcut icon\" href=\"http://aprs.dprns.com/favicon.ico\" type=\"image/x-icon\" />\n");
+	strcat(webString, "<link rel=\"shortcut icon\" href=\"http://aprs.nakhonthai.net/favicon.ico\" type=\"image/x-icon\" />\n");
 	strcat(webString, "<meta http-equiv=\"Expires\" content=\"0\" />\n");
 
 	char temp_buffer[512];
@@ -516,7 +525,7 @@ void handle_dashboard(AsyncWebServerRequest *request)
 	// strcat(webString, "        const tr = document.createElement(\"tr\");\n");
 	// strcat(webString, "        tr.innerHTML = `\n");
 	// strcat(webString, "            <td>${row.time}</td>\n");
-	// strcat(webString, "            <td><img src=\\\"http://aprs.dprns.com/symbols/icons/${row.icon}\\\"></td>\n");
+	// strcat(webString, "            <td><img src=\\\"http://aprs.nakhonthai.net/symbols/icons/${row.icon}\\\"></td>\n");
 	// strcat(webString, "            <td>${row.callsign}</td>\n");
 	// strcat(webString, "            <td>${row.path}</td>\n");
 	// strcat(webString, "            <td>${row.dx !== null ? row.dx + \\\" km\\\" : \\\"-\\\"}</td>\n");
@@ -969,7 +978,6 @@ void handle_symbol(AsyncWebServerRequest *request)
 	char *web = allocateStringMemory(22000); // Initial buffer size, adjust as needed
 	if (web)
 	{
-		memset(web, 0, 22000);
 		strcat(web, "<table border=\"1\" align=\"center\">\n");
 		strcat(web, "<tr><th colspan=\"16\">Table '/'</th></tr>\n");
 		strcat(web, "<tr>\n");
@@ -977,11 +985,11 @@ void handle_symbol(AsyncWebServerRequest *request)
 		for (i = 33; i < 129; i++)
 		{
 			memset(lnk, 0, sizeof(lnk));
-			//<td><img onclick="window.opener.setValue(113,2);" src="http://aprs.dprns.com/symbols/icons/113-2.png"></td>
+			//<td><img onclick="window.opener.setValue(113,2);" src="http://aprs.nakhonthai.net/symbols/icons/113-2.png"></td>
 			if (sel == -1)
-				sprintf(lnk, "<td><img onclick=\"window.opener.setValue(%d,1);\" src=\"http://aprs.dprns.com/symbols/icons/%d-1.png\"></td>", i, i);
+				sprintf(lnk, "<td><img onclick=\"window.opener.setValue(%d,1);\" src=\"http://aprs.nakhonthai.net/symbols/icons/%d-1.png\"></td>", i, i);
 			else
-				sprintf(lnk, "<td><img onclick=\"window.opener.setValue(%d,%d,1);\" src=\"http://aprs.dprns.com/symbols/icons/%d-1.png\"></td>", sel, i, i);
+				sprintf(lnk, "<td><img onclick=\"window.opener.setValue(%d,%d,1);\" src=\"http://aprs.nakhonthai.net/symbols/icons/%d-1.png\"></td>", sel, i, i);
 			strcat(web, lnk);
 
 			if (((i % 16) == 0) && (i < 126))
@@ -996,9 +1004,9 @@ void handle_symbol(AsyncWebServerRequest *request)
 		{
 			memset(lnk, 0, sizeof(lnk));
 			if (sel == -1)
-				sprintf(lnk, "<td><img onclick=\"window.opener.setValue(%d,2);\" src=\"http://aprs.dprns.com/symbols/icons/%d-2.png\"></td>", i, i);
+				sprintf(lnk, "<td><img onclick=\"window.opener.setValue(%d,2);\" src=\"http://aprs.nakhonthai.net/symbols/icons/%d-2.png\"></td>", i, i);
 			else
-				sprintf(lnk, "<td><img onclick=\"window.opener.setValue(%d,%d,2);\" src=\"http://aprs.dprns.com/symbols/icons/%d-2.png\"></td>", sel, i, i);
+				sprintf(lnk, "<td><img onclick=\"window.opener.setValue(%d,%d,2);\" src=\"http://aprs.nakhonthai.net/symbols/icons/%d-2.png\"></td>", sel, i, i);
 			strcat(web, lnk);
 			if (((i % 16) == 0) && (i < 126))
 				strcat(web, "</tr>\n<tr>\n");
@@ -1092,6 +1100,34 @@ void handle_sysinfo(AsyncWebServerRequest *request)
 	free(html); // Free the allocated memory
 }
 
+// Copy src into dest escaping characters that would break JSON string syntax
+// (", \) and stripping raw control bytes, so text taken from a TNC2 packet
+// (callsign, path, object/item name) can be embedded safely inside a JSON string.
+static void jsonEscapeCopy(char *dest, size_t destSize, const char *src)
+{
+	size_t j = 0;
+	for (size_t i = 0; src[i] != '\0' && j + 1 < destSize; i++)
+	{
+		unsigned char c = (unsigned char)src[i];
+		if (c == '"' || c == '\\')
+		{
+			if (j + 2 >= destSize)
+				break;
+			dest[j++] = '\\';
+			dest[j++] = (char)c;
+		}
+		else if (c < 0x20)
+		{
+			continue; // strip control bytes
+		}
+		else
+		{
+			dest[j++] = (char)c;
+		}
+	}
+	dest[j] = '\0';
+}
+
 void event_lastHeard(bool gethtml)
 {
 	// log_d("Event count: %d",lastheard_events.count());
@@ -1103,7 +1139,8 @@ void event_lastHeard(bool gethtml)
 	struct tm tmstruct, tmNow;
 
 	// Using dynamic memory allocation instead of String
-	char temp_html[100];
+	// Sized to fit a fully-escaped path/LPath (up to 256 raw chars -> 512 escaped) plus JSON key/quote overhead
+	char temp_html[600];
 	char *html = allocateStringMemory(16384); // Initial buffer size, adjust as needed
 	if (html==nullptr)
 	{
@@ -1122,22 +1159,41 @@ void event_lastHeard(bool gethtml)
 		pkgListType pkg = getPkgList(i);
 		if (pkg.time > 0)
 		{
+			// if (pkg.raw == nullptr || pkg.length == 0)
+			// 	continue;
+			// bool validText = true;
+			// for (size_t ci = 0; ci < pkg.length-1; ci++)
+			// {
+			// 	//if (!isprint((unsigned char)pkg.raw[ci]))
+			// 	if((unsigned char)pkg.raw[ci] < 32 || (unsigned char)pkg.raw[ci] > 126)
+			// 	{
+			// 		validText = false;
+			// 		break;
+			// 	}
+			// }
+			// if (!validText)
+			// 	continue;
+
 			int packet = pkg.pkg;
 			char *pos_gt = strchr(pkg.raw, '>'); // Find first position of '>'
+			char *pos_colon = strchr(pkg.raw, ':');
+			if(pos_gt == nullptr || pos_colon == nullptr)
+				continue;
+			if(pos_colon < pos_gt)
+				continue;
 			int start_val = pos_gt ? (pos_gt - pkg.raw) : -1;
-			if (start_val > 3)
+			if (start_val > 3 && start_val < 10)
 			{
 				// Extract src_call substring
 				char src_call[11];
 				strncpy(src_call, pkg.raw, start_val);
 				src_call[start_val] = '\0';
-
 				memset(&aprs, 0, sizeof(pbuf_t));
 				aprs.buf_len = 300;
 				aprs.packet_len = pkg.length;
 				strncpy((char *)aprs.data, pkg.raw, aprs.packet_len < sizeof(aprs.data) ? aprs.packet_len : sizeof(aprs.data) - 1);
 
-				char *pos_colon = strchr(pkg.raw, ':');
+				//char *pos_colon = strchr(pkg.raw, ':');
 				char *pos_comma = strchr(pkg.raw, ',');
 				char *pos_gt2 = strstr(pkg.raw + 2, ">"); // Find '>' starting from position 2
 				char *pos_dash = pos_gt2 ? strchr(pos_gt2, '-') : NULL;
@@ -1224,26 +1280,30 @@ void event_lastHeard(bool gethtml)
 							{
 								strcpy(fileImg, "dot.png");
 							}
-							//snprintf(temp_html, sizeof(temp_html), "<td><img src=\"http://aprs.dprns.com/symbols/icons/%s\"></td>", fileImg);
+							//snprintf(temp_html, sizeof(temp_html), "<td><img src=\"http://aprs.nakhonthai.net/symbols/icons/%s\"></td>", fileImg);
 							snprintf(temp_html, sizeof(temp_html), "\"icon\":\"%s\",", fileImg);
 							strcat(html, temp_html);
 						}
 					}
 					else
 					{
-						//strcat(html, "<td><img src=\"http://aprs.dprns.com/symbols/icons/dot.png\"></td>");
+						//strcat(html, "<td><img src=\"http://aprs.nakhonthai.net/symbols/icons/dot.png\"></td>");
 						strcat(html, "\"icon\":\"dot.png\",");
 					}
 					
+					char src_call_esc[23];
+					jsonEscapeCopy(src_call_esc, sizeof(src_call_esc), src_call);
 					if (aprs.srcname_len > 0 && aprs.srcname_len < 10) // Get Item/Object
 					{
 						char itemname[10];
 						memset(&itemname, 0, 10);
 						memcpy(&itemname, aprs.srcname, aprs.srcname_len);
-						snprintf(temp_html, sizeof(temp_html), "\"callsign\":\"%s(%s)\",", itemname, src_call);
+						char itemname_esc[21];
+						jsonEscapeCopy(itemname_esc, sizeof(itemname_esc), itemname);
+						snprintf(temp_html, sizeof(temp_html), "\"callsign\":\"%s(%s)\",", itemname_esc, src_call_esc);
 						strcat(html, temp_html);
 					}else{
-						snprintf(temp_html, sizeof(temp_html), "\"callsign\":\"%s\",", src_call);
+						snprintf(temp_html, sizeof(temp_html), "\"callsign\":\"%s\",", src_call_esc);
 						strcat(html, temp_html);
 					}
 					//strcat(html, "</td>");
@@ -1266,22 +1326,25 @@ void event_lastHeard(bool gethtml)
 							strncpy(LPath, path, sizeof(LPath) - 1);
 							LPath[sizeof(LPath) - 1] = '\0';
 						}
+						char path_esc[513];
 						// if(path.indexOf("qAR")>=0 || path.indexOf("qAS")>=0 || path.indexOf("qAC")>=0){ //Via from Internet Server
 						if (strstr(path, "qA") != NULL || strstr(path, "TCPIP") != NULL)
 						{
-							snprintf(temp_html, sizeof(temp_html), "\"path\":\"INET:%s\",", LPath);
+							jsonEscapeCopy(path_esc, sizeof(path_esc), LPath);
+							snprintf(temp_html, sizeof(temp_html), "\"path\":\"INET:%s\",", path_esc);
 							strcat(html, temp_html);
 						}
 						else
 						{
+							jsonEscapeCopy(path_esc, sizeof(path_esc), path);
 							if (strchr(path, '*') != NULL)
 							{
-								snprintf(temp_html, sizeof(temp_html), "\"path\":\"DIGI: %s\",", path);
+								snprintf(temp_html, sizeof(temp_html), "\"path\":\"DIGI: %s\",", path_esc);
 								strcat(html, temp_html);
 							}
 							else
 							{
-								snprintf(temp_html, sizeof(temp_html), "\"path\":\"RF: %s\",", path);
+								snprintf(temp_html, sizeof(temp_html), "\"path\":\"RF: %s\",", path_esc);
 								strcat(html, temp_html);
 							}
 						}
@@ -2261,7 +2324,7 @@ void handle_radio(AsyncWebServerRequest *request)
 		strcat(html, "<td align=\"right\"><b>Module Type:</b></td>\n");
 		strcat(html, "<td style=\"text-align: left;\">\n");
 		strcat(html, "<select name=\"rf_type\" id=\"rf_type\" onchange=\"rfType()\">\n");
-		for (int i = 0; i < 10; i++)
+		for (int i = 0; i < 9; i++)
 		{
 			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
 			strcat(html, temp_buffer);
@@ -2437,7 +2500,11 @@ void handle_radio(AsyncWebServerRequest *request)
 		strcat(html, "<td align=\"right\"><b>Modem Type:</b></td>\n");
 		strcat(html, "<td style=\"text-align: left;\">\n");
 		strcat(html, "<select name=\"modem_type\" id=\"modem_type\" \">\n");
+		#ifdef CONFIG_IDF_TARGET_ESP32S3
+		for (int i = 0; i < 4; i++)
+		#else 
 		for (int i = 0; i < 3; i++)
+		#endif
 		{
 			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
 			strcat(html, temp_buffer);
@@ -4734,7 +4801,7 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
-		strcat(html, "<td align=\"right\"><b>UART2 Baudrate:</b></td>\n");
+		strcat(html, "<td align=\"right\"><b>UART Baudrate:</b></td>\n");
 		strcat(html, "<td style=\"text-align: left;\">\n");
 		strcat(html, "<select name=\"baudrate\" id=\"baudrate\">\n");
 		for (int i = 0; i < 13; i++)
@@ -4766,7 +4833,7 @@ void handle_mod(AsyncWebServerRequest *request)
 		// strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
-		strcat(html, "<td align=\"right\"><b>UART2 RX GPIO:</b></td>\n");
+		strcat(html, "<td align=\"right\"><b>UART RX GPIO:</b></td>\n");
 		{
 			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
 			char *rf_rx_gpio_str = StringToCharPtr(String(config.rf_rx_gpio));
@@ -4780,7 +4847,7 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
-		strcat(html, "<td align=\"right\"><b>UART2 TX GPIO:</b></td>\n");
+		strcat(html, "<td align=\"right\"><b>UART TX GPIO:</b></td>\n");
 		{
 			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
 			char *rf_tx_gpio_str = StringToCharPtr(String(config.rf_tx_gpio));
@@ -6086,9 +6153,6 @@ void handle_system(AsyncWebServerRequest *request)
 						config.dispFilter |= FILTER_POSITION;
 				}
 			}
-			snprintf(tempHtml, sizeof(tempHtml), "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"rf2inetFilterAll\" type=\"checkbox\" value=\"OK\" %s/>ALL</td>\n",
-				 (config.rf2inetFilter & FILTER_ENABLE_ALL) ? "checked" : "");
-			strcat(html, tempHtml);
 
 			if (request->argName(i) == "dispRF")
 			{
@@ -6175,7 +6239,7 @@ void handle_system(AsyncWebServerRequest *request)
 			}
 		}
 
-#ifdef OLED
+#if defined OLED || defined GUI_LCD
 		if (oledEN && !config.oled_enable)
 		{
 			// display.begin(SSD1306_SWITCHCAPVCC, 0x3C, false); // initialize with the I2C addr 0x3C (for the 128x64)
@@ -6492,6 +6556,7 @@ void handle_system(AsyncWebServerRequest *request)
 
 		strcat(html, "</form><br /><br />\n");
 
+		#ifdef LOG_FILE
 		/**************Log File******************/
 		strcat(html, "<form accept-charset=\"UTF-8\" action=\"#\" class=\"form-horizontal\" id=\"formLOG\" method=\"post\">\n");
 		strcat(html, "<table>\n");
@@ -6546,7 +6611,7 @@ void handle_system(AsyncWebServerRequest *request)
 		strcat(html, "</td></tr></table>\n");
 
 		strcat(html, "</form><br /><br />\n");
-
+		#endif
 		/************************ PATH USER define **************************/
 		strcat(html, "<form id='formPath' method=\"POST\" action='#' enctype='multipart/form-data'>\n");
 		strcat(html, "<table>\n");
@@ -6577,7 +6642,7 @@ void handle_system(AsyncWebServerRequest *request)
 		strcat(html, "</td></tr></table>\n");
 		strcat(html, "</form><br /><br />");
 
-#if defined OLED || defined ST7735_160x80
+#if defined OLED || defined ST7735_160x80 || defined GUI_LCD
 		strcat(html, "<form id='formDisp' method=\"POST\" action='#' enctype='multipart/form-data'>\n");
 		// html += "<h2>Display Setting</h2>\n";
 		strcat(html, "<table>\n");
@@ -7300,7 +7365,7 @@ void handle_igate(AsyncWebServerRequest *request)
 	{
 		// Allocate initial memory for HTML content
 		char tempHtml[512];
-		char *html = allocateStringMemory(25000); // Start with 8KB buffer
+		char *html = allocateStringMemory(25000);
 		if (!html)
 		{
 			request->send(500, "text/html", "Memory allocation failed");
@@ -7344,7 +7409,7 @@ void handle_igate(AsyncWebServerRequest *request)
 		strcat(html, "document.getElementById('igateSymbol').value = String.fromCharCode(symbol);\n");
 		strcat(html, "if(table==1){\n document.getElementById('igateTable').value='/';\n");
 		strcat(html, "}else if(table==2){\n document.getElementById('igateTable').value='\\\\';\n}\n");
-		strcat(html, "document.getElementById('igateImgSymbol').src = \"http://aprs.dprns.com/symbols/icons/\"+symbol.toString()+'-'+table.toString()+'.png';\n");
+		strcat(html, "document.getElementById('igateImgSymbol').src = \"http://aprs.nakhonthai.net/symbols/icons/\"+symbol.toString()+'-'+table.toString()+'.png';\n");
 		strcat(html, "\n}\n");
 		strcat(html, "function calculatePHGR(){document.forms.formIgate.texttouse.value=\"PHG\"+calcPower(document.forms.formIgate.power.value)+calcHeight(document.forms.formIgate.haat.value)+calcGain(document.forms.formIgate.gain.value)+calcDirection(document.forms.formIgate.direction.selectedIndex)}function Log2(e){return Math.log(e)/Math.log(2)}function calcPerHour(e){return e<10?e:String.fromCharCode(65+(e-10))}function calcHeight(e){return String.fromCharCode(48+Math.round(Log2(e/10),0))}function calcPower(e){if(e<1)return 0;if(e>=1&&e<4)return 1;if(e>=4&&e<9)return 2;if(e>=9&&e<16)return 3;if(e>=16&&e<25)return 4;if(e>=25&&e<36)return 5;if(e>=36&&e<49)return 6;if(e>=49&&e<64)return 7;if(e>=64&&e<81)return 8;if(e>=81)return 9}function calcDirection(e){if(e==\"0\")return\"0\";if(e==\"1\")return\"1\";if(e==\"2\")return\"2\";if(e==\"3\")return\"3\";if(e==\"4\")return\"4\";if(e==\"5\")return\"5\";if(e==\"6\")return\"6\";if(e==\"7\")return\"7\";if(e==\"8\")return\"8\"}function calcGain(e){return e>9?\"9\":e<0?\"0\":Math.round(e,0)}\n");
 		strcat(html, "function onRF2INETCheck() {\n");
@@ -7425,7 +7490,7 @@ void handle_igate(AsyncWebServerRequest *request)
 			table = "1";
 		if (config.igate_symbol[0] == 92)
 			table = "2";
-		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\">Table:<input maxlength=\"1\" size=\"1\" id=\"igateTable\" name=\"igateTable\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> Symbol:<input maxlength=\"1\" size=\"1\" id=\"igateSymbol\" name=\"igateSymbol\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> <img border=\"1\" style=\"vertical-align: middle;\" id=\"igateImgSymbol\" onclick=\"openWindowSymbol();\" src=\"http://aprs.dprns.com/symbols/icons/%d-%s.png\"> <i>*Click icon for select symbol</i></td>\n",
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\">Table:<input maxlength=\"1\" size=\"1\" id=\"igateTable\" name=\"igateTable\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> Symbol:<input maxlength=\"1\" size=\"1\" id=\"igateSymbol\" name=\"igateSymbol\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> <img border=\"1\" style=\"vertical-align: middle;\" id=\"igateImgSymbol\" onclick=\"openWindowSymbol();\" src=\"http://aprs.nakhonthai.net/symbols/icons/%d-%s.png\"> <i>*Click icon for select symbol</i></td>\n",
 						 config.igate_symbol[0], config.igate_symbol[1], (int)config.igate_symbol[1], table);
 		strcat(html, tempHtml);
 		strcat(html, "</tr>\n");
@@ -7455,7 +7520,7 @@ void handle_igate(AsyncWebServerRequest *request)
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>Server Host:</b></td>\n");
-		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><input maxlength=\"20\" size=\"20\" id=\"aprsHost\" name=\"aprsHost\" type=\"text\" value=\"%s\" /> *APRS-IS by T2THAI at <a href=\"http://aprs.dprns.com:14501\" target=\"_t2thai\">aprs.dprns.com:14580</a>,CBAPRS at <a href=\"http://aprs.dprns.com:24501\" target=\"_t2thai\">aprs.dprns.com:24580</a></td>\n", config.aprs_host);
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\"><input maxlength=\"20\" size=\"20\" id=\"aprsHost\" name=\"aprsHost\" type=\"text\" value=\"%s\" /> *APRS-IS by T2THAI at <a href=\"http://aprs.nakhonthai.net:14501\" target=\"_t2thai\">aprs.nakhonthai.net:14580</a>,CBAPRS at <a href=\"http://aprs.nakhonthai.net:24501\" target=\"_t2thai\">aprs.nakhonthai.net:24580</a></td>\n", config.aprs_host);
 		strcat(html, tempHtml);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
@@ -7712,6 +7777,10 @@ void handle_igate(AsyncWebServerRequest *request)
 
 		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"rf2inetFilterPosition\" type=\"checkbox\" value=\"OK\" %s/>Position</td>\n",
 						 (config.rf2inetFilter & FILTER_POSITION) ? "checked" : "");
+		strcat(html, tempHtml);
+
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"border:unset;\"><input class=\"field_checkbox\" name=\"rf2inetFilterAll\" type=\"checkbox\" value=\"OK\" %s/>ALL</td>\n",
+				 (config.rf2inetFilter & FILTER_ENABLE_ALL) ? "checked" : "");
 		strcat(html, tempHtml);
 
 		strcat(html, "<td style=\"border:unset;\"></td>");
@@ -8174,7 +8243,6 @@ void handle_digi(AsyncWebServerRequest *request)
 			request->send(500, "text/html", "Memory allocation failed");
 			return;
 		}
-		memset(html, 0, 20000);
 		char tempHtml[512];
 		strcpy(html, "<script type=\"text/javascript\">\n");
 		strcat(html, "$('form').submit(function (e) {\n");
@@ -8211,7 +8279,7 @@ void handle_digi(AsyncWebServerRequest *request)
 		strcat(html, "document.getElementById('digiSymbol').value = String.fromCharCode(symbol);\n");
 		strcat(html, "if(table==1){\n document.getElementById('digiTable').value='/';\n");
 		strcat(html, "}else if(table==2){\n document.getElementById('digiTable').value='\\\\';\n}\n");
-		strcat(html, "document.getElementById('digiImgSymbol').src = \"http://aprs.dprns.com/symbols/icons/\"+symbol.toString()+'-'+table.toString()+'.png';\n");
+		strcat(html, "document.getElementById('digiImgSymbol').src = \"http://aprs.nakhonthai.net/symbols/icons/\"+symbol.toString()+'-'+table.toString()+'.png';\n");
 		strcat(html, "\n}\n");
 		strcat(html, "function calculatePHGR(){document.forms.formDIGI.texttouse.value=\"PHG\"+calcPower(document.forms.formDIGI.power.value)+calcHeight(document.forms.formDIGI.haat.value)+calcGain(document.forms.formDIGI.gain.value)+calcDirection(document.forms.formDIGI.direction.selectedIndex)}function Log2(e){return Math.log(e)/Math.log(2)}function calcPerHour(e){return e<10?e:String.fromCharCode(65+(e-10))}function calcHeight(e){return String.fromCharCode(48+Math.round(Log2(e/10),0))}function calcPower(e){if(e<1)return 0;if(e>=1&&e<4)return 1;if(e>=4&&e<9)return 2;if(e>=9&&e<16)return 3;if(e>=16&&e<25)return 4;if(e>=25&&e<36)return 5;if(e>=36&&e<49)return 6;if(e>=49&&e<64)return 7;if(e>=64&&e<81)return 8;if(e>=81)return 9}function calcDirection(e){if(e==\"0\")return\"0\";if(e==\"1\")return\"1\";if(e==\"2\")return\"2\";if(e==\"3\")return\"3\";if(e==\"4\")return\"4\";if(e==\"5\")return\"5\";if(e==\"6\")return\"6\";if(e==\"7\")return\"7\";if(e==\"8\")return\"8\"}function calcGain(e){return e>9?\"9\":e<0?\"0\":Math.round(e,0)}\n");
 		strcat(html, "function selPrecision(idx) {\n");
@@ -8287,7 +8355,7 @@ void handle_digi(AsyncWebServerRequest *request)
 			strcpy(table, "1");
 		if (config.digi_symbol[0] == 92)
 			strcpy(table, "2");
-		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\">Table:<input maxlength=\"1\" size=\"1\" id=\"digiTable\" name=\"digiTable\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> Symbol:<input maxlength=\"1\" size=\"1\" id=\"digiSymbol\" name=\"digiSymbol\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> <img border=\"1\" style=\"vertical-align: middle;\" id=\"digiImgSymbol\" onclick=\"openWindowSymbol();\" src=\"http://aprs.dprns.com/symbols/icons/%d-%s.png\"> <i>*Click icon for select symbol</i></td>\n",
+		snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\">Table:<input maxlength=\"1\" size=\"1\" id=\"digiTable\" name=\"digiTable\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> Symbol:<input maxlength=\"1\" size=\"1\" id=\"digiSymbol\" name=\"digiSymbol\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> <img border=\"1\" style=\"vertical-align: middle;\" id=\"digiImgSymbol\" onclick=\"openWindowSymbol();\" src=\"http://aprs.nakhonthai.net/symbols/icons/%d-%s.png\"> <i>*Click icon for select symbol</i></td>\n",
 				 config.digi_symbol[0], config.digi_symbol[1], (int)config.digi_symbol[1], table);
 		strcat(html, tempHtml);
 
@@ -8987,7 +9055,7 @@ void handle_wx(AsyncWebServerRequest *request)
 			else
 				sampleFlag = "checked=\"checked\"";
 
-			snprintf(tempHtml, sizeof(tempHtml), "<input type=\"radio\" name=\"avgSel%d\" value=\"0\" %s/>Sample <input type=\"radio\" name=\"avgSel%d\" value=\"1\" %s/>Average", ax, sampleFlag, ax, avgFlag);
+			snprintf(tempHtml, sizeof(tempHtml), "<input type=\"radio\" name=\"avgSel%d\" value=\"0\" %s/>Sample <input type=\"radio\" name=\"avgSel%d\" value=\"1\" %s/>Average", ax, sampleFlag.c_str(), ax, avgFlag.c_str());
 			strcat(html, tempHtml);
 			strcat(html, "</td></tr>");
 		}
@@ -9617,6 +9685,7 @@ void handle_sensor(AsyncWebServerRequest *request)
 			}
 		}
 
+		sensorInit(true);
 		log_d("Sensor Config Updated.");
 		String html_msg;
 		if (saveConfiguration("/default.cfg", config))
@@ -9634,6 +9703,7 @@ void handle_sensor(AsyncWebServerRequest *request)
 	else
 	{
 		// Allocate initial memory for HTML content
+		char temp_buffer[512];
 		char *html = allocateStringMemory(25000); // Start with 8KB buffer
 		if (!html)
 		{
@@ -9786,47 +9856,19 @@ void handle_sensor(AsyncWebServerRequest *request)
 				strcat(html, "<td align=\"center\">\n");
 				if (config.sensor[ax].enable)
 				{
-					{
-						char *temp_fieldset = allocateStringMemory(256);
-						if (temp_fieldset)
-						{
-							snprintf(temp_fieldset, 256, "<fieldset id=\"SenGrp%d\">\n", ax + 1);
-							strcat(html, temp_fieldset);
-							free(temp_fieldset);
-						}
-					}
+					snprintf(temp_buffer, sizeof(temp_buffer), "<fieldset id=\"SenGrp%d\">\n", ax + 1);
+					strcat(html, temp_buffer);
 				}
 				else
 				{
-					{
-						char *temp_fieldset = allocateStringMemory(256);
-						if (temp_fieldset)
-						{
-							snprintf(temp_fieldset, 256, "<fieldset id=\"SenGrp%d\" disabled>\n", ax + 1);
-							strcat(html, temp_fieldset);
-							free(temp_fieldset);
-						}
-					}
+					snprintf(temp_buffer, sizeof(temp_buffer), "<fieldset id=\"SenGrp%d\" disabled>\n", ax + 1);
+					strcat(html, temp_buffer);
 				}
 
-				{
-					char *temp_legend = allocateStringMemory(512);
-					if (temp_legend)
-					{
-						snprintf(temp_legend, 512, "<legend>SEN#%d-%s</legend>\n", ax + 1, config.sensor[ax].parm);
-						strcat(html, temp_legend);
-						free(temp_legend);
-					}
-				}
-				{
-					char *temp_input = allocateStringMemory(512);
-					if (temp_input)
-					{
-						snprintf(temp_input, 512, "<input id=\"sVal%d\" style=\"text-align:right;\" size=\"5\" type=\"text\" value=\"%.2f\" readonly/> %s\n", ax, sen[ax].sample, config.sensor[ax].unit);
-						strcat(html, temp_input);
-						free(temp_input);
-					}
-				}
+				snprintf(temp_buffer, sizeof(temp_buffer), "<legend>SEN#%d-%s</legend>\n", ax + 1, config.sensor[ax].parm);
+				strcat(html, temp_buffer);
+				snprintf(temp_buffer, sizeof(temp_buffer), "<input id=\"sVal%d\" style=\"text-align:right;\" size=\"5\" type=\"text\" value=\"%.2f\" readonly/> %s\n", ax, sen[ax].sample, config.sensor[ax].unit);
+				strcat(html, temp_buffer);
 				strcat(html, "</td>\n");
 				ax++;
 				if (ax >= SENSOR_NUMBER)
@@ -9846,26 +9888,14 @@ void handle_sensor(AsyncWebServerRequest *request)
 
 		for (int ax = 0; ax < SENSOR_NUMBER; ax++)
 		{
-			{
-				char *temp_sensor = allocateStringMemory(256);
-				if (temp_sensor)
-				{
-					snprintf(temp_sensor, 256, "<tr><td align=\"right\"><b>SENSOR#%d:</b><br />\n", ax + 1);
-					strcat(html, temp_sensor);
-					free(temp_sensor);
-				}
-			}
+			snprintf(temp_buffer, sizeof(temp_buffer), "<tr><td align=\"right\"><b>SENSOR#%d:</b><br />\n", ax + 1);
+			strcat(html, temp_buffer);
 			EnFlag = "";
 			if (config.sensor[ax].enable)
 				EnFlag = "checked";
 			{
-				char *temp_checkbox = allocateStringMemory(256);
-				if (temp_checkbox)
-				{
-					snprintf(temp_checkbox, 256, "<label class=\"switch\"><input type=\"checkbox\" name=\"En%d\" value=\"OK\" %s><span class=\"slider round\"></span></label>", ax, EnFlag);
-					strcat(html, temp_checkbox);
-					free(temp_checkbox);
-				}
+				snprintf(temp_buffer, sizeof(temp_buffer), "<label class=\"switch\"><input type=\"checkbox\" name=\"En%d\" value=\"OK\" %s><span class=\"slider round\"></span></label>", ax, EnFlag.c_str());
+				strcat(html, temp_buffer);
 			}
 			strcat(html, "</td><td align=\"center\">\n");
 			strcat(html, "<table>");
@@ -9873,13 +9903,8 @@ void handle_sensor(AsyncWebServerRequest *request)
 			strcat(html, "<tr><td style=\"text-align: right;\">Type:</td>\n");
 			strcat(html, "<td style=\"text-align: left;\">");
 			{
-				char *temp_select = allocateStringMemory(256);
-				if (temp_select)
-				{
-					snprintf(temp_select, 256, "<select name=\"sensorCH%d\" id=\"sensorCH%d\" onchange=\"selSensorType(%d)\">\n", ax, ax, ax);
-					strcat(html, temp_select);
-					free(temp_select);
-				}
+				snprintf(temp_buffer, sizeof(temp_buffer), "<select name=\"sensorCH%d\" id=\"sensorCH%d\" onchange=\"selSensorType(%d)\">\n", ax, ax, ax);
+				strcat(html, temp_buffer);
 			}
 			// for (uint8_t idx = 0; idx < SENSOR_NAME_NUM; idx++)
 			// {
@@ -9894,35 +9919,15 @@ void handle_sensor(AsyncWebServerRequest *request)
 			// }
 			strcat(html, "</select></td>\n");
 
-			{
-				char *temp_name = allocateStringMemory(512);
-				if (temp_name)
-				{
-					snprintf(temp_name, 512, "<td style=\"text-align: left;\">Name: <input maxlength=\"15\" size=\"15\" name=\"param%d\" id=\"param%d\" type=\"text\" value=\"%s\" /></td>\n", ax, ax, config.sensor[ax].parm);
-					strcat(html, temp_name);
-					free(temp_name);
-				}
-			}
-			{
-				char *temp_unit = allocateStringMemory(512);
-				if (temp_unit)
-				{
-					snprintf(temp_unit, 512, "<td style=\"text-align: left;\">Unit: <input maxlength=\"10\" size=\"5\" name=\"unit%d\" id=\"unit%d\" type=\"text\" value=\"%s\" /></td>\n", ax, ax, config.sensor[ax].unit);
-					strcat(html, temp_unit);
-					free(temp_unit);
-				}
-			}
+			snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\">Name: <input maxlength=\"15\" size=\"15\" name=\"param%d\" id=\"param%d\" type=\"text\" value=\"%s\" /></td>\n", ax, ax, config.sensor[ax].parm);
+			strcat(html, temp_buffer);
+
+			snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\">Unit: <input maxlength=\"10\" size=\"5\" name=\"unit%d\" id=\"unit%d\" type=\"text\" value=\"%s\" /></td>\n", ax, ax, config.sensor[ax].unit);
+			strcat(html, temp_buffer);
 			strcat(html, "</tr>\n");
 			// strcat(html, "<tr><td style=\"text-align: right;\">Port:</td><td colspan=\"3\" style=\"text-align: left;\">a:<input min=\"-999\" max=\"999\" step=\"0.1\" name=\"eqns" + String(ax) + "a\" type=\"number\" value=\"" + String(config.sensor[ax].eqns[0], 3) + "\" />  b:<input min=\"-999\" max=\"999\" step=\"0.1\" name=\"eqns" + String(ax) + "b\" type=\"number\" value=\"" + String(config.sensor[ax].eqns[1], 3) + "\" /> c:<input min=\"-999\" max=\"999\" step=\"0.1\" name=\"eqns" + String(ax) + "c\" type=\"number\" value=\"" + String(config.sensor[ax].eqns[2], 3) + "\" /> (av<sup>2</sup>+bv+c)</td></tr>\n";
-			{
-				char *temp_port = allocateStringMemory(256);
-				if (temp_port)
-				{
-					snprintf(temp_port, 256, "<tr><td style=\"text-align: right;\">PORT:</td>\n<td style=\"text-align: left;\">\n<select name=\"sensorP%d\" id=\"sensorP%d\" onchange=\"selSensor(%d)\">\n", ax, ax, ax);
-					strcat(html, temp_port);
-					free(temp_port);
-				}
-			}
+			snprintf(temp_buffer, sizeof(temp_buffer), "<tr><td style=\"text-align: right;\">PORT:</td>\n<td style=\"text-align: left;\">\n<select name=\"sensorP%d\" id=\"sensorP%d\" onchange=\"selSensor(%d)\">\n", ax, ax, ax);
+			strcat(html, temp_buffer);
 			// for (uint8_t idx = 0; idx < SENSOR_PORT_NUM; idx++)
 			// {
 			// 	if (config.sensor[ax].port == idx)
@@ -9935,36 +9940,15 @@ void handle_sensor(AsyncWebServerRequest *request)
 			// 	}
 			// }
 			strcat(html, "</select></td>\n");
-			{
-				char *temp_addr = allocateStringMemory(512);
-				if (temp_addr)
-				{
-					snprintf(temp_addr, 512, "<td style=\"text-align: left;\">Addr/Reg/GPIO: <input style=\"text-align:right;\" min=\"0\" max=\"6500\" step=\"1\" name=\"address%d\" id=\"address%d\" type=\"number\" value=\"%d\" /></td>\n", ax, ax, config.sensor[ax].address);
-					strcat(html, temp_addr);
-					free(temp_addr);
-				}
-			}
-			{
-				char *temp_sample = allocateStringMemory(512);
-				if (temp_sample)
-				{
-					snprintf(temp_sample, 512, "<td style=\"text-align: left;\">Sample: <input style=\"text-align:right;\" min=\"0\" max=\"9999\" step=\"1\" name=\"sample%d\" type=\"number\" value=\"%d\" />Sec.\n", ax, config.sensor[ax].samplerate);
-					strcat(html, temp_sample);
-					snprintf(temp_sample, 512, "Average: <input style=\"text-align:right;\" min=\"0\" max=\"999\" step=\"1\" name=\"avg%d\" type=\"number\" value=\"%d\" />Sec.</td></tr>\n", ax, config.sensor[ax].averagerate);
-					strcat(html, temp_sample);
-					free(temp_sample);
-				}
-			}
-			{
-				char *temp_eqns = allocateStringMemory(1024);
-				if (temp_eqns)
-				{
-					snprintf(temp_eqns, 1024, "<tr><td style=\"text-align: right;\">EQNS:</td><td colspan=\"3\" style=\"text-align: left;\">a:<input min=\"-999\" max=\"999\" step=\"0.00001\" name=\"eqns%da\" type=\"number\" value=\"%.5f\" />  b:<input min=\"-999\" max=\"999\" step=\"0.00001\" name=\"eqns%db\" type=\"number\" value=\"%.5f\" /> c:<input min=\"-999\" max=\"999\" step=\"0.00001\" name=\"eqns%dc\" type=\"number\" value=\"%.5f\" /> (av<sup>2</sup>+bv+c)</td></tr>\n",
+			snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\">Addr/Reg/GPIO: <input style=\"text-align:right;\" min=\"0\" max=\"6500\" step=\"1\" name=\"address%d\" id=\"address%d\" type=\"number\" value=\"%d\" /></td>\n", ax, ax, config.sensor[ax].address);
+			strcat(html, temp_buffer);
+			snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\">Sample: <input style=\"text-align:right;\" min=\"0\" max=\"9999\" step=\"1\" name=\"sample%d\" type=\"number\" value=\"%d\" />Sec.\n", ax, config.sensor[ax].samplerate);
+			strcat(html, temp_buffer);
+			snprintf(temp_buffer, sizeof(temp_buffer), "Average: <input style=\"text-align:right;\" min=\"0\" max=\"999\" step=\"1\" name=\"avg%d\" type=\"number\" value=\"%d\" />Sec.</td></tr>\n", ax, config.sensor[ax].averagerate);
+			strcat(html, temp_buffer);
+			snprintf(temp_buffer, sizeof(temp_buffer), "<tr><td style=\"text-align: right;\">EQNS:</td><td colspan=\"3\" style=\"text-align: left;\">a:<input min=\"-999\" max=\"999\" step=\"0.00001\" name=\"eqns%da\" type=\"number\" value=\"%.5f\" />  b:<input min=\"-999\" max=\"999\" step=\"0.00001\" name=\"eqns%db\" type=\"number\" value=\"%.5f\" /> c:<input min=\"-999\" max=\"999\" step=\"0.00001\" name=\"eqns%dc\" type=\"number\" value=\"%.5f\" /> (av<sup>2</sup>+bv+c)</td></tr>\n",
 							 ax, config.sensor[ax].eqns[0], ax, config.sensor[ax].eqns[1], ax, config.sensor[ax].eqns[2]);
-					strcat(html, temp_eqns);
-					free(temp_eqns);
-				}
-			}
+			strcat(html, temp_buffer);
 			strcat(html, "</table></td>");
 			strcat(html, "</tr>\n");
 		}
@@ -9980,34 +9964,20 @@ void handle_sensor(AsyncWebServerRequest *request)
 		strcat(html, "typeArry = new Array(");
 		for (uint8_t idx = 0; idx < SENSOR_NAME_NUM; idx++)
 		{
-			{
-				char *temp_array_item = allocateStringMemory(256);
-				if (temp_array_item)
-				{
-					snprintf(temp_array_item, 256, "'%s'", SENSOR_NAME[idx]);
-					strcat(html, temp_array_item);
-					if (idx < SENSOR_NAME_NUM - 1)
-						strcat(html, ",");
-					free(temp_array_item);
-				}
-			}
+			snprintf(temp_buffer, sizeof(temp_buffer), "'%s'", SENSOR_NAME[idx]);
+			strcat(html, temp_buffer);
+			if (idx < SENSOR_NAME_NUM - 1)
+				strcat(html, ",");
 		}
 		strcat(html, ");\n");
 		strcat(html, "if (typeof portArry === 'undefined'){let portArry = [];};\n");
 		strcat(html, "portArry = new Array(");
 		for (uint8_t idx = 0; idx < SENSOR_PORT_NUM; idx++)
 		{
-			{
-				char *temp_port_item = allocateStringMemory(256);
-				if (temp_port_item)
-				{
-					snprintf(temp_port_item, 256, "'%s'", SENSOR_PORT[idx]);
-					strcat(html, temp_port_item);
-					if (idx < SENSOR_PORT_NUM - 1)
-						strcat(html, ",");
-					free(temp_port_item);
-				}
-			}
+			snprintf(temp_buffer, sizeof(temp_buffer), "'%s'", SENSOR_PORT[idx]);
+			strcat(html, temp_buffer);
+			if (idx < SENSOR_PORT_NUM - 1)
+				strcat(html, ",");
 		}
 		strcat(html, ");\n");
 		// strcat(html, "delete typeSel;delete listType;delete portSel;delete listPort;\n";
@@ -10017,17 +9987,10 @@ void handle_sensor(AsyncWebServerRequest *request)
 		strcat(html, "if (typeof listPort === 'undefined'){var listPort = [];};\n");
 		for (int i = 0; i < 10; i++)
 		{
-			{
-				char *temp_list = allocateStringMemory(512);
-				if (temp_list)
-				{
-					snprintf(temp_list, 512, "listType[%d] = document.querySelector('#sensorCH%d');typeSel[%d]=%d;\n", i, i, i, config.sensor[i].type);
-					strcat(html, temp_list);
-					snprintf(temp_list, 512, "listPort[%d] = document.querySelector('#sensorP%d');portSel[%d]=%d;\n", i, i, i, config.sensor[i].port);
-					strcat(html, temp_list);
-					free(temp_list);
-				}
-			}
+			snprintf(temp_buffer, sizeof(temp_buffer), "listType[%d] = document.querySelector('#sensorCH%d');typeSel[%d]=%d;\n", i, i, i, config.sensor[i].type);
+			strcat(html, temp_buffer);
+			snprintf(temp_buffer, sizeof(temp_buffer), "listPort[%d] = document.querySelector('#sensorP%d');portSel[%d]=%d;\n", i, i, i, config.sensor[i].port);
+			strcat(html, temp_buffer);
 		}
 
 		strcat(html, "for (let n = 0; n < 10; n++){\n");
@@ -10501,7 +10464,7 @@ void handle_tracker(AsyncWebServerRequest *request)
 	strcat(html, "txtsymbol.value = String.fromCharCode(symbol);\n");
 	strcat(html, "if(table==1){\n txttable.value='/';\n");
 	strcat(html, "}else if(table==2){\n txttable.value='\\\\';\n}\n");
-	strcat(html, "imgicon.src = \"http://aprs.dprns.com/symbols/icons/\"+symbol.toString()+'-'+table.toString()+'.png';\n");
+	strcat(html, "imgicon.src = \"http://aprs.nakhonthai.net/symbols/icons/\"+symbol.toString()+'-'+table.toString()+'.png';\n");
 	strcat(html, "\n}\n");
 	strcat(html, "function onSmartCheck() {\n");
 	strcat(html, "if (document.querySelector('#smartBcnEnable').checked) {\n");
@@ -10628,7 +10591,7 @@ void handle_tracker(AsyncWebServerRequest *request)
 	strcat(html, "<td align=\"right\"><b>Mic-E Type:</b></td>\n");
 	strcat(html, "<td style=\"text-align: left;\">\n");
 	strcat(html, "<select name=\"trkMicEType\" id=\"trkMicEType\">\n");
-	for (uint8_t micEIdx = 0; micEIdx < 8; micEIdx++)
+	for (uint8_t micEIdx = 0; micEIdx < 9; micEIdx++)
 	{
 		if (config.trk_mice_type == micEIdx)
 		{
@@ -10640,7 +10603,7 @@ void handle_tracker(AsyncWebServerRequest *request)
 		}
 		strcat(html, tempHtml);
 	}
-	strcat(html, "</select><label style=\"vertical-align: bottom;font-size: 8pt;\"><i>*Support if Compress is enabled and not use Item/Obj,Time Stamp</i></label></td>\n");
+	strcat(html, "</select><label style=\"vertical-align: bottom;font-size: 8pt;\"><i>*Support if Compress is enabled and not use Item/Obj,Time Stamp or UnUsed</i></label></td>\n");
 	strcat(html, "</tr>\n");
 	strcat(html, "<tr>\n");
 	strcat(html, "<td align=\"right\"><b>Time Stamp:</b></td>\n");
@@ -10674,7 +10637,7 @@ void handle_tracker(AsyncWebServerRequest *request)
 	if (config.trk_log)
 		strcpy(trackerOptCSTFlag, "checked");
 
-	snprintf(tempHtml, sizeof(tempHtml), "<tr><td style=\"text-align: right;\"><b>Option:</b></td><td style=\"text-align: left;\"><input type=\"checkbox\" name=\"trackerOptCST\" value=\"OK\" %s/>Telemetry <input type=\"checkbox\" name=\"trackerOptAlt\" value=\"OK\" %s/>Altutude <input type=\"checkbox\" name=\"trackerOptBat\" value=\"OK\" %s/>RSSI Request </td></tr>\n",
+	snprintf(tempHtml, sizeof(tempHtml), "<tr><td style=\"text-align: right;\"><b>Option:</b></td><td style=\"text-align: left;\"><input type=\"checkbox\" name=\"trackerOptCST\" value=\"OK\" %s/>Telemetry <input type=\"checkbox\" name=\"trackerOptAlt\" value=\"OK\" %s/>Altutude <input type=\"checkbox\" name=\"trackerOptBat\" value=\"OK\" %s/>Audio Request </td></tr>\n",
 			 trackerOptCSTFlag, trackerOptAltFlag, trackerOptBatFlag);
 	strcat(html, tempHtml);
 
@@ -10702,7 +10665,7 @@ void handle_tracker(AsyncWebServerRequest *request)
 		strcpy(table, "1");
 	if (config.trk_symbol[0] == 92)
 		strcpy(table, "2");
-	snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\">Table:<input maxlength=\"1\" size=\"1\" id=\"trackerTable\" name=\"trackerTable\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> Symbol:<input maxlength=\"1\" size=\"1\" id=\"trackerSymbol\" name=\"trackerSymbol\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> <img border=\"1\" style=\"vertical-align: middle;\" id=\"trackerImgSymbol\" onclick=\"openWindowSymbol(0);\" src=\"http://aprs.dprns.com/symbols/icons/%d-%s.png\"> <i>*Click icon for select symbol</i></td>\n",
+	snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\">Table:<input maxlength=\"1\" size=\"1\" id=\"trackerTable\" name=\"trackerTable\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> Symbol:<input maxlength=\"1\" size=\"1\" id=\"trackerSymbol\" name=\"trackerSymbol\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> <img border=\"1\" style=\"vertical-align: middle;\" id=\"trackerImgSymbol\" onclick=\"openWindowSymbol(0);\" src=\"http://aprs.nakhonthai.net/symbols/icons/%d-%s.png\"> <i>*Click icon for select symbol</i></td>\n",
 			 config.trk_symbol[0], config.trk_symbol[1], (int)config.trk_symbol[1], table);
 	strcat(html, tempHtml);
 	strcat(html, "</tr>\n");
@@ -10730,7 +10693,7 @@ void handle_tracker(AsyncWebServerRequest *request)
 		strcpy(table, "1");
 	if (config.trk_symmove[0] == 92)
 		strcpy(table, "2");
-	snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\">Table:<input maxlength=\"1\" size=\"1\" id=\"moveTable\" name=\"moveTable\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> Symbol:<input maxlength=\"1\" size=\"1\" id=\"moveSymbol\" name=\"moveSymbol\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> <img border=\"1\" style=\"vertical-align: middle;\" id=\"moveImgSymbol\" onclick=\"openWindowSymbol(1);\" src=\"http://aprs.dprns.com/symbols/icons/%d-%s.png\"> <i>*Click icon for select MOVE symbol</i></td>\n",
+	snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\">Table:<input maxlength=\"1\" size=\"1\" id=\"moveTable\" name=\"moveTable\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> Symbol:<input maxlength=\"1\" size=\"1\" id=\"moveSymbol\" name=\"moveSymbol\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> <img border=\"1\" style=\"vertical-align: middle;\" id=\"moveImgSymbol\" onclick=\"openWindowSymbol(1);\" src=\"http://aprs.nakhonthai.net/symbols/icons/%d-%s.png\"> <i>*Click icon for select MOVE symbol</i></td>\n",
 			 config.trk_symmove[0], config.trk_symmove[1], (int)config.trk_symmove[1], table);
 	strcat(html, tempHtml);
 	strcat(html, "</tr>\n");
@@ -10741,7 +10704,7 @@ void handle_tracker(AsyncWebServerRequest *request)
 		strcpy(table, "1");
 	if (config.trk_symstop[0] == 92)
 		strcpy(table, "2");
-	snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\">Table:<input maxlength=\"1\" size=\"1\" id=\"stopTable\" name=\"stopTable\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> Symbol:<input maxlength=\"1\" size=\"1\" id=\"stopSymbol\" name=\"stopSymbol\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> <img border=\"1\" style=\"vertical-align: middle;\" id=\"stopImgSymbol\" onclick=\"openWindowSymbol(2);\" src=\"http://aprs.dprns.com/symbols/icons/%d-%s.png\"> <i>*Click icon for select STOP symbol</i></td>\n",
+	snprintf(tempHtml, sizeof(tempHtml), "<td style=\"text-align: left;\">Table:<input maxlength=\"1\" size=\"1\" id=\"stopTable\" name=\"stopTable\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> Symbol:<input maxlength=\"1\" size=\"1\" id=\"stopSymbol\" name=\"stopSymbol\" type=\"text\" value=\"%c\" style=\"background-color: rgb(97, 239, 170);\" /> <img border=\"1\" style=\"vertical-align: middle;\" id=\"stopImgSymbol\" onclick=\"openWindowSymbol(2);\" src=\"http://aprs.nakhonthai.net/symbols/icons/%d-%s.png\"> <i>*Click icon for select STOP symbol</i></td>\n",
 			 config.trk_symstop[0], config.trk_symstop[1], (int)config.trk_symstop[1], table);
 	strcat(html, tempHtml);
 	strcat(html, "</tr>\n");
@@ -11468,6 +11431,111 @@ void handle_test(AsyncWebServerRequest *request)
 	free(webString); // Free the allocated memory
 }
 
+static void ota_url_task(void *pvParameters)
+{
+	char *url = (char *)pvParameters;
+	HTTPClient http;
+	http.begin(url);
+	http.setTimeout(30000);
+	int httpCode = http.GET();
+	if (httpCode == HTTP_CODE_OK) {
+		int contentLength = http.getSize();
+		WiFiClient *stream = http.getStreamPtr();
+		if (contentLength > 0 && Update.begin(contentLength)) {
+			disableLoopWDT();
+			disableCore0WDT();
+			Update.writeStream(*stream);
+			if (Update.end(true)) {
+				log_i("OTA URL update success, rebooting");
+				delay(500);
+				esp_restart();
+			} else {
+				Update.printError(Serial);
+			}
+		} else {
+			log_e("OTA URL: bad content length or Update.begin failed");
+		}
+	} else {
+		log_e("OTA URL: HTTP GET failed, code=%d", httpCode);
+	}
+	http.end();
+	free(url);
+	vTaskDelete(NULL);
+}
+
+void handle_ota_url(AsyncWebServerRequest *request)
+{
+	if (!request->authenticate(config.http_username, config.http_password)) {
+		return request->requestAuthentication();
+	}
+	if (!request->hasParam("url", true)) {
+		request->send(400, "text/plain", "Missing url parameter");
+		return;
+	}
+	String urlStr = request->getParam("url", true)->value();
+	if (urlStr.length() == 0) {
+		request->send(400, "text/plain", "Empty url");
+		return;
+	}
+	char *urlBuf = (char *)malloc(urlStr.length() + 1);
+	if (!urlBuf) {
+		request->send(500, "text/plain", "Out of memory");
+		return;
+	}
+	strcpy(urlBuf, urlStr.c_str());
+	request->send(200, "text/plain", "OTA update started");
+	xTaskCreate(ota_url_task, "ota_url_task", 8192, urlBuf, 5, NULL);
+}
+
+// Remote version file published by copy_firmware.py, checked against the
+// running VERSION/VERSION_BUILD to let the "about" page report new releases.
+#define VERSION_CHECK_URL "http://fw.nakhonthai.net/Audio/version.json"
+
+void handle_check_version(AsyncWebServerRequest *request)
+{
+	if (!request->authenticate(config.http_username, config.http_password))
+	{
+		return request->requestAuthentication();
+	}
+
+	HTTPClient http;
+	http.begin(VERSION_CHECK_URL);
+	http.setTimeout(5000);
+	int httpCode = http.GET();
+
+	if (httpCode != HTTP_CODE_OK)
+	{
+		http.end();
+		char errBuf[100];
+		snprintf(errBuf, sizeof(errBuf), "{\"error\":\"HTTP GET failed, code=%d\"}", httpCode);
+		request->send(500, "application/json", errBuf);
+		return;
+	}
+
+	String payload = http.getString();
+	http.end();
+
+	JsonDocument doc;
+	DeserializationError err = deserializeJson(doc, payload);
+	if (err)
+	{
+		request->send(500, "application/json", "{\"error\":\"Invalid version data\"}");
+		return;
+	}
+
+	const char *latestVersion = doc["version"] | "";
+	const char *latestBuild = doc["build"] | "";
+	const char *latestDate = doc["date"] | "";
+
+	bool updateAvailable = (strcmp(latestVersion, VERSION) != 0) || (strcmp(latestBuild, VERSION_BUILD) != 0);
+
+	char resp[400];
+	snprintf(resp, sizeof(resp),
+			 "{\"current_version\":\"%s\",\"current_build\":\"%s\",\"latest_version\":\"%s\",\"latest_build\":\"%s\",\"latest_date\":\"%s\",\"update_available\":%s}",
+			 VERSION, VERSION_BUILD, latestVersion, latestBuild, latestDate, updateAvailable ? "true" : "false");
+	request->send(200, "application/json", resp);
+}
+
 void handle_about(AsyncWebServerRequest *request)
 {
 	if (!request->authenticate(config.http_username, config.http_password))
@@ -11479,7 +11547,7 @@ void handle_about(AsyncWebServerRequest *request)
 	sprintf(strCID, "%04X%08X", (uint16_t)(chipid >> 32), (uint32_t)chipid);
 
 	// Allocate memory for HTML content
-	char *webString = allocateStringMemory(8192); // Start with 8KB buffer
+	char *webString = allocateStringMemory(16384); // Start with 16KB buffer
 	if (!webString)
 	{
 		request->send(500, "text/html", "Memory allocation failed");
@@ -11503,12 +11571,15 @@ void handle_about(AsyncWebServerRequest *request)
 	}
 	char ver[20];
 	sprintf(ver, "V%s%s.bin", verNoDot, VERSION_BUILD);
-#if defined(CONFIG_IDF_TARGET_ESP32)	
+#if defined(TTGO_TWR)	
+	strcat(webString, "LiLyGo T-TWRPlus");
+	sprintf(FirmwareOTA, "ESP32S3_TWR_%s", ver);
+#elif defined(CONFIG_IDF_TARGET_ESP32)	
 	#ifdef SH1106
-		strcat(webString, ",ESP32-WROOM,SH1106 OLED");
+		strcat(webString, "ESP32-WROOM+SH1106 OLED");
 		sprintf(FirmwareOTA, "ESP32_SH1106_%s", ver);
 	#elif defined(SSD1306)
-		strcat(webString, ",ESP32-WROOM,SSD1306 OLED");
+		strcat(webString, "ESP32-WROOM+SSD1306 OLED");
 		sprintf(FirmwareOTA, "ESP32_SSD1306_%s", ver);
 	#elif defined(NO_OTA)
 		strcat(webString, "ESP32-WROOM_NOOTA,ESP32 DoIt DevKit");
@@ -11567,7 +11638,7 @@ void handle_about(AsyncWebServerRequest *request)
 	char *temp_str = allocateStringMemory(512);
 	if (temp_str)
 	{
-		snprintf(temp_str, 512, "<tr><td align=\"right\"><b>Firmware Version: </b></td><td align=\"left\"> V%s%c</td></tr>\n", VERSION, VERSION_BUILD);
+		snprintf(temp_str, 512, "<tr><td align=\"right\"><b>Firmware Version: </b></td><td align=\"left\"> V%s%s</td></tr>\n", VERSION, VERSION_BUILD);
 		strcat(webString, temp_str);
 
 		snprintf(temp_str, 512, "<tr><td align=\"right\"><b>RF Module: </b></td><td align=\"left\"> %s</td></tr>\n", RF_TYPE[config.rf_type]);
@@ -11771,16 +11842,16 @@ void handle_about(AsyncWebServerRequest *request)
 	strcat(webString, "</td></tr></table><br />");
 
 	// strcat(webString, "<table style=\"text-align:unset;border-width:0px;background:unset\"><tr style=\"background:unset;\"><td width=\"96%\" style=\"border:unset;\">");
-	#ifndef NO_OTA
+#ifndef NO_OTA
 	strcat(webString, "<form method='POST' action='#' enctype='multipart/form-data' id='upload_form' class=\"form-horizontal\">\n");
 	strcat(webString, "<table>");
 	strcat(webString, "<th colspan=\"2\"><span><b>Manual Firmware Update</b></span></th>\n");
 	strcat(webString, "<tr><td align=\"right\"><b>File:</b></td><td align=\"left\"><input id=\"file\" name=\"update\" type=\"file\" onchange='sub(this)' /></td></tr>\n");
 	strcat(webString, "<tr><td align=\"right\"><b>Progress:</b></td><td><div id='prgbar'><div id='bar' style=\"width: 0px;\"><label id='prg'></label></div></div></td></tr>\n");
-	strcat(webString, "<tr><td align=\"right\"><b>Support Firmware:</b></td><td align=\"left\"><a target=\"_download\" href=\"https://github.com/nakhonthai/ESP32APRS_Audio/releases\">https://github.com/nakhonthai/ESP32APRS_Audio/releases</a></td></tr>\n");
+	strcat(webString, "<tr><td align=\"right\"><b>Support Firmware:</b></td><td align=\"left\"><a target=\"_download\" href=\"https://github.com/nakhonthai/ESP32APRS_LoRa/releases\">https://github.com/nakhonthai/ESP32APRS_LoRa/releases</a></td></tr>\n");
+	
+	strcat(webString, "<tr><td colspan=\"2\" align=\"right\"><div class=\"col-sm-3 col-xs-4\"><input type='submit' class=\"btn btn-danger\" id=\"update_sumbit\" value='Firmware UpLoad'></div></td></tr>\n");
 	strcat(webString, "</table><br />\n");
-	strcat(webString, "<div class=\"col-sm-3 col-xs-4\"><input type='submit' class=\"btn btn-danger\" id=\"update_sumbit\" value='Firmware Update'></div>\n");
-
 	strcat(webString, "</form>\n");
 	// strcat(webString, "</td></tr></table><br />");
 
@@ -11819,14 +11890,35 @@ void handle_about(AsyncWebServerRequest *request)
 					  "});"
 					  "});"
 					  "</script>");
+
 	{
 		char ota_url_buf[200];
 		snprintf(ota_url_buf, sizeof(ota_url_buf), "http://fw.nakhonthai.net/Audio/%s", FirmwareOTA);
+
+		// Derive the board-specific firmware name prefix (FirmwareOTA minus the
+		// trailing "_V<ver><build>.bin") so the client JS can rebuild the filename
+		// for a newer release once /check_version reports one is available.
+		char FirmwarePrefix[50] = "";
+		{
+			char suffix[40];
+			snprintf(suffix, sizeof(suffix), "_V%s%s.bin", verNoDot, VERSION_BUILD);
+			size_t suffixLen = strlen(suffix);
+			size_t fwLen = strlen(FirmwareOTA);
+			if (fwLen > suffixLen)
+			{
+				size_t prefixLen = fwLen - suffixLen;
+				if (prefixLen >= sizeof(FirmwarePrefix))
+					prefixLen = sizeof(FirmwarePrefix) - 1;
+				memcpy(FirmwarePrefix, FirmwareOTA, prefixLen);
+				FirmwarePrefix[prefixLen] = '\0';
+			}
+		}
+
 		strcat(webString, "<table>");
 		strcat(webString, "<th colspan=\"2\"><span><b>OTA Online Firmware Update</b></span></th>\n");
 		char ota_row[512];
 		snprintf(ota_row, sizeof(ota_row),
-			"<tr><td align=\"right\"><b>Firmware File:</b></td><td align=\"left\"><a href=\"%s\" target=\"_blank\">%s</a></td></tr>\n",
+			"<tr><td align=\"right\"><b>Firmware File:</b></td><td align=\"left\"><a id=\"fw_file_link\" href=\"%s\" target=\"_blank\">%s</a></td></tr>\n",
 			ota_url_buf, FirmwareOTA);
 		strcat(webString, ota_row);
 		snprintf(ota_row, sizeof(ota_row),
@@ -11837,12 +11929,53 @@ void handle_about(AsyncWebServerRequest *request)
 		snprintf(ota_row, sizeof(ota_row),
 			"<tr><td colspan=\"2\" align=\"right\"><div class=\"col-sm-3 col-xs-4\">"
 			"<input type='hidden' id='ota_url' value='%s'>"
+			"<input type='hidden' id='fw_prefix' value='%s'>"
+			"<input type='button' class=\"btn btn-danger\" id=\"check_ver_btn\" value='Check New Version'>"
 			"<input type='button' class=\"btn btn-danger\" id=\"ota_sumbit\" value='Firmware Update'>"
 			"</div></td></tr>\n",
-			ota_url_buf);
+			ota_url_buf, FirmwarePrefix);
 		strcat(webString, ota_row);
 		strcat(webString, "</table><br />\n");
 	}
+
+	// strcat(webString, "<table>");
+	// strcat(webString, "<th colspan=\"2\"><span><b>Check for New Version</b></span></th>\n");
+	// strcat(webString, "<tr><td align=\"right\"><b>Update Server:</b></td><td align=\"left\"><a href=\"" VERSION_CHECK_URL "\" target=\"_blank\">" VERSION_CHECK_URL "</a></td></tr>\n");
+	// strcat(webString, "<tr><td align=\"right\"><b>Status:</b></td><td align=\"left\"><span id='ver_check_result'>-</span></td></tr>\n");
+	// strcat(webString, "<tr><td colspan=\"2\" align=\"right\"><div class=\"col-sm-3 col-xs-4\"><input type='button' class=\"btn btn-danger\" id=\"check_ver_btn\" value='Check New Version'></div></td></tr>\n");
+	// strcat(webString, "</table><br />\n");
+
+	strcat(webString, "<script>"
+					  "document.getElementById('check_ver_btn').addEventListener('click', function(){"
+					  "document.getElementById('check_ver_btn').disabled = true;"
+					  "document.getElementById('ota_prg').innerHTML = 'Checking...';"
+					  "$.ajax({"
+					  "url: '/check_version',"
+					  "type: 'GET',"
+					  "dataType: 'json',"
+					  "success: function(d) {"
+					  "document.getElementById('check_ver_btn').disabled = false;"
+					  "if (d.update_available) {"
+					  "var noDotVer = d.latest_version.replace(/\\./g, '');"
+					  "var prefix = document.getElementById('fw_prefix').value;"
+					  "var newFile = prefix + '_V' + noDotVer + d.latest_build + '.bin';"
+					  "var newUrl = 'http://fw.nakhonthai.net/Audio/' + newFile;"
+					  "var fwLink = document.getElementById('fw_file_link');"
+					  "fwLink.href = newUrl;"
+					  "fwLink.innerHTML = newFile;"
+					  "document.getElementById('ota_url').value = newUrl;"
+					  "document.getElementById('ota_prg').innerHTML = 'New version available: V' + d.latest_version + d.latest_build + ' (' + d.latest_date + ') - firmware link updated.';"
+					  "} else {"
+					  "document.getElementById('ota_prg').innerHTML = 'You are using the latest version.';"
+					  "}"
+					  "},"
+					  "error: function(a, b, c) {"
+					  "document.getElementById('check_ver_btn').disabled = false;"
+					  "document.getElementById('ota_prg').innerHTML = 'Error checking version: ' + c;"
+					  "}"
+					  "});"
+					  "});"
+					  "</script>");
 
 	strcat(webString, "<script>"
 					  "document.getElementById('ota_sumbit').addEventListener('click', function(){"
@@ -11865,7 +11998,7 @@ void handle_about(AsyncWebServerRequest *request)
 					  "});"
 					  "});"
 					  "</script>");
-	#endif
+#endif
 	strcat(webString, "</body></html>\n");
 
 	AsyncWebServerResponse *response = request->beginResponse(200, "text/html", (const char *)webString);
@@ -12231,6 +12364,12 @@ void webService()
 				}
 			}
 		});
+
+	async_server.on("/ota_url", HTTP_POST, [](AsyncWebServerRequest *request)
+					{ handle_ota_url(request); });
+
+	async_server.on("/check_version", HTTP_GET, [](AsyncWebServerRequest *request)
+					{ handle_check_version(request); });		
 
 	lastheard_events.onConnect([](AsyncEventSourceClient *client)
 							   {

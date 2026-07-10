@@ -1292,10 +1292,11 @@ char ax25_encode(ax25frame &frame, char *txt, int size)
 
 uint8_t *ax25_putRaw(uint8_t *raw, AX25Ctx *ctx, uint8_t c)
 {
-    if (c == HDLC_FLAG || c == HDLC_RESET || c == AX25_ESC)
-    {
-        *raw++ = AX25_ESC;
-    }
+    // Note: no byte-level escaping here. The real HDLC bit-stuffing
+    // (insert a 0 bit after five consecutive 1 bits) is done later,
+    // per-bit, in Ax25GetTxBit(). Escaping bytes here as well used to
+    // inject a spurious 0x1B whenever a header byte equalled 0x7E/0x7F/0x1B
+    // (e.g. SSID 15 encodes to 0x7E), corrupting the transmitted frame.
     ctx->crc_out = update_crc_ccit(c, ctx->crc_out);
     *raw++ = c;
     return raw;

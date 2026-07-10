@@ -132,6 +132,20 @@
 #define INET_CHANNEL	(1<<1)
 #define TNC_CHANNEL	(1<<2)
 
+#ifdef TTGO_TWR
+#define MIC_CTRL_PIN (17)
+
+#define BUTTON_PTT_PIN (3)
+#define BUTTON_DOWN_PIN (0)
+#define ENCODER_A_PIN (47)
+#define ENCODER_B_PIN (46)
+#define ENCODER_OK_PIN (21)
+#else
+#define ENCODER_A_PIN (-1)
+#define ENCODER_B_PIN (-1)
+#define ENCODER_OK_PIN (-1)
+#endif
+
 #if defined(HELTEC_HTIT_TRACKER)
 #define ST7735_LED_K_Pin 21
 #elif defined(APRS_LORA_DONGLE)
@@ -346,6 +360,7 @@ typedef struct pppStruct
 } pppType;
 
 #ifdef OLED
+#ifndef TTGO_TWR
 const unsigned char LOGO[] PROGMEM =
 	{
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -377,6 +392,7 @@ const unsigned char LOGO[] PROGMEM =
 		0x03, 0x1F, 0x3F, 0x3F, 0x3F, 0x1F, 0x03, 0x03, 0x03, 0x03,
 		0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x1F,
 		0x3F, 0x3F, 0x3F, 0x1F, 0x03, 0x00, 0x00, 0x00};
+#endif		
 #endif
 
 const char PARM[] = {"PARM.RF->INET,INET->RF,DigiRpt,TX2RF,DropRx"};
@@ -395,7 +411,7 @@ const char MODEM_TYPE[4][17] = {"AFSK_300", "AFSK_1200","AFSK_1200v23","GFSK9600
 const char FX25_MODE[3][6] = {"NONE","RX","RX+TX"};
 const char PWR_MODE[3][10] = {"MODE A", "MODE B","MODE C"};
 const char WX_SENSOR[26][19]={"Wind Course","Wind Speed","Wind Gust","Temperature","Rain 1hr","Rain 24hr","Rain Midnight","Humidity","Barometric","Luminosity","Snow","Soil Temperature","Soil Humidity","Water Temperature","Water TDS","Water Level","PM 2.5","PM 10","Co2","CH2O","TVOC","UV","SOUND","VBAT","IBAT","VSOLAR"};
-const char MIC_E_MSG[8][10] = {"Emergency", "Priority", "Special", "Committed", "Returning", "InService", "En Route", "Off Duty"};
+const char MIC_E_MSG[9][10] = {"Emergency", "Priority", "Special", "Committed", "Returning", "InService", "En Route", "Off Duty", "UnUsed"};
 
 uint8_t checkSum(uint8_t *ptr, size_t count);
 //void saveEEPROM();
@@ -413,8 +429,8 @@ void sortPkgDesc(pkgListType a[], int size);
 //int processPacket(String &tnc2);
 int digiProcess(AX25Msg &Packet);
 void printTime();
-//int popTNC2Raw(int &ret);
-//int pushTNC2Raw(int raw);
+int popTNC2Raw(int &ret);
+int pushTNC2Raw(int raw);
 //int pkgListUpdate(char *call, char *raw, uint16_t type, bool channel, uint16_t audioLvl);
 int pkgList_Find(char *call,char *object, uint16_t type);
 int pkgList_Find(char *call, uint16_t type);

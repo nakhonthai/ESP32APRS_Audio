@@ -224,15 +224,18 @@ bool getCPU_TEMP(uint8_t port)
     {
         if (config.sensor[i].type == SENSOR_TEMPERATURE)
         {
-            if (tempSensor.begin())
-            {
-                float temperature = tempSensor.getTemp();
-                sensorUpdate(i, (double)temperature);
-            }
-            else
-            {
-                log_d("CPU Temp Sensor not available");
-                return false;
+            if(!config.sensor[i].enable) continue;
+            if (config.sensor[i].port == port){
+                if (tempSensor.begin())
+                {
+                    float temperature = tempSensor.getTemp();
+                    sensorUpdate(i, (double)temperature);
+                }
+                else
+                {
+                    log_d("CPU Temp Sensor not available");
+                    return false;
+                }
             }
         }       
     }
@@ -1114,7 +1117,7 @@ bool getSensor(int cfgIdx)
         getBAT(0);
         break;
     case PORT_CPU_TEMP:
-        getCPU_TEMP(0);
+        getCPU_TEMP(port);
         break;
     case PORT_CNT_0:
         getCNT0(port);

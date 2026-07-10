@@ -30,6 +30,8 @@
 #include <dsps_fir.h>
 #ifdef CONFIG_IDF_TARGET_ESP32C3
 #include <esp32c3/rom/crc.h>
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
+#include "esp32s3/rom/crc.h"
 #else
 #include "esp32/rom/crc.h"
 #endif
@@ -105,6 +107,10 @@ float *audio_buffer = NULL;
 #define AGC_RELEASE 0.001f  // Slow release rate
 #define AGC_MAX_GAIN 10.0f
 #define AGC_MIN_GAIN 0.1f
+
+#ifdef TTGO_TWR
+  #define MIC_CTL_SEL_PIN 17
+#endif
 
 int8_t _led_rx_pin = 2;
 int8_t _led_tx_pin = 4;
@@ -824,6 +830,9 @@ void setPtt(bool state)
   log_d("PTT Pin: %d, Active: %d, State: %d", _ptt_pin, _ptt_active, state);
   if (state)
   {
+    #ifdef TTGO_TWR
+    digitalWrite(MIC_CTL_SEL_PIN, HIGH);
+    #endif
     setTransmit(true);
     #if defined(CONFIG_IDF_TARGET_ESP32S3)
     if((_ptt_pin > 25) && (_ptt_pin < 38))
@@ -859,6 +868,9 @@ void setPtt(bool state)
       digitalWrite(_ptt_pin, HIGH);
     }
     LED_Status2(0, 0, 0);
+    #ifdef TTGO_TWR
+    digitalWrite(MIC_CTL_SEL_PIN, LOW);
+    #endif
   }
 }
 
@@ -1204,7 +1216,9 @@ static void sigmadelta_init(void)
       .channel = SIGMADELTA_CHANNEL_0,
       .sigmadelta_duty = 127,
       .sigmadelta_prescale = 96,
-#ifdef CONFIG_IDF_TARGET_ESP32C3
+#if defined(TTGO_TWR)
+      .sigmadelta_gpio = GPIO_NUM_18, // GPIO4 is used for TTGO TWR
+#elif defined(CONFIG_IDF_TARGET_ESP32C3)
       .sigmadelta_gpio = GPIO_NUM_1, // GPIO1 is used for ESP32C3
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
       .sigmadelta_gpio = GPIO_NUM_2, // GPIO2 is used for ESP32S3
@@ -1217,6 +1231,16 @@ static void sigmadelta_init(void)
 
 void AFSK_hw_init(void)
 {
+  #ifdef TTGO_TWR
+  //pinMode(PTT_PIN, OUTPUT);
+  pinMode(MIC_CTL_SEL_PIN, OUTPUT);      // MIC_SEL
+  //pinMode(MIC_PIN, OUTPUT); // ESP2MIC
+  pinMode(adc_pins[0], ANALOG);       // AUDIO2ESP
+
+  digitalWrite(MIC_CTL_SEL_PIN, HIGH);
+  //digitalWrite(PTT_PIN, HIGH); // PTT not active
+  #endif
+
   // Set up ADC
   if (_sql_pin > -1)
     pinMode(_sql_pin, INPUT_PULLUP);

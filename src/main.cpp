@@ -34,7 +34,9 @@
 
 #include <Fonts/FreeSansBold9pt7b.h>
 #include <Fonts/FreeSerifItalic9pt7b.h>
-#include "Font/Seven_Segment24pt7b.h"
+#ifndef GUI_LCD
+#include <Fonts/Seven_Segment24pt7b.h>
+#endif
 
 #include "wireguard_vpn.h"
 #include <WiFiUdp.h>
@@ -77,8 +79,31 @@
 #define PPP_MODEM_MODEL PPP_MODEM_SIM800
 #endif
 
-#define CONFIG_I2C_ENABLE_DEBUG_LOG 0
+#ifdef TTGO_TWR
+#include <XPowersLib.h>
+#define PMU_I2C_SDA (42)
+#define PMU_I2C_SCL (41)
+#define PMU_IRQ (40)
+XPowersAXP2101 PMU;
+#endif
 
+#ifdef GUI_LCD
+#include "gui_lcd.h"
+#include <Adafruit_GFX.h>
+#include <Adafruit_I2CDevice.h>
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 64 // OLED display height, in pixels
+
+// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+#include <Adafruit_SH1106.h>
+#define OLED_RESET -1
+#define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+Adafruit_SH1106 display(OLED_RESET);
+TaskHandle_t mainDisplayHandle;
+#endif
+
+#define CONFIG_I2C_ENABLE_DEBUG_LOG 0
 #define EEPROM_SIZE 4096
 
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)
@@ -237,7 +262,7 @@ extern volatile int8_t dacEn;
 extern volatile bool pttOff;
 extern volatile uint32_t adcIsrCount;
 extern volatile int fifoSampleCount;
-extern volatile uint32_t frameDecodeCount;
+//extern volatile uint32_t frameDecodeCount;
 
 long timeNetwork, timeAprs, timeGui;
 long autoResetTimeout = 0;
@@ -309,6 +334,7 @@ time_t startTime = 0;
 
 #ifdef BLUETOOTH
 #if !defined(CONFIG_IDF_TARGET_ESP32)
+#define CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_EXTERNAL 1
 #include <NuSerial.hpp>
 #include <NimBLEDevice.h>
 #else
@@ -360,6 +386,231 @@ void convertSecondsToDHMS(char *dmhs, unsigned long totalSeconds)
     // Serial.print(seconds);
     // Serial.println("S");
 }
+
+#ifdef TTGO_TWR
+void setupPower()
+{
+  bool result = false;
+  int c = 0;
+  while (result == false)
+  {
+    log_d("PMU is not online...");
+    delay(500);
+    result = PMU.begin(Wire, AXP2101_SLAVE_ADDRESS, config.i2c_sda_pin, config.i2c_sck_pin);
+    if (result)
+      break;
+    c++;
+    if (c > 10)
+      return;
+  }
+
+  // Set the minimum common working voltage of the PMU VBUS input,
+  // below this value will turn off the PMU
+  PMU.setVbusVoltageLimit(XPOWERS_AXP2101_VBUS_VOL_LIM_3V88);
+
+  // Set the maximum current of the PMU VBUS input,
+  // higher than this value will turn off the PMU
+  PMU.setVbusCurrentLimit(XPOWERS_AXP2101_VBUS_CUR_LIM_2000MA);
+
+  // Get the VSYS shutdown voltage
+  uint16_t vol = PMU.getSysPowerDownVoltage();
+  log_d("->  getSysPowerDownVoltage:%u\n", vol);
+
+  // Set VSY off voltage as 2600mV , Adjustment range 2600mV ~ 3300mV
+  PMU.setSysPowerDownVoltage(2600);
+
+  //! DC1 ESP32S3 Core VDD , Don't change
+  // PMU.setDC1Voltage(3300);
+
+  //! DC3 Radio & Pixels VDD , Don't change
+  PMU.setDC3Voltage(3400);
+
+  //! ALDO2 MICRO TF Card VDD, Don't change
+  PMU.setALDO2Voltage(3300);
+
+  //! ALDO4 GNSS VDD, Don't change
+  PMU.setALDO4Voltage(3300);
+
+  //! BLDO1 MIC VDD, Don't change
+  PMU.setBLDO1Voltage(3300);
+
+  //! The following supply voltages can be controlled by the user
+  // DC5 IMAX=2A
+  // 1200mV
+  // 1400~3700mV,100mV/step,24steps
+  PMU.setDC5Voltage(3500);
+
+  // ALDO1 IMAX=300mA
+  // 500~3500mV, 100mV/step,31steps
+  PMU.setALDO1Voltage(3300);
+
+  // ALDO3 IMAX=300mA
+  // 500~3500mV, 100mV/step,31steps
+  PMU.setALDO3Voltage(3300);
+
+  // BLDO2 IMAX=300mA
+  // 500~3500mV, 100mV/step,31steps
+  PMU.setBLDO2Voltage(3300);
+
+  //! END
+
+  // Turn on the power that needs to be used
+  //! DC1 ESP32S3 Core VDD , Don't change
+  // PMU.enableDC3();
+
+  //! External pin power supply
+  PMU.enableDC5();
+  PMU.enableALDO1();
+  PMU.enableALDO3(); //AudioSwitchEn (V2.1)
+  PMU.enableBLDO2();
+
+  //! ALDO2 MICRO TF Card VDD
+  PMU.enableALDO2();
+
+  //! ALDO4 GNSS VDD
+  PMU.enableALDO4();
+
+  //! BLDO1 MIC VDD
+  PMU.enableBLDO1();
+
+  //! DC3 Radio & Pixels VDD
+  PMU.enableDC3();
+
+  // power off when not in use
+  PMU.disableDC2();
+  PMU.disableDC4();
+  PMU.disableCPUSLDO();
+  PMU.disableDLDO1(); //DownloadSwitchEn (V2.1)
+  PMU.disableDLDO2();
+
+  log_d("DCDC=======================================================================");
+  log_d("DC1  : %s   Voltage:%u mV \n", PMU.isEnableDC1() ? "+" : "-", PMU.getDC1Voltage());
+  log_d("DC2  : %s   Voltage:%u mV \n", PMU.isEnableDC2() ? "+" : "-", PMU.getDC2Voltage());
+  log_d("DC3  : %s   Voltage:%u mV \n", PMU.isEnableDC3() ? "+" : "-", PMU.getDC3Voltage());
+  log_d("DC4  : %s   Voltage:%u mV \n", PMU.isEnableDC4() ? "+" : "-", PMU.getDC4Voltage());
+  log_d("DC5  : %s   Voltage:%u mV \n", PMU.isEnableDC5() ? "+" : "-", PMU.getDC5Voltage());
+  log_d("ALDO=======================================================================");
+  log_d("ALDO1: %s   Voltage:%u mV\n", PMU.isEnableALDO1() ? "+" : "-", PMU.getALDO1Voltage());
+  log_d("ALDO2: %s   Voltage:%u mV\n", PMU.isEnableALDO2() ? "+" : "-", PMU.getALDO2Voltage());
+  log_d("ALDO3: %s   Voltage:%u mV\n", PMU.isEnableALDO3() ? "+" : "-", PMU.getALDO3Voltage());
+  log_d("ALDO4: %s   Voltage:%u mV\n", PMU.isEnableALDO4() ? "+" : "-", PMU.getALDO4Voltage());
+  log_d("BLDO=======================================================================");
+  log_d("BLDO1: %s   Voltage:%u mV\n", PMU.isEnableBLDO1() ? "+" : "-", PMU.getBLDO1Voltage());
+  log_d("BLDO2: %s   Voltage:%u mV\n", PMU.isEnableBLDO2() ? "+" : "-", PMU.getBLDO2Voltage());
+  log_d("===========================================================================");
+
+  // Set the time of pressing the button to turn off
+  PMU.setPowerKeyPressOffTime(XPOWERS_POWEROFF_4S);
+  uint8_t opt = PMU.getPowerKeyPressOffTime();
+  log_d("PowerKeyPressOffTime:");
+  switch (opt)
+  {
+  case XPOWERS_POWEROFF_4S:
+    log_d("4 Second");
+    break;
+  case XPOWERS_POWEROFF_6S:
+    log_d("6 Second");
+    break;
+  case XPOWERS_POWEROFF_8S:
+    log_d("8 Second");
+    break;
+  case XPOWERS_POWEROFF_10S:
+    log_d("10 Second");
+    break;
+  default:
+    break;
+  }
+  // Set the button power-on press time
+  PMU.setPowerKeyPressOnTime(XPOWERS_POWERON_128MS);
+  opt = PMU.getPowerKeyPressOnTime();
+  log_d("PowerKeyPressOnTime:");
+  switch (opt)
+  {
+  case XPOWERS_POWERON_128MS:
+    log_d("128 Ms");
+    break;
+  case XPOWERS_POWERON_512MS:
+    log_d("512 Ms");
+    break;
+  case XPOWERS_POWERON_1S:
+    log_d("1 Second");
+    break;
+  case XPOWERS_POWERON_2S:
+    log_d("2 Second");
+    break;
+  default:
+    break;
+  }
+
+  log_d("===========================================================================");
+  // It is necessary to disable the detection function of the TS pin on the board
+  // without the battery temperature detection function, otherwise it will cause abnormal charging
+  PMU.disableTSPinMeasure();
+
+  // Enable internal ADC detection
+  PMU.enableBattDetection();
+  PMU.enableVbusVoltageMeasure();
+  PMU.enableBattVoltageMeasure();
+  PMU.enableSystemVoltageMeasure();
+
+  /*
+    The default setting is CHGLED is automatically controlled by the PMU.
+  - XPOWERS_CHG_LED_OFF,
+  - XPOWERS_CHG_LED_BLINK_1HZ,
+  - XPOWERS_CHG_LED_BLINK_4HZ,
+  - XPOWERS_CHG_LED_ON,
+  - XPOWERS_CHG_LED_CTRL_CHG,
+  * */
+  PMU.setChargingLedMode(XPOWERS_CHG_LED_BLINK_1HZ);
+
+  // Force add pull-up
+  pinMode(PMU_IRQ, INPUT_PULLUP);
+  // attachInterrupt(PMU_IRQ, setFlag, FALLING);
+
+  // Disable all interrupts
+  PMU.disableIRQ(XPOWERS_AXP2101_ALL_IRQ);
+  // Clear all interrupt flags
+  PMU.clearIrqStatus();
+  // Enable the required interrupt function
+  PMU.enableIRQ(
+      XPOWERS_AXP2101_BAT_INSERT_IRQ | XPOWERS_AXP2101_BAT_REMOVE_IRQ |    // BATTERY
+      XPOWERS_AXP2101_VBUS_INSERT_IRQ | XPOWERS_AXP2101_VBUS_REMOVE_IRQ |  // VBUS
+      XPOWERS_AXP2101_PKEY_SHORT_IRQ | XPOWERS_AXP2101_PKEY_LONG_IRQ |     // POWER KEY
+      XPOWERS_AXP2101_BAT_CHG_DONE_IRQ | XPOWERS_AXP2101_BAT_CHG_START_IRQ // CHARGE
+  );
+
+  // Set the precharge charging current
+  PMU.setPrechargeCurr(XPOWERS_AXP2101_PRECHARGE_150MA);
+
+  // Set constant current charge current limit
+  //! Using inferior USB cables and adapters will not reach the maximum charging current.
+  //! Please pay attention to add a suitable heat sink above the PMU when setting the charging current to 1A
+  PMU.setChargerConstantCurr(XPOWERS_AXP2101_CHG_CUR_1000MA);
+
+  // Set stop charging termination current
+  PMU.setChargerTerminationCurr(XPOWERS_AXP2101_CHG_ITERM_150MA);
+
+  // Set charge cut-off voltage
+  PMU.setChargeTargetVoltage(XPOWERS_AXP2101_CHG_VOL_4V2);
+
+  // Disable the PMU long press shutdown function
+  // PMU.disableLongPressShutdown();
+  PMU.enableLongPressShutdown();
+
+  // Get charging target current
+  const uint16_t currTable[] = {
+      0, 0, 0, 0, 100, 125, 150, 175, 200, 300, 400, 500, 600, 700, 800, 900, 1000};
+  uint8_t val = PMU.getChargerConstantCurr();
+  log_d("Val = %d", val);
+  log_d("Setting Charge Target Current : %d", currTable[val]);
+
+  // Get charging target voltage
+  const uint16_t tableVoltage[] = {
+      0, 4000, 4100, 4200, 4350, 4400, 255};
+  val = PMU.getChargeTargetVoltage();
+  log_d("Setting Charge Target Voltage : %d", tableVoltage[val]);
+}
+#endif
 
 /* Decode what PCNT's unit originated an interrupt
  * and pass this information together with the event type
@@ -467,7 +718,6 @@ number of pulses, and pulses per revolution */
 //     return ((60000 * (pulseTotal / pulsePerRev)) / timeDelta);
 // }
 
-RTC_DATA_ATTR bool gps_mode;
 char EVENT_TX_POSITION = 0;
 unsigned char SB_SPEED = 0, SB_SPEED_OLD = 0;
 int16_t SB_HEADING = 0;
@@ -820,7 +1070,7 @@ uint8_t checkSum(uint8_t *ptr, size_t count)
 //     Serial.println(chkSum, HEX);
 // #endif
 // }
-
+#ifdef LOG_FILE
 void logTracker(double lat, double lon, double speed, double course)
 {
     char data[200];
@@ -1363,6 +1613,7 @@ void logWeather(double lat, double lon, double speed, double course)
 #endif
     }
 }
+#endif
 
 void defaultConfig()
 {
@@ -1377,7 +1628,7 @@ void defaultConfig()
     config.tx_timeslot = 2000; // ms
 
     config.wifi_mode = WIFI_AP_STA_FIX;
-    config.wifi_power = 44; // WIFI_POWER_11dBm
+    config.wifi_power = 74; // WIFI_POWER_18.5dBm
     config.wifi_ap_ch = 6;
     config.wifi_sta[0].enable = true;
     sprintf(config.wifi_sta[0].wifi_ssid, "APRSTH");
@@ -1421,8 +1672,9 @@ void defaultConfig()
     config.mic = 8;
     config.modem_type = 1;
 
+    config.adc_atten = 0;
+
 #ifdef ESP32C3_MINI
-    // config.wifi_power = 74;
     config.rf_tx_gpio = -1;
     config.rf_rx_gpio = -1;
     config.rf_sql_gpio = -1;
@@ -1433,6 +1685,20 @@ void defaultConfig()
     config.rf_pd_active = 1;
     config.rf_pwr_active = 1;
     config.rf_ptt_active = 0;
+#elif defined(TTGO_TWR)
+    config.rf_en = true;
+    config.rf_tx_gpio = 39;
+    config.rf_rx_gpio = 48;
+    config.rf_sql_gpio = -1;
+    config.rf_pd_gpio = 40;
+    config.rf_pwr_gpio = 38;
+    config.rf_ptt_gpio = 41;
+    config.rf_sql_active = 0;
+    config.rf_pd_active = 1;
+    config.rf_pwr_active = 1;
+    config.rf_ptt_active = 0;
+    config.adc_atten = 4;
+    config.fx25_mode = 2;
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
     config.rf_tx_gpio = 17;
     config.rf_rx_gpio = 18;
@@ -1456,7 +1722,7 @@ void defaultConfig()
     config.rf_pwr_active = 1;
     config.rf_ptt_active = 1;
 #endif
-    config.adc_atten = 0;
+    
     config.adc_dc_offset = 600;
     config.rf_baudrate = 9600;
 
@@ -1472,7 +1738,7 @@ void defaultConfig()
     config.inet2rf = false;
     config.igate_loc2rf = false;
     config.igate_loc2inet = true;
-    config.rf2inetFilter = 0xFFF; // All
+    config.rf2inetFilter = 0xFFFF; // All
     config.inet2rfFilter = config.digiFilter = FILTER_OBJECT | FILTER_ITEM | FILTER_MESSAGE | FILTER_MICE | FILTER_POSITION | FILTER_WX;
     //--APRS-IS
     config.aprs_ssid = 1;
@@ -1640,6 +1906,11 @@ void defaultConfig()
 #else
     config.oled_enable = false;
 #endif
+
+#ifdef GUI_LCD
+config.oled_enable = true;
+#endif
+
     config.oled_timeout = 60;
     config.dim = 0;
     config.contrast = 0;
@@ -1679,7 +1950,12 @@ void defaultConfig()
     sprintf(config.http_password, "admin");
 
     // config.gnss_baudrate = 9600;
+    #ifdef TTGO_TWR
+    config.gnss_enable = true;
+    config.gnss_channel = 2;
+    #else
     config.gnss_enable = false;
+    #endif
     // config.gnss_tx_gpio = 19;
     // config.gnss_rx_gpio = 18;
     // config.gnss_pps_gpio = -1;
@@ -1813,7 +2089,13 @@ void defaultConfig()
 //     config.uart0_rx_gpio = 20;
 //     config.uart0_tx_gpio = 21;
 //     config.uart0_rts_gpio = -1;
-#if defined(CONFIG_IDF_TARGET_ESP32S3)
+#if defined(TTGO_TWR)
+    config.uart0_enable = false;
+    config.uart0_baudrate = 115200;
+    config.uart0_rx_gpio = 44;
+    config.uart0_tx_gpio = 43;
+    config.uart0_rts_gpio = -1;
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
     config.uart0_enable = false;
     config.uart0_baudrate = 115200;
     config.uart0_rx_gpio = 44;
@@ -1833,6 +2115,12 @@ void defaultConfig()
     config.uart1_rx_gpio = 21;
     config.uart1_tx_gpio = 20;
     config.uart1_rts_gpio = -1;
+#elif defined(TTGO_TWR)
+    config.uart1_enable = true;
+    config.uart1_baudrate = 9600;
+    config.uart1_rx_gpio = 5;
+    config.uart1_tx_gpio = 6;
+    config.uart1_rts_gpio = -1;    
 #elif defined(CONFIG_IDF_TARGET_ESP32S3)
     config.uart1_enable = false;
     config.uart1_baudrate = 9600;
@@ -1864,7 +2152,7 @@ void defaultConfig()
     config.pwr_en = false;
     config.pwr_mode = MODE_A;        // A=Continue,B=Wait for receive,C=Send and sleep
     config.pwr_sleep_interval = 600; // sec
-    config.pwr_stanby_delay = 300;   // sec
+    config.pwr_stanby_delay = 30;   // sec
     config.pwr_sleep_activate = ACTIVATE_TRACKER | ACTIVATE_WIFI;
     config.pwr_gpio = -1;
     config.pwr_active = 1;
@@ -1929,6 +2217,10 @@ void defaultConfig()
     config.i2c_sda_pin = 21;
     config.i2c_sck_pin = 22;
 #endif
+#elif defined(GUI_LCD)
+    config.i2c_enable = true;
+    config.i2c_sda_pin = 8;
+    config.i2c_sck_pin = 9;
 #else
     config.i2c_enable = false;
     config.i2c_sda_pin = -1;
@@ -2282,37 +2574,37 @@ uint16_t pkgType(const char *raw)
     return type;
 }
 
-// uint16_t TNC2Raw[PKGLISTSIZE];
-// int raw_count = 0, raw_idx_rd = 0, raw_idx_rw = 0;
+uint16_t TNC2Raw[PKGLISTSIZE];
+int raw_count = 0, raw_idx_rd = 0, raw_idx_rw = 0;
 
-// int pushTNC2Raw(int raw)
-// {
-//   if (raw < 0)
-//     return -1;
-//   if (raw_count > PKGLISTSIZE)
-//     return -1;
-//   if (++raw_idx_rw >= PKGLISTSIZE)
-//     raw_idx_rw = 0;
-//   TNC2Raw[raw_idx_rw] = raw;
-//   raw_count++;
-//   return raw_count;
-// }
+int pushTNC2Raw(int raw)
+{
+  if (raw < 0)
+    return -1;
+  if (raw_count > PKGLISTSIZE)
+    return -1;
+  if (++raw_idx_rw >= PKGLISTSIZE)
+    raw_idx_rw = 0;
+  TNC2Raw[raw_idx_rw] = raw;
+  raw_count++;
+  return raw_count;
+}
 
-// int popTNC2Raw(int &ret)
-// {
-//   String raw = "";
-//   int idx = 0;
-//   if (raw_count <= 0)
-//     return -1;
-//   if (++raw_idx_rd >= PKGLISTSIZE)
-//     raw_idx_rd = 0;
-//   idx = TNC2Raw[raw_idx_rd];
-//   if (idx < PKGLISTSIZE)
-//     ret = idx;
-//   if (raw_count > 0)
-//     raw_count--;
-//   return raw_count;
-// }
+int popTNC2Raw(int &ret)
+{
+  String raw = "";
+  int idx = 0;
+  if (raw_count <= 0)
+    return -1;
+  if (++raw_idx_rd >= PKGLISTSIZE)
+    raw_idx_rd = 0;
+  idx = TNC2Raw[raw_idx_rd];
+  if (idx < PKGLISTSIZE)
+    ret = idx;
+  if (raw_count > 0)
+    raw_count--;
+  return raw_count;
+}
 
 pkgListType getPkgList(int idx)
 {
@@ -3150,7 +3442,11 @@ boolean APRSConnect()
 
 long oledSleepTimeout = 0;
 bool showDisp = false;
+#ifdef OLED
+RTC_DATA_ATTR bool gps_mode;
 RTC_DATA_ATTR uint8_t curTab;
+int timeHalfSec = 0;
+#endif
 
 void preTransmission()
 {
@@ -3282,6 +3578,21 @@ void setup()
         config.rf_ptt_gpio = 5; // GPIO25-37 are flash only on ESP32S3
 #endif
 
+    #ifdef TTGO_TWR
+    config.i2c_enable = true;
+    config.i2c_sda_pin = 8;
+    config.i2c_sck_pin = 9;
+    config.i2c_freq = 400000;
+    #endif
+
+    if (config.i2c_enable)
+    {
+        Wire.begin(config.i2c_sda_pin, config.i2c_sck_pin, config.i2c_freq);
+        #ifdef TTGO_TWR
+        setupPower();
+        #endif        
+    }
+
     if (config.i2c1_enable)
     {
         Wire1.begin(config.i2c1_sda_pin, config.i2c1_sck_pin, config.i2c1_freq);
@@ -3291,7 +3602,7 @@ void setup()
     if (config.oled_enable)
     {
         i2c_busy = true;
-        Wire.begin(config.i2c_sda_pin, config.i2c_sck_pin, config.i2c_freq);
+        //Wire.begin(config.i2c_sda_pin, config.i2c_sck_pin, config.i2c_freq);
 // by default, we'll generate the high voltage from the 3.3v line internally! (neat!)
 // display.begin(SSD1306_SWITCHCAPVCC, 0x3C, false); // initialize with the I2C addr 0x3C (for the 128x64)
 #ifdef SH1106
@@ -3317,7 +3628,7 @@ void setup()
         display.setTextColor(WHITE);
 
         display.setCursor(60, 40);
-        display.printf("FW Ver %s%c", VERSION, VERSION_BUILD);
+        display.printf("FW Ver %s%s", VERSION, VERSION_BUILD);
         display.setCursor(65, 5);
         display.print("Copy@2022");
         display.display();
@@ -3353,10 +3664,69 @@ void setup()
         LED_Status(0, 0, 200);
         delay(1000);
     }
+#elif defined(GUI_LCD)
+    if (config.oled_enable)
+    {
+        i2c_busy = true;
+        //Wire.begin(config.i2c_sda_pin, config.i2c_sck_pin, config.i2c_freq);
+        display.begin(SH1106_SWITCHCAPVCC, SCREEN_ADDRESS, OLED_RESET > -1);
+        // clear the display
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(WHITE);
+
+        display.setTextSize(1);
+        display.setFont(&FreeSansBold9pt7b);
+        display.setCursor(0, 15);
+        display.print("APRS");
+        display.setCursor(55, 32);
+        display.print("T-TWR+");
+        display.drawYBitmap(0, 16, LOGO, 48, 48, WHITE);
+        display.drawRoundRect(52, 16, 75, 22, 3, WHITE);
+
+        display.setFont();
+        display.setTextColor(WHITE);
+
+        display.setCursor(60, 40);
+        display.printf("FW Ver %s%s", VERSION, VERSION_BUILD);
+        display.setCursor(60, 55);
+        display.print("Copy@2023");
+        display.display();
+
+        delay(1000);
+        LED_Status(250, 0, 0);
+        display.fillRect(49, 49, 75, 14, 0);
+        display.setCursor(70, 52);
+        display.print("3 Sec");
+        display.display();
+        delay(1000);
+        LED_Status(0, 250, 0);
+        display.fillRect(49, 49, 75, 14, 0);
+        display.setCursor(70, 52);
+        display.print("2 Sec");
+        display.display();
+        delay(1000);
+        display.fillRect(49, 49, 75, 14, 0);
+        display.setCursor(70, 52);
+        display.print("1 Sec");
+        display.display();
+        delay(1000);
+        LED_Status(0, 0, 250);
+        i2c_busy = false;
+    }
+    else
+    {
+        LED_Status(200, 0, 0);
+        delay(1000);
+        LED_Status(0, 200, 0);
+        delay(1000);
+        LED_Status(0, 0, 200);
+        delay(1000);
+    }
 #else
     if (config.i2c_enable)
     {
-        Wire.begin(config.i2c_sda_pin, config.i2c_sck_pin, config.i2c_freq);
+        //Wire.begin(config.i2c_sda_pin, config.i2c_sck_pin, config.i2c_freq);
     }
     LED_Status(200, 0, 0);
     delay(1000);
@@ -3462,13 +3832,12 @@ void setup()
         display.setTextSize(1);
         display.display();
     }
-#endif
 
     showDisp = true;
     if (curTab > 7)
         curTab = 6;
     oledSleepTimeout = millis() + (config.oled_timeout * 1000);
-
+#endif
     // enableLoopWDT();
     // enableCore0WDT();
     // enableCore1WDT();
@@ -3490,6 +3859,10 @@ void setup()
     log_d("GNSS config");
     if (config.gnss_enable)
     {
+        #ifdef TTGO_TWR
+        //! ALDO4 GNSS VDD
+        PMU.enableALDO4();
+        #endif
         if ((config.gnss_channel > 0) && (config.gnss_channel < 4))
         {
             if (strstr("AT", config.gnss_at_command) != NULL)
@@ -3510,6 +3883,12 @@ void setup()
 #endif
             }
         }
+    }else
+    {
+        #ifdef TTGO_TWR
+        PMU.disableALDO4();
+        #endif
+        log_d("GNSS disable");
     }
     psramMutex = xSemaphoreCreateMutex();
 
@@ -3529,7 +3908,7 @@ void setup()
     xTaskCreatePinnedToCore(
         taskAPRSPoll,        /* Function to implement the task */
         "taskAPRSPoll",      /* Name of the task */
-        2048,                /* Stack size in words */
+        4096,                /* Stack size in words */
         NULL,                /* Task input parameter */
         0,                   /* Priority of the task */
         &taskAPRSPollHandle, /* Task handle. */
@@ -3546,6 +3925,19 @@ void setup()
         2,               /* Priority of the task */
         &taskAPRSHandle, /* Task handle. */
         1);              /* Core where the task should run */
+    #ifdef TTGO_TWR
+    if (config.oled_enable)
+    {
+        xTaskCreatePinnedToCore(
+            mainDisp,           /* Function to implement the task */
+            "mainDisplay",      /* Name of the task */
+            8192,               /* Stack size in words */
+            NULL,               /* Task input parameter */
+            1,                  /* Priority of the task */
+            &mainDisplayHandle, /* Task handle. */
+            1);                 /* Core where the task should run */
+    }
+    #endif
 #else
     // if (config.wifi_mode != 0)
     //{
@@ -3566,7 +3958,7 @@ void setup()
     xTaskCreatePinnedToCore(
         taskAPRSPoll,        /* Function to implement the task */
         "taskAPRSPoll",      /* Name of the task */
-        2048,                /* Stack size in words */
+        4096,                /* Stack size in words */
         NULL,                /* Task input parameter */
         0,                   /* Priority of the task */
         &taskAPRSPollHandle, /* Task handle. */
@@ -4151,7 +4543,7 @@ String trk_gps_postion(String comment)
 
             // String compPosition = compress_position(nowLat, nowLng, gps.altitude.feet(), course, spdKnot, aprs_table, aprs_symbol, (gps.satellites.value() > 3));
             //  ESP_LOGE("GPS", "Compress=%s", aprs_position);
-            if ((strlen(config.trk_item) >= 3) || (config.trk_timestamp))
+            if ((strlen(config.trk_item) >= 3) || (config.trk_timestamp) || (config.trk_mice_type == 8))
             {
                 String compPosition = compress_position(nowLat, nowLng, gps.altitude.feet(), course, spdKnot, aprs_table, aprs_symbol, (gps.satellites.value() > 3));
                 char object[10];
@@ -4163,9 +4555,12 @@ String trk_gps_postion(String comment)
                     String timeStamp = getTimeStamp();
                     sprintf(rawTNC, ";%s*%s%s", object, timeStamp, compPosition.c_str());
                 }
-                else
+                else if(strlen(config.trk_item) >= 3)
                 {
                     sprintf(rawTNC, ")%s!%s", config.trk_item, compPosition.c_str());
+                }else
+                {
+                    sprintf(rawTNC, "!%s", compPosition.c_str());
                 }
             }
             else
@@ -4296,36 +4691,59 @@ String trk_fix_position(String comment)
     if (config.trk_compress)
     { // Compress DATA
 
-        String compPosition = compress_position(config.trk_lat, config.trk_lon, (int)(config.trk_alt * 3.28F), 0, 0, config.trk_symbol[0], config.trk_symbol[1], true);
+        //String compPosition = compress_position(config.trk_lat, config.trk_lon, (int)(config.trk_alt * 3.28F), 0, 0, config.trk_symbol[0], config.trk_symbol[1], true);
         // ESP_LOGE("GPS", "Compress=%s", aprs_position);
-        if (strlen(config.trk_item) >= 3)
-        {
-            char object[10];
-            memset(object, 0x20, 10);
-            memcpy(object, config.trk_item, strlen(config.trk_item));
-            object[9] = 0;
-            if (config.trk_timestamp)
+        if ((strlen(config.trk_item) >= 3) || (config.trk_timestamp) || (config.trk_mice_type == 8))
             {
-                String timeStamp = getTimeStamp();
-                sprintf(loc, ";%s*%s%s", object, timeStamp, compPosition.c_str());
+                String compPosition = compress_position(config.trk_lat, config.trk_lon, (int)(config.trk_alt * 3.28F), 0, 0, config.trk_symbol[0], config.trk_symbol[1], true);
+                char object[10];
+                memset(object, 0x20, 10);
+                memcpy(object, config.trk_item, strlen(config.trk_item));
+                object[9] = 0;
+                if (config.trk_timestamp)
+                {
+                    String timeStamp = getTimeStamp();
+                    sprintf(loc, ";%s*%s%s", object, timeStamp, compPosition.c_str());
+                }
+                else if(strlen(config.trk_item) >= 3)
+                {
+                    sprintf(loc, ")%s!%s", config.trk_item, compPosition.c_str());
+                }else
+                {
+                    sprintf(loc, "!%s", compPosition.c_str());
+                }
             }
             else
             {
-                sprintf(loc, ")%s!%s", config.trk_item, compPosition.c_str());
+                char destCallsign[8];
+                String compPosition = compressMicE(destCallsign, config.trk_lat, config.trk_lon, 0, 0, config.trk_mice_type, NULL, 0, NULL, NULL, (int32_t)gps.altitude.meters(), config.trk_symbol[0], config.trk_symbol[1]);
+                String tnc2Raw = "";
+                char *strtmp = (char *)calloc(300, sizeof(char));
+                if (strtmp)
+                {
+                    memset(strtmp, 0, 300);
+                    if (config.trk_ssid == 0)
+                        sprintf(strtmp, "%s>%s", config.trk_mycall, destCallsign);
+                    else
+                        sprintf(strtmp, "%s-%d>%s", config.trk_mycall, config.trk_ssid, destCallsign);
+                    tnc2Raw = String(strtmp);
+                    free(strtmp);
+                }
+                if (config.trk_path < 5)
+                {
+                    if (config.trk_path > 0)
+                        tnc2Raw += "-" + String(config.trk_path);
+                }
+                else
+                {
+                    tnc2Raw += ",";
+                    tnc2Raw += getPath(config.trk_path);
+                }
+                tnc2Raw += ":";
+                tnc2Raw += String(compPosition);
+                tnc2Raw += comment + String(config.trk_comment);
+                return tnc2Raw;
             }
-        }
-        else
-        {
-            if (config.trk_timestamp)
-            {
-                String timeStamp = getTimeStamp();
-                sprintf(loc, "/%s%s", timeStamp, compPosition.c_str());
-            }
-            else
-            {
-                sprintf(loc, "!%s", compPosition.c_str());
-            }
-        }
     }
     else
     {
@@ -4724,6 +5142,17 @@ String wx_report(double lat, double lon, double alt, String comment)
     return tnc2Raw;
 }
 
+bool isValidCallsignChars(const char *call)
+{
+    for (int i = 0; i < 6 && call[i] != 0; i++)
+    {
+        char c = call[i];
+        if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')))
+            return false;
+    }
+    return true;
+}
+
 int packet2Raw(String &tnc2, AX25Msg &Packet)
 {
     if (Packet.len < 1)
@@ -4764,7 +5193,6 @@ int packet2Raw(String &tnc2, AX25Msg &Packet)
 long sendTimer = 0;
 int btn_count = 0;
 long timeCheck = 0;
-int timeHalfSec = 0;
 
 unsigned long timeTask;
 unsigned long timeSec;
@@ -4774,6 +5202,7 @@ bool save_mode = false;
 bool save_act = false;
 bool manualWiFi = false;
 
+#ifndef GUI_LCD
 void msgBox(String msg)
 {
 #ifdef OLED
@@ -4790,7 +5219,9 @@ void msgBox(String msg)
     display.display();
 #endif
 }
+#endif
 
+uint8_t heapCount = 0;
 void loop()
 {
     if (millis() > timeTask)
@@ -4840,6 +5271,7 @@ void loop()
     //         btn_count = 0;
     //     }
     // }
+    #ifdef OLED
     if (digitalRead(BOOT_PIN) == LOW)
     {
         btn_count++;
@@ -4939,7 +5371,6 @@ void loop()
         btn_count = 0;
     }
 
-#ifdef OLED
     // Popup Display
     if (config.oled_enable == true)
     {
@@ -5045,8 +5476,34 @@ void loop()
     {
         // esp_task_wdt_reset();
         timeCheck = millis() + 1000;
-        if (ESP.getFreeHeap() < 60000)
-            esp_restart();
+        #ifdef TTGO_TWR
+        VBat = (float)PMU.getBattVoltage() / 1000;
+        VBat_Flag = true;
+        #endif
+
+        // Automatic Restart when heap memory not enough
+        #ifdef __XTENSA__
+        if (ESP.getFreeHeap() < 50000)
+        #else
+        if (ESP.getFreeHeap() < 70000)
+        #endif
+        {
+            if (++heapCount > 5)
+            {
+                heapCount = 0;
+                vTaskSuspendAll();
+                WiFi.disconnect(true); // Disconnect from the network
+                WiFi.persistent(false);
+                WiFi.mode(WIFI_OFF); // Switch WiFi off
+                //PowerOff();
+                esp_restart();
+            }
+        }
+        else
+        {
+            if (heapCount > 0)
+                heapCount--;
+        }
         // Serial.println(String(ESP.getFreeHeap()));
 
         if ((config.reset_timeout > 0) && (millis() > autoResetTimeout))
@@ -6178,7 +6635,7 @@ void taskAPRS(void *pvParameters)
         {
             setPtt(false);
             pttOff = false;
-            log_i("[TX-END] PTT released, fifo=%d frames=%u", fifoSampleCount, frameDecodeCount);
+            //log_i("[TX-END] PTT released, fifo=%d frames=%u", fifoSampleCount, frameDecodeCount);
         }
         long now = millis();
         // wdtSensorTimer = now;
@@ -6528,26 +6985,33 @@ void taskAPRS(void *pvParameters)
                     }
                 }
 
-                if (config.trk_rssi)
+                if (config.trk_loc2rf)
                 {
-                    cmn += " ?RSSI";
+                    if (config.trk_rssi)
+                    {
+                        cmn += " ?AULVL";
+                    }
                 }
 
                 if (config.trk_gps) // TRACKER by GPS
                 {
                     rawData = trk_gps_postion(cmn);
+                    #ifdef LOG_FILE
                     if (config.log & LOG_TRACKER)
                     {
                         logTracker(gps.location.lat(), gps.location.lng(), gps.speed.kmph(), gps.course.deg());
                     }
+                    #endif
                 }
                 else // TRACKER by FIX position
                 {
                     rawData = trk_fix_position(cmn);
+                    #ifdef LOG_FILE
                     if (config.log & LOG_TRACKER)
                     {
                         logTracker(config.trk_lat, config.trk_lon, 0, 0);
                     }
+                    #endif
                 }
 
                 log_d("TRACKER RAW: %s\n", rawData.c_str());
@@ -6555,7 +7019,7 @@ void taskAPRS(void *pvParameters)
                 tx_counter = 0;
                 EVENT_TX_POSITION = 0;
                 last_heading = SB_HEADING;
-#if defined OLED || defined ST7735_160x80
+#if defined OLED || defined ST7735_160x80 || defined GUI_LCD
                 if (config.trk_gps)
                 {
                     // if (gps.location.isValid() && (gps.hdop.hdop() < 10.0))
@@ -6594,7 +7058,7 @@ void taskAPRS(void *pvParameters)
                 //                     // rawData.toCharArray(rawP, rawData.length());
                 //                     pkgTxPush(rawP, rawData.length(), 0);
 
-#if defined OLED || defined ST7735_160x80
+#if defined OLED || defined ST7735_160x80 || defined GUI_LCD
                 if (config.oled_enable)
                     pushTxDisp(TXCH_RF, name, sts);
 #endif
@@ -6626,10 +7090,22 @@ void taskAPRS(void *pvParameters)
             {
                 String tnc2 = "";
                 // นำข้อมูลแพ็จเกจจาก TNC ออกจากคิว
-                ax25_decode(buf, size, mV, &incomingPacket);
-                status.rxCount++;
-                if (packet2Raw(tnc2, incomingPacket) > 0)
+                ax25_decode(buf, size, mV, &incomingPacket);                
+                status.allCount++;
+                if (isValidCallsignChars(incomingPacket.src.call) && packet2Raw(tnc2, incomingPacket) > 0)
                 {
+                    String info((const char *)incomingPacket.info);
+                    // info.getBytes(msg->info,strlen((const char*)msg->info),0);
+                    int idx = info.lastIndexOf("?AULVL");
+                    if (idx > 0)
+                    {
+                        double Vrms = (double)mV / 1000;
+						double audBV = 20.0F * log10(Vrms);
+                        info.remove(idx, 6);
+                        info += "[Audio:" + String(audBV, 1) + "dBV] ";
+                        info.toCharArray((char *)incomingPacket.info, info.length(), 0);
+                        incomingPacket.len = info.length() - 1;
+                    }
                     log_d("Peak:%d Valley:%d Signal:%d mV:%d", peak, valley, signalLevel, mV);
                     log_d("RX TNC2: %s", tnc2.c_str());
                     type = pkgType((const char *)incomingPacket.info);
@@ -6750,13 +7226,17 @@ void taskAPRS(void *pvParameters)
                             // memcpy(rawP, tnc2.c_str(), tnc2.length());
                             int idx = pkgListUpdate(call, rawP, type, 0, incomingPacket.mVrms);
 
-#if defined OLED || defined ST7735_160x80
+#if defined OLED || defined ST7735_160x80 || defined GUI_LCD
                             if ((config.oled_enable) && (idx > -1))
                             {
 
                                 if (config.rx_display && config.dispRF && (type & config.dispFilter))
                                 {
+                                    #ifdef GUI_LCD
+                                    pushTNC2Raw(idx);
+                                    #else
                                     dispBuffer.push(tnc2.c_str());
+                                    #endif
                                     log_d("RF_putQueueDisp:[pkgList_idx=%d,Type=%d RAW:%s] %s\n", idx, type, call, tnc2.c_str());
                                 }
                             }
@@ -6773,9 +7253,11 @@ void taskAPRS(void *pvParameters)
                     lastPkg = true;
                     // handle_ws(tnc2, incomingPacket.mVrms);
                     //   ESP_BT.println(tnc2);
-                    status.allCount++;
-
+                    status.rxCount++;
                     tnc2.clear();
+                }else
+                {
+                    status.errorCount++;
                 }
             }
         }
@@ -6803,19 +7285,23 @@ void taskAPRS(void *pvParameters)
                         if (gps.location.isValid())
                         {
                             rawData = igate_position(gps.location.lat(), gps.location.lng(), gps.altitude.meters(), "");
+                            #ifdef LOG_FILE
                             if (config.log & LOG_IGATE)
                             {
                                 logIGate(gps.location.lat(), gps.location.lng(), gps.speed.kmph(), gps.course.deg());
                             }
+                            #endif
                         }
                     }
                     else
                     { // IGATE Send fix position
                         rawData = igate_position(config.igate_lat, config.igate_lon, config.igate_alt, "");
+                        #ifdef LOG_FILE
                         if (config.log & LOG_TRACKER)
                         {
                             logIGate(config.igate_lat, config.igate_lon, 0, 0);
                         }
+                        #endif
                     }
                     if (rawData != "")
                     {
@@ -6990,7 +7476,7 @@ void taskAPRS(void *pvParameters)
 //                             // rawData.toCharArray(rawP, rawData.length());
 //                             memcpy(rawP, rawData.c_str(), rawData.length());
 //                             pkgTxPush(rawP, rawData.length(), 0);
-#if defined OLED || defined ST7735_160x80
+#if defined OLED || defined ST7735_160x80 || defined GUI_LCD
                         if (config.oled_enable)
                             pushTxDisp(TXCH_RF, "TX IGATE", sts);
 #endif
@@ -7064,19 +7550,23 @@ void taskAPRS(void *pvParameters)
                         if (gps.location.isValid())
                         {
                             rawData = digi_position(gps.location.lat(), gps.location.lng(), gps.altitude.meters(), "");
+                            #ifdef LOG_FILE
                             if (config.log & LOG_DIGI)
                             {
                                 logDigi(gps.location.lat(), gps.location.lng(), gps.speed.kmph(), gps.course.deg());
                             }
+                            #endif
                         }
                     }
                     else
                     { // DIGI Send fix position
                         rawData = digi_position(config.digi_lat, config.digi_lon, config.digi_alt, "");
+                        #ifdef LOG_FILE
                         if (config.log & LOG_DIGI)
                         {
                             logDigi(config.digi_lat, config.digi_lon, 0, 0);
                         }
+                        #endif
                     }
                     if (rawData != "")
                     {
@@ -7252,7 +7742,7 @@ void taskAPRS(void *pvParameters)
 //                             // rawData.toCharArray(rawP, rawData.length());
 //                             memcpy(rawP, rawData.c_str(), rawData.length());
 //                             pkgTxPush(rawP, rawData.length(), 0);
-#if defined OLED || defined ST7735_160x80
+#if defined OLED || defined ST7735_160x80 || defined GUI_LCD
                         if (config.oled_enable)
                             pushTxDisp(TXCH_RF, "TX DIGI POS", sts);
 #endif
@@ -7327,12 +7817,14 @@ void taskAPRS(void *pvParameters)
                         digiPkg.clear();
                         // pkgTxPush(rawP, digiPkg.length(), digiDelay, RF_CHANNEL);
                         sprintf(sts, "--src call--\n%s\nDelay: %dms.", incomingPacket.src.call, digiDelay);
-#if defined OLED || defined ST7735_160x80
+#if defined OLED || defined ST7735_160x80 || defined GUI_LCD
                         if (config.oled_enable)
                             pushTxDisp(TXCH_DIGI, "DIGI REPEAT", sts);
 #endif
                         // free(rawP);
                     }
+                }else{
+                    status.dropCount++;
                 }
             }
         }
@@ -7349,19 +7841,23 @@ void taskAPRS(void *pvParameters)
                     if (gps.location.isValid())
                     {
                         rawData = wx_report(gps.location.lat(), gps.location.lng(), gps.altitude.meters(), "");
+                        #ifdef LOG_FILE
                         if (config.log & LOG_WX)
                         {
                             logWeather(gps.location.lat(), gps.location.lng(), gps.speed.kmph(), gps.course.deg());
                         }
+                        #endif
                     }
                 }
                 else
                 { // Wx Send fix position
                     rawData = wx_report(config.wx_lat, config.wx_lon, config.wx_alt, "");
+                    #ifdef LOG_FILE
                     if (config.log & LOG_WX)
                     {
                         logWeather(config.wx_lat, config.wx_lon, 0, 0);
                     }
+                    #endif
                 }
                 if (rawData != "")
                 {
@@ -7381,7 +7877,7 @@ void taskAPRS(void *pvParameters)
 //                         // rawData.toCharArray(rawP, rawData.length());
 //                         memcpy(rawP, rawData.c_str(), rawData.length());
 //                         pkgTxPush(rawP, rawData.length(), 0);
-#ifdef OLED
+#if defined OLED || defined GUI_LCD
                     sprintf(sts, "--src call--\n%s\nDelay: %dms.", config.wx_mycall, (config.wx_interval * 1000));
                     if (config.oled_enable)
                         pushTxDisp(TXCH_RF, "WX REPORT", sts);
@@ -7539,6 +8035,7 @@ void taskAPRS(void *pvParameters)
 
 void taskAPRSPoll(void *pvParameters)
 {
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
     afskSetModem(config.modem_type, config.audio_lpf, config.tx_timeslot, config.preamble * 100, config.fx25_mode);
     afskSetSQL(config.rf_sql_gpio, config.rf_sql_active);
     afskSetPTT(config.rf_ptt_gpio, config.rf_ptt_active);
@@ -7554,6 +8051,7 @@ void taskAPRSPoll(void *pvParameters)
 #endif
     setPtt(false);
     log_d("APRS Polling Task Start on Core %d.", xPortGetCoreID());
+
     for (;;)
     {
         if (config.modem_type == 3)
@@ -8255,7 +8753,6 @@ void taskNetwork(void *pvParameters)
                             String msg_call = "::" + src_call;
 
                             status.allCount++;
-                            status.rxCount++;
                             igateTLM.RX++;
 
                             log_d("INET: %s\n", line.c_str());
@@ -8307,14 +8804,19 @@ void taskNetwork(void *pvParameters)
                                             // }
                                             // }
 
-#if defined OLED || defined ST7735_160x80
+#if defined OLED || defined ST7735_160x80 || defined GUI_LCD
                                             if (idx > -1)
                                             {
                                                 // Put queue affter filter for display popup
                                                 if (config.rx_display && config.dispINET && (type & config.dispFilter))
                                                 {
+                                                    #ifdef GUI_LCD
+                                                    int cnt = pushTNC2Raw(idx);
+                                                    log_d("INET_putQueueDisp:[pkgList_idx=%d/queue=%d,Type=%d] %s\n", idx, cnt, type, call);
+                                                    #else
                                                     dispBuffer.push(line.c_str());
                                                     log_d("INET_putQueueDisp:[pkgList_idx=%d/queue=%d,Type=%d] %s\n", idx, dispBuffer.getCount(), type, call);
+                                                    #endif
                                                 }
                                             }
 #endif
@@ -8339,7 +8841,7 @@ void taskNetwork(void *pvParameters)
                                                     pkgTxPush(tnc2Raw.c_str(), tnc2Raw.length(), 0, RF_CHANNEL);
                                                     char sts[50];
                                                     sprintf(sts, "--SRC CALL--\n%s\n", src_call.c_str());
-#if defined OLED || defined ST7735_160x80
+#if defined OLED || defined ST7735_160x80 || defined GUI_LCD
                                                     if (config.oled_enable)
                                                         pushTxDisp(TXCH_3PTY, "TX INET->RF", sts);
 #endif
