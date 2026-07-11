@@ -8,11 +8,16 @@
  Support IS monitor: http://aprs.dprns.com:14501 or http://aprs.hs5tqa.ampr.org:14501
 */
 
+#ifdef GUI_LCD
+
 #include "gui_lcd.h"
 // #include "esp_adc_cal.h"
 #include "AFSK.h"
 #include "qrcode.h"
 #include "webservice.h"
+#include "parse_aprs.h"
+#include "pbuf.h"
+#include "config.h"
 
 #include <HTTPClient.h>
 //#include <ESP32httpUpdate.h>
@@ -7579,3 +7584,5 @@ String cut_string(String input, String header)
 
     return ("NULL"); // Return ข้อความ NULL เมื่อไม่ตรงเงื่อนไข
 }
+
+#endif // GUI_LCD

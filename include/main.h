@@ -16,7 +16,6 @@
 
 #include <Arduino.h>
 #include <AX25.h>
-#include <AsyncTCP.h>
 #include "weather.h"
 
 #include "config.h"

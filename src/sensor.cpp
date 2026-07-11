@@ -36,7 +36,7 @@ extern TinyGPSPlus gps;
 extern double VBat;
 extern bool VBat_Flag;
 extern double TempNTC;
-#ifdef TTGO_T_Beam_S3_SUPREME_V3
+#ifdef TTGO_TWR
 #include <XPowersLib.h>
 extern XPowersAXP2101 PMU;
 #endif
@@ -252,7 +252,7 @@ bool getBAT(uint8_t port)
         if (config.sensor[i].type == SENSOR_BAT_VOLTAGE)
         {
             VBat_Flag=true;
-#ifdef TTGO_T_Beam_S3_SUPREME_V3
+#ifdef TTGO_TWR
             VBat = (double)PMU.getBattVoltage() / 1000;
             sensorUpdate(i, VBat);
 #elif defined(HELTEC_HTIT_TRACKER)

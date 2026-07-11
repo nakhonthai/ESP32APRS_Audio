@@ -8,6 +8,7 @@
 */
 
 #include <Arduino.h>
+#include <AsyncTCP.h>
 #include <esp_task_wdt.h>
 #include "main.h"
 #include <LibAPRSesp.h>
@@ -88,7 +89,7 @@ XPowersAXP2101 PMU;
 #endif
 
 #ifdef GUI_LCD
-#include "gui_lcd.h"
+#include <gui_lcd.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_I2CDevice.h>
 
@@ -5737,7 +5738,7 @@ void sendTelemetry_trk(char *raw)
         SendMode |= RF_CHANNEL;
     if (config.trk_loc2inet)
         SendMode |= INET_CHANNEL;
-    pkgTxPush(str, strlen(str), 0, SendMode);
+    pkgTxPush(str, strlen(str), 1000, SendMode);
 
     // if (config.trk_loc2rf)
     // { // TLM SEND TO RF

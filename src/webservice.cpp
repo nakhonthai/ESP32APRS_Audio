@@ -11582,7 +11582,7 @@ void handle_about(AsyncWebServerRequest *request)
 		strcat(webString, "ESP32-WROOM+SSD1306 OLED");
 		sprintf(FirmwareOTA, "ESP32_SSD1306_%s", ver);
 	#elif defined(NO_OTA)
-		strcat(webString, "ESP32-WROOM_NOOTA,ESP32 DoIt DevKit");
+		strcat(webString, "ESP32-WROOM NO OTA,ESP32 DoIt DevKit");
 		sprintf(FirmwareOTA, "ESP32_NOOTA_%s", ver);
 	#else
 		strcat(webString, "ESP32-WROOM,ESP32 DoIt DevKit");
@@ -11590,13 +11590,13 @@ void handle_about(AsyncWebServerRequest *request)
 	#endif
 #elif defined(CONFIG_IDF_TARGET_ESP32C3)
 	#ifdef SH1106
-		strcat(webString, "ESP32C3,SH1106 OLED");
+		strcat(webString, "ESP32C3+SH1106 OLED");
 		sprintf(FirmwareOTA, "ESP32C3_SH1106_%s", ver);
 	#elif defined(SSD1306)
-		strcat(webString, "ESP32C3,SSD1306 OLED");
+		strcat(webString, "ESP32C3+SSD1306 OLED");
 		sprintf(FirmwareOTA, "ESP32C3_SSD1306_%s", ver);
 	#elif defined(NO_OTA)
-		strcat(webString, "ESP32C3_NOOTA,ESP32-C3 DIY");
+		strcat(webString, "ESP32C3 NO OTA,ESP32-C3 DIY");
 		sprintf(FirmwareOTA, "ESP32C3_NOOTA_%s", ver);
 	#else	
 		strcat(webString, "ESP32C3,ESP32-C3 DIY");
@@ -11604,10 +11604,10 @@ void handle_about(AsyncWebServerRequest *request)
 	#endif
 #elif defined(CONFIG_IDF_TARGET_ESP32C6)
 	#ifdef SH1106
-		strcat(webString, "ESP32C6,SH1106 OLED");
+		strcat(webString, "ESP32C6+SH1106 OLED");
 		sprintf(FirmwareOTA, "ESP32C6_SH1106_%s", ver);
 	#elif defined(SSD1306)	
-		strcat(webString, "ESP32C6,SSD1306 OLED");
+		strcat(webString, "ESP32C6+SSD1306 OLED");
 		sprintf(FirmwareOTA, "ESP32C6_SSD1306_%s", ver);
 	#elif defined(NO_OTA)
 		strcat(webString, "ESP32C6_NOOTA,ESP32-C6 DIY");
@@ -11627,7 +11627,7 @@ void handle_about(AsyncWebServerRequest *request)
 		strcat(webString, "ESP32-S3_8MB,SSD1306 OLED");
 		sprintf(FirmwareOTA, "ESP32S3_SSD1306_%s", ver);
 	#elif defined(NO_OTA)
-		strcat(webString, "ESP32-S3_4MB,No OTA");
+		strcat(webString, "ESP32-S3 Super mini,No OTA");
 		sprintf(FirmwareOTA, "ESP32S3_NOOTA_%s", ver);
 	#endif
 #else
