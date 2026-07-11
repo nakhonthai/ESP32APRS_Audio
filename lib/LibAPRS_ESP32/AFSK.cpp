@@ -131,6 +131,14 @@ extern float baudRate;  // baudrate
 // #else
 // #define BUFFER_SIZE 770
 // #endif
+
+// Guards fifo.head/tail/count between the ADC ISR (producer) and AFSK_Poll (consumer).
+// count-- in RingBuffer_Pop() is a non-atomic read-modify-write; without a spinlock shared
+// with the ISR's count++, the ISR can preempt mid-update and the decrement is lost. Over
+// long uptime (ISR runs up to ~38.4kHz) this drifts fifo.count away from the real buffer
+// occupancy until RingBuffer_Size() never reaches BLOCK_SIZE again and RX permanently stalls.
+static portMUX_TYPE fifoMux = portMUX_INITIALIZER_UNLOCKED;
+
 typedef struct
 {
   int16_t buffer[BUFFER_SIZE]; // Buffer to store int16_t data
@@ -192,11 +200,21 @@ bool IRAM_ATTR RingBuffer_Pop(RingBuffer *rb, int16_t *data)
     if (to++ > 100)
       return false; // Timeout after 1 second
   }
+  // Actual read + count-- must be mutually exclusive with the ISR's count++
+  // (same spinlock the producer side uses), otherwise this non-atomic
+  // read-modify-write can lose an update if the ISR fires mid-decrement.
+  portENTER_CRITICAL(&fifoMux);
+  if (rb->count == 0) // defensive re-check now that we hold the lock
+  {
+    portEXIT_CRITICAL(&fifoMux);
+    return false;
+  }
   if (rb->tail >= BUFFER_SIZE || rb->tail < 0)
     rb->tail = 0; // Check if tail exceeds buffer size
   *data = rb->buffer[rb->tail];
   rb->tail = (rb->tail + 1) % BUFFER_SIZE; // Wrap around using modulo
   rb->count--;
+  portEXIT_CRITICAL(&fifoMux);
   return true;
 }
 
@@ -700,7 +718,7 @@ void IRAM_ATTR sample_adc_isr()
   {
     fifo.lock = true;
     // digitalWrite(15,HIGH);
-    portENTER_CRITICAL_ISR(&timerMux); // ISR start
+    portENTER_CRITICAL_ISR(&fifoMux); // ISR start - same lock RingBuffer_Pop() uses
     int16_t adc = analogReadMilliVolts(adc_pins[0]);
 
     // RingBuffer_Push(&fifo, adc);
@@ -708,7 +726,7 @@ void IRAM_ATTR sample_adc_isr()
     fifo.buffer[fifo.head] = adc;
     fifo.head = (fifo.head + 1) % BUFFER_SIZE; // Wrap around using modulo
     fifo.count++;
-    portEXIT_CRITICAL_ISR(&timerMux); // ISR end
+    portEXIT_CRITICAL_ISR(&fifoMux); // ISR end
     // digitalWrite(15,LOW);
     fifo.lock = false;
   }
@@ -1003,7 +1021,7 @@ static bool IRAM_ATTR s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const 
   // the demodulator state when drained, causing permanent RX freeze.
   if(hw_afsk_dac_isr)
     return true;
-  portENTER_CRITICAL_ISR(&timerMux);
+  portENTER_CRITICAL_ISR(&fifoMux); // same lock RingBuffer_Pop() uses
   fifo.lock = true;
   for (uint32_t k = 0; k < edata->size; k += SOC_ADC_DIGI_RESULT_BYTES)
   {
@@ -1028,7 +1046,7 @@ static bool IRAM_ATTR s_conv_done_cb(adc_continuous_handle_t stAdcHandle, const 
     // RingBuffer_Push(&fifo, adcPush);
   }
   fifo.lock = false;
-  portEXIT_CRITICAL_ISR(&timerMux);
+  portEXIT_CRITICAL_ISR(&fifoMux);
   // vTaskDelay(TMP102_UPDATE_CICLE_MS / portTICK_PERIOD_MS);
   // return (mustYield == pdTRUE);
   return true;

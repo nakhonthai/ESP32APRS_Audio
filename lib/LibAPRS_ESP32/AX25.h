@@ -139,8 +139,7 @@ void Ax25ClearReceivedFrameBitmap(void);
  * @brief Get next received frame (if available)
  * @param **dst Pointer to internal buffer
  * @param *size Actual frame size
-<<<<<<< HEAD
- * @param *peak Signak positive peak value in %
+ * @param *peak Signal positive peak value in %
  * @param *valley Signal negative peak value in %
  * @param *level Signal level in %
  * @param *corrected Number of bytes corrected in FX.25 mode. 255 is returned if not a FX.25 packet.

@@ -299,9 +299,10 @@ void ax25_decode(uint8_t *buf,size_t len,uint16_t mVrms, AX25Msg *msg)
 #ifdef ENABLE_FX25
 static void removeLastFrameFromRxBuffer(void)
 {
-	// Reset buffer head to previous frame's start position
-	uint8_t prevFrameHead = (rxFrameHead == 0) ? FRAME_MAX_COUNT - 1 : rxFrameHead - 1;
-	rxBufferHead = rxFrame[prevFrameHead].start;
+	// rxFrameHead is only advanced on successful validation (see parseFx25Frame()),
+	// so at this point it still points at the current (failed) frame's slot -
+	// reset buffer head back to that frame's own start position.
+	rxBufferHead = rxFrame[rxFrameHead].start;
 	rxFrameBufferFull = false;
 }
 
@@ -734,10 +735,9 @@ void Ax25BitParse(uint8_t bit, uint8_t modem,uint16_t mV)
 		else
 			rx->rx = RX_STAGE_FRAME;
 
-#ifndef ENABLE_FX25
-	{
-		//this condition must not be checked when FX.25 is enabled
-		//because FX.25 parity bytes and tags contain >= 7 consecutive ones
+	//{
+		//we're already inside "rx->rx != RX_STAGE_FX25_FRAME", so we're not in the
+		//middle of an actual FX.25 parity/tag block here - safe to check for abort
 		if((rx->rawData & 0x7F) == 0x7F) //received 7 consecutive ones, this is an error
 		{
 			rx->rx = RX_STAGE_IDLE;
@@ -747,7 +747,6 @@ void Ax25BitParse(uint8_t bit, uint8_t modem,uint16_t mV)
 			rx->crc = 0xFFFF;
 			return;
 		}
-#endif
 		if((rx->rawData & 0x3F) == 0x3E) //dismiss bit 0 added by bit stuffing
 			return;
 	}
@@ -788,11 +787,9 @@ void Ax25BitParse(uint8_t bit, uint8_t modem,uint16_t mV)
 					h->corrected = AX25_NOT_FX25;
 				lastCrc = crc;
 			}
-			else
-			{
-				// FX.25 parsing failed - cleanup buffer state
-				removeLastFrameFromRxBuffer();
-			}
+			// on failure, parseFx25Frame() already cleaned up the buffer state itself
+			// (calling removeLastFrameFromRxBuffer() again here would rewind rxBufferHead
+			// past the previous, still-unread frame and corrupt it)
 			rx->rx = RX_STAGE_FLAG;
 			rx->receivedByte = 0;
 			rx->receivedBitIdx = 0;
