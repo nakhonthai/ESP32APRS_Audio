@@ -5250,6 +5250,8 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<td style=\"text-align: left;\"><input min=\"1024\" max=\"65535\"  id=\"Port\" name=\"Port\" type=\"number\" value=\"");
 		char *gnssTcpPortStr = intToString(config.gnss_tcp_port);
 		strcat(html, gnssTcpPortStr);
+		// Free temporary string
+		free(gnssTcpPortStr);
 		strcat(html, "\" /></td>\n");
 		strcat(html, "</tr>\n");
 
@@ -5311,9 +5313,13 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"");
 		char *gpioMaxStr20 = intToString(GPIO_NUM_MAX);
 		strcat(html, gpioMaxStr20);
+		// Free temporary string
+		free(gpioMaxStr20);
 		strcat(html, "\" name=\"address\" type=\"number\" value=\"");
 		char *modbusAddrStr = intToString(config.modbus_address);
 		strcat(html, modbusAddrStr);
+		// Free temporary string
+		free(modbusAddrStr);
 		strcat(html, "\" /></td>\n");
 		strcat(html, "</tr>\n");
 
@@ -5322,9 +5328,13 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"");
 		char *gpioMaxStr21 = intToString(GPIO_NUM_MAX);
 		strcat(html, gpioMaxStr21);
+		// Free temporary string
+		free(gpioMaxStr21);
 		strcat(html, "\" name=\"de\" type=\"number\" value=\"");
 		char *modbusDeStr = intToString(config.modbus_de_gpio);
 		strcat(html, modbusDeStr);
+		// Free temporary string
+		free(modbusDeStr);
 		strcat(html, "\" /></td>\n");
 		strcat(html, "</tr>\n");
 
@@ -5534,6 +5544,8 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<td style=\"text-align: left;\"><input min=\"0\" max=\"999999\" name=\"pppPin\" type=\"number\" value=\"");
 		char *pppPinStr = intToString(atoi(config.ppp_pin));
 		strcat(html, pppPinStr);
+		// Free temporary string
+		free(pppPinStr);
 		strcat(html, "\" /> <i>*PIN of SIM</i></td>\n");
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
@@ -5542,6 +5554,8 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"50\" name=\"rx\" type=\"number\" value=\"");
 		char *pppRxStr = intToString(config.ppp_rx_gpio);
 		strcat(html, pppRxStr);
+		// Free temporary string
+		free(pppRxStr);
 		strcat(html, "\" /></td>\n");
 		strcat(html, "</tr>\n");
 
@@ -5550,6 +5564,8 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"50\" name=\"tx\" type=\"number\" value=\"");
 		char *pppTxStr = intToString(config.ppp_tx_gpio);
 		strcat(html, pppTxStr);
+		// Free temporary string
+		free(pppTxStr);
 		strcat(html, "\" /></td>\n");
 		strcat(html, "</tr>\n");
 
@@ -5564,6 +5580,8 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"50\"  name=\"rst\" type=\"number\" value=\"");
 		char *pppRstStr = intToString(config.ppp_rst_gpio);
 		strcat(html, pppRstStr);
+		// Free temporary string
+		free(pppRstStr);
 		strcat(html, "\" /> Active:<input type=\"radio\" name=\"rst_active\" value=\"0\" ");
 		strcat(html, LowFlag);
 		strcat(html, "/>LOW <input type=\"radio\" name=\"rst_active\" value=\"1\" ");
@@ -5575,6 +5593,8 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<td style=\"text-align: left;\"><input min=\"0\" max=\"999999\" name=\"rstDly\" type=\"number\" value=\"");
 		char *pppRstDelayStr = intToString(config.ppp_rst_delay);
 		strcat(html, pppRstDelayStr);
+		// Free temporary string
+		free(pppRstDelayStr);
 		strcat(html, "\" /> mSec.</td>\n");
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");

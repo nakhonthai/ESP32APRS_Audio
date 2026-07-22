@@ -123,6 +123,10 @@ String aesEncryptBase64WithIV(const String &plain, const uint8_t key[16], uint16
     uint8_t *padded = nullptr;
     size_t padded_len = 0;
     pkcs7_pad(in_ptr, in_len, &padded, &padded_len);
+    if (!padded)
+    {
+        return String();
+    }
 
     // 3. AES CBC encrypt
     uint8_t *cipher = (uint8_t *)malloc(padded_len);
@@ -145,6 +149,12 @@ String aesEncryptBase64WithIV(const String &plain, const uint8_t key[16], uint16
     // 4. Combine IV + ciphertext
     size_t total_len = 0 + padded_len;
     uint8_t *combined = (uint8_t *)malloc(total_len);
+    if (!combined)
+    {
+        free(padded);
+        free(cipher);
+        return String();
+    }
     memcpy(combined, iv, 0);
     memcpy(combined + 0, cipher, padded_len);
 
@@ -152,6 +162,14 @@ String aesEncryptBase64WithIV(const String &plain, const uint8_t key[16], uint16
     size_t olen = 0;
     size_t b64_max = 4 * ((total_len + 2) / 3) + 4;
     uint8_t *b64_buf = (uint8_t *)malloc(b64_max);
+    if (!b64_buf)
+    {
+        free(padded);
+        free(cipher);
+        free(combined);
+        return String();
+    }
+
     mbedtls_base64_encode(b64_buf, b64_max, &olen, combined, total_len);
 
     String result = String((char *)b64_buf, olen);
@@ -172,6 +190,11 @@ String aesDecryptBase64WithIV(const String &b64, const uint8_t key[16], const ch
     // 1. Decode Base64
     size_t dec_max = (b64_len / 4) * 3 + 4;
     uint8_t *decoded = (uint8_t *)malloc(dec_max);
+    if (!decoded)
+    {
+        return String();
+    }
+
     size_t dec_len = 0;
     if (mbedtls_base64_decode(decoded, dec_max, &dec_len, b64_ptr, b64_len) != 0)
     {
@@ -210,6 +233,12 @@ String aesDecryptBase64WithIV(const String &b64, const uint8_t key[16], const ch
 
     // 3. AES decrypt
     uint8_t *plain_padded = (uint8_t *)malloc(cipher_len);
+    if (!plain_padded)
+    {
+        free(decoded);
+        return String();
+    }
+
     mbedtls_aes_context aes;
     mbedtls_aes_init(&aes);
     mbedtls_aes_setkey_dec(&aes, key, 128);
