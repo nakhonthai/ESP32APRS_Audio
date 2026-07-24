@@ -1057,7 +1057,10 @@ void handle_sysinfo(AsyncWebServerRequest *request)
 	snprintf(temp_buffer, sizeof(temp_buffer), "<td><b>%s</b></td>\n", strTime);
 	strcat(html, temp_buffer);
 
-	snprintf(temp_buffer, sizeof(temp_buffer), "<td><b>%.1f/%.1f</b></td>\n", (float)ESP.getFreeHeap() / 1000, (float)ESP.getHeapSize() / 1000);
+	snprintf(temp_buffer, sizeof(temp_buffer), "<td><b> %.1f | %.1f/%.1f</b></td>\n",
+				(float)ESP.getMaxAllocHeap() / 1000.0f,
+				(float)ESP.getFreeHeap() / 1000.0f,
+				(float)ESP.getHeapSize() / 1000.0f);
 	strcat(html, temp_buffer);
 
 #ifdef BOARD_HAS_PSRAM
