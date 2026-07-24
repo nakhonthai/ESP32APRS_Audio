@@ -126,6 +126,7 @@ extern pppType pppStatus;
 // Create an Event Source on /events
 AsyncEventSource lastheard_events("/eventHeard");
 AsyncEventSource message_events("/eventMsg");
+SemaphoreHandle_t sseMutex = xSemaphoreCreateMutex();
 
 char *webString;
 
@@ -1412,7 +1413,12 @@ void event_lastHeard(bool gethtml)
 	// {
 	// 	strcpy(info, html);
 	if (len > 10)
-		lastheard_events.send(html, "lastHeard", millis() / 1000, 1000);
+	{
+		if (xSemaphoreTake(sseMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+			lastheard_events.send(html, "lastHeard", millis() / 1000, 1000);
+			xSemaphoreGive(sseMutex);
+		}
+	}
 	// 	free(info);
 	// }
 
@@ -1553,7 +1559,10 @@ String event_chatMessage(bool gethtml)
 		if (info)
 		{
 			strcpy(info, html);
-			message_events.send(info, "chatMsg", time(NULL), 5000);
+			if (xSemaphoreTake(sseMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+				message_events.send(info, "chatMsg", time(NULL), 5000);
+				xSemaphoreGive(sseMutex);
+			}
 			free(info);
 		}
 	}
