@@ -2472,14 +2472,15 @@ uint16_t pkgType(const char *raw)
     uint16_t type = 0;
     char packettype = 0;
     const char *body;
-    // int paclen = strlen(raw);
+    int paclen = strlen(raw);
     char *ptr;
 
-    if (*raw == 0)
+    if (paclen == 0)
         return 0;
 
     packettype = (char)raw[0];
     body = &raw[1];
+    size_t body_len = paclen - 1;
 
     switch (packettype)
     {
@@ -2494,7 +2495,7 @@ uint16_t pkgType(const char *raw)
     case '!':
     case '=':
         type |= FILTER_POSITION;
-        if (body[18] == '_' || body[10] == '_')
+        if ((body_len > 18 && body[18] == '_') || (body_len > 10 && body[10] == '_'))
         {
             type |= FILTER_WX;
             break;
@@ -2502,7 +2503,7 @@ uint16_t pkgType(const char *raw)
     case '/':
     case '@':
         type |= FILTER_POSITION;
-        if (body[25] == '_' || body[16] == '_')
+        if ((body_len > 25 && body[25] == '_') || (body_len > 16 && body[16] == '_'))
         {
             type |= FILTER_WX;
             break;
@@ -2522,7 +2523,7 @@ uint16_t pkgType(const char *raw)
         }
         break;
     case ':':
-        if (body[9] == ':' &&
+        if (body_len > 13 && body[9] == ':' &&
             (memcmp(body + 10, "PARM", 4) == 0 ||
              memcmp(body + 10, "UNIT", 4) == 0 ||
              memcmp(body + 10, "EQNS", 4) == 0 ||
@@ -2545,7 +2546,7 @@ uint16_t pkgType(const char *raw)
         break;
     case ';':
         type |= FILTER_OBJECT;
-        if (body[35] == '_')
+        if (body_len > 35 && body[35] == '_')
             type |= FILTER_WX;
         break;
     case ')':
