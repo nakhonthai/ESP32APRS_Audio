@@ -2330,13 +2330,9 @@ void handle_radio(AsyncWebServerRequest *request)
 			strcat(html, temp_buffer);
 			if (config.rf_type == i)
 			{
-				strcat(html, "selected>");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-			}
-			snprintf(temp_buffer, sizeof(temp_buffer), "%s</option>\n", RF_TYPE[i]);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", RF_TYPE[i]);
 			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select>\n");
@@ -2401,13 +2397,9 @@ void handle_radio(AsyncWebServerRequest *request)
 			strcat(html, temp_buffer);
 			if (config.tone_tx == i)
 			{
-				strcat(html, "selected>");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-			}
-			snprintf(temp_buffer, sizeof(temp_buffer), "%.1f</option>\n", ctcss[i]);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%.1f</option>\n", ctcss[i]);
 			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select> Hz\n");
@@ -2424,13 +2416,9 @@ void handle_radio(AsyncWebServerRequest *request)
 			strcat(html, temp_buffer);
 			if (config.tone_rx == i)
 			{
-				strcat(html, "selected>");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-			}
-			snprintf(temp_buffer, sizeof(temp_buffer), "%.1f</option>\n", ctcss[i]);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%.1f</option>\n", ctcss[i]);
 			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select> Hz\n");
@@ -2510,13 +2498,9 @@ void handle_radio(AsyncWebServerRequest *request)
 			strcat(html, temp_buffer);
 			if (config.modem_type == i)
 			{
-				strcat(html, "selected>");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-			}
-			snprintf(temp_buffer, sizeof(temp_buffer), "%s</option>\n", MODEM_TYPE[i]);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", MODEM_TYPE[i]);
 			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select>\n");
@@ -2531,13 +2515,9 @@ void handle_radio(AsyncWebServerRequest *request)
 			strcat(html, temp_buffer);
 			if (config.fx25_mode == i)
 			{
-				strcat(html, "selected>");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-			}
-			snprintf(temp_buffer, sizeof(temp_buffer), "%s</option>\n", FX25_MODE[i]);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", FX25_MODE[i]);
 			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select>  (FX.25 = AX.25 + FEC)\n");
@@ -2578,13 +2558,9 @@ void handle_radio(AsyncWebServerRequest *request)
 			strcat(html, temp_buffer);
 			if (config.preamble == i)
 			{
-				strcat(html, "selected>");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-			}
-			snprintf(temp_buffer, sizeof(temp_buffer), "%d</option>\n", i * 100);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%d</option>\n", i * 100);
 			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select> mSec.\n");
@@ -3521,13 +3497,9 @@ void handle_msg(AsyncWebServerRequest *request)
 			strcat(html, temp_buffer);
 			if (config.msg_path == pthIdx)
 			{
-				strcat(html, "selected>");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-			}
-			snprintf(temp_buffer, sizeof(temp_buffer), "%s</option>\n", PATH_NAME[pthIdx]);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", PATH_NAME[pthIdx]);
 			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select></td>\n");
@@ -4431,6 +4403,7 @@ void handle_mod(AsyncWebServerRequest *request)
 	else
 	{
 		// Allocate memory for the HTML string
+		char temp_buffer[512];
 		char *html = allocateStringMemory(22000); // Start with 8KB, adjust as needed
 		if (html == NULL)
 		{
@@ -4486,54 +4459,26 @@ void handle_mod(AsyncWebServerRequest *request)
 		if (config.uart0_enable)
 			strcpy(enFlage, "checked");
 		strcat(html, "<td align=\"right\"><b>Enable</b></td>\n");
-		{
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" ") + strlen(enFlage) + strlen("\"><span class=\"slider round\"></span></label></td>\n") + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", enFlage);
-			strcat(html, temp_html);
-			free(temp_html);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", enFlage);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>RX GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *rx_gpio_str = StringToCharPtr(String(config.uart0_rx_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"rx\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(rx_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"rx\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, rx_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(rx_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"rx\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.uart0_rx_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>TX GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *tx_gpio_str = StringToCharPtr(String(config.uart0_tx_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"tx\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(tx_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"tx\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, tx_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(tx_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"tx\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.uart0_tx_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>RTS/DE GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *rts_gpio_str = StringToCharPtr(String(config.uart0_rts_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\"  name=\"rts\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(rts_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\"  name=\"rts\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, rts_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(rts_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"rts\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.uart0_rts_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
@@ -4542,22 +4487,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"baudrate\" id=\"baudrate\">\n");
 		for (int i = 0; i < 13; i++)
 		{
-			char *baudrate_str = StringToCharPtr(String(baudrate[i]));
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", baudrate[i]);
+			strcat(html, temp_buffer);
 			if (config.uart0_baudrate == baudrate[i])
 			{
-				char *temp_html = allocateStringMemory(strlen("<option value=\"\" selected>  </option>\n") + 2 * strlen(baudrate_str) + 1);
-				sprintf(temp_html, "<option value=\"%s\" selected>%s </option>\n", baudrate_str, baudrate_str);
-				strcat(html, temp_html);
-				free(temp_html);
+				strcat(html, "selected");
 			}
-			else
-			{
-				char *temp_html = allocateStringMemory(strlen("<option value=\"\" >  </option>\n") + 2 * strlen(baudrate_str) + 1);
-				sprintf(temp_html, "<option value=\"%s\" >%s </option>\n", baudrate_str, baudrate_str);
-				strcat(html, temp_html);
-				free(temp_html);
-			}
-			free(baudrate_str);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%d</option>\n", baudrate[i]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select> bps\n");
 		strcat(html, "</td>\n");
@@ -4581,54 +4518,26 @@ void handle_mod(AsyncWebServerRequest *request)
 		else
 			strcpy(enFlage, "");
 		strcat(html, "<td align=\"right\"><b>Enable</b></td>\n");
-		{
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" ") + strlen(enFlage) + strlen("\"><span class=\"slider round\"></span></label></td>\n") + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", enFlage);
-			strcat(html, temp_html);
-			free(temp_html);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", enFlage);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>RX GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *rx_gpio_str = StringToCharPtr(String(config.uart1_rx_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"rx\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(rx_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"rx\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, rx_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(rx_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"rx\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.uart1_rx_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>TX GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *tx_gpio_str = StringToCharPtr(String(config.uart1_tx_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"tx\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(tx_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"tx\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, tx_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(tx_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"tx\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.uart1_tx_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>RTS/DE GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *rts_gpio_str = StringToCharPtr(String(config.uart1_rts_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\"  name=\"rts\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(rts_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\"  name=\"rts\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, rts_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(rts_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"rts\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.uart1_rts_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
@@ -4637,22 +4546,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"baudrate\" id=\"baudrate\">\n");
 		for (int i = 0; i < 13; i++)
 		{
-			char *baudrate_str = StringToCharPtr(String(baudrate[i]));
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", baudrate[i]);
+			strcat(html, temp_buffer);
 			if (config.uart1_baudrate == baudrate[i])
 			{
-				char *temp_html = allocateStringMemory(strlen("<option value=\"\" selected>  </option>\n") + 2 * strlen(baudrate_str) + 1);
-				sprintf(temp_html, "<option value=\"%s\" selected>%s </option>\n", baudrate_str, baudrate_str);
-				strcat(html, temp_html);
-				free(temp_html);
+				strcat(html, "selected");
 			}
-			else
-			{
-				char *temp_html = allocateStringMemory(strlen("<option value=\"\" >  </option>\n") + 2 * strlen(baudrate_str) + 1);
-				sprintf(temp_html, "<option value=\"%s\" >%s </option>\n", baudrate_str, baudrate_str);
-				strcat(html, temp_html);
-				free(temp_html);
-			}
-			free(baudrate_str);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%d</option>\n", baudrate[i]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select> bps\n");
 		strcat(html, "</td>\n");
@@ -4727,26 +4628,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		if (config.onewire_enable)
 			syncFlage = "checked";
 		strcat(html, "<td align=\"right\"><b>Enable</b></td>\n");
-		{
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" ") + strlen(syncFlage.c_str()) + strlen("\"><span class=\"slider round\"></span></label></td>\n") + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", syncFlage.c_str());
-			strcat(html, temp_html);
-			free(temp_html);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", syncFlage.c_str());
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *onewire_gpio_str = StringToCharPtr(String(config.onewire_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"data\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(onewire_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"data\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, onewire_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(onewire_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"data\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.onewire_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr><td colspan=\"2\" align=\"right\">\n");
@@ -4770,34 +4659,17 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"atten\" id=\"atten\">\n");
 		for (int i = 0; i < 5; i++)
 		{
-			char *i_str = StringToCharPtr(String(i));
-			char *atten_str = StringToCharPtr(String(ADC_ATTEN[i]));
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
+			strcat(html, temp_buffer);
 			if (config.adc_atten == i)
 			{
-				char *temp_html = allocateStringMemory(strlen("<option value=\"\" selected>  </option>\n") + strlen(i_str) + strlen(atten_str) + 1);
-				sprintf(temp_html, "<option value=\"%s\" selected>%s </option>\n", i_str, atten_str);
-				strcat(html, temp_html);
-				free(temp_html);
+				strcat(html, "selected");
 			}
-			else
-			{
-				char *temp_html = allocateStringMemory(strlen("<option value=\"\" >  </option>\n") + strlen(i_str) + strlen(atten_str) + 1);
-				sprintf(temp_html, "<option value=\"%s\" >%s </option>\n", i_str, atten_str);
-				strcat(html, temp_html);
-				free(temp_html);
-			}
-			free(i_str);
-			free(atten_str);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%d</option>\n", ADC_ATTEN[i]);
+			strcat(html, temp_buffer);
 		}
-		{
-			char *offset_str = StringToCharPtr(String(offset));
-			char *temp_html = allocateStringMemory(strlen("</select> DC-Offset:  mV\n") + strlen(offset_str) + 1);
-			sprintf(temp_html, "</select> DC-Offset: %s mV\n", offset_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(offset_str);
-		}
-		strcat(html, "</td>\n");
+		snprintf(temp_buffer, sizeof(temp_buffer), "</select> DC-Offset: %d mV</td>\n", offset);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
@@ -4806,22 +4678,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"baudrate\" id=\"baudrate\">\n");
 		for (int i = 0; i < 13; i++)
 		{
-			char *baudrate_str = StringToCharPtr(String(baudrate[i]));
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", baudrate[i]);
+			strcat(html, temp_buffer);
 			if (config.rf_baudrate == baudrate[i])
 			{
-				char *temp_html = allocateStringMemory(strlen("<option value=\"\" selected>  </option>\n") + 2 * strlen(baudrate_str) + 1);
-				sprintf(temp_html, "<option value=\"%s\" selected>%s </option>\n", baudrate_str, baudrate_str);
-				strcat(html, temp_html);
-				free(temp_html);
+				strcat(html, "selected");
 			}
-			else
-			{
-				char *temp_html = allocateStringMemory(strlen("<option value=\"\" >  </option>\n") + 2 * strlen(baudrate_str) + 1);
-				sprintf(temp_html, "<option value=\"%s\" >%s </option>\n", baudrate_str, baudrate_str);
-				strcat(html, temp_html);
-				free(temp_html);
-			}
-			free(baudrate_str);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%d</option>\n", baudrate[i]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select> bps\n");
 		strcat(html, "</td>\n");
@@ -4834,30 +4698,14 @@ void handle_mod(AsyncWebServerRequest *request)
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>UART RX GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *rf_rx_gpio_str = StringToCharPtr(String(config.rf_rx_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"rx\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(rf_rx_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"rx\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, rf_rx_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(rf_rx_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"rx\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.rf_rx_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>UART TX GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *rf_tx_gpio_str = StringToCharPtr(String(config.rf_tx_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"tx\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(rf_tx_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"tx\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, rf_tx_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(rf_tx_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"tx\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.rf_tx_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		char LowFlag[20] = "", HighFlag[20] = "";
@@ -4869,16 +4717,8 @@ void handle_mod(AsyncWebServerRequest *request)
 			strcpy(LowFlag, "checked=\"checked\"");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>PD GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *rf_pd_gpio_str = StringToCharPtr(String(config.rf_pd_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\"  name=\"pd\" type=\"number\" value=\"\" /> Active:<input type=\"radio\" name=\"pd_active\" value=\"0\"  />LOW <input type=\"radio\" name=\"pd_active\" value=\"1\"  />HIGH </td>\n") + strlen(gpio_max_str) + strlen(rf_pd_gpio_str) + strlen(LowFlag) + strlen(HighFlag) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\"  name=\"pd\" type=\"number\" value=\"%s\" /> Active:<input type=\"radio\" name=\"pd_active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"pd_active\" value=\"1\" %s/>HIGH </td>\n", gpio_max_str, rf_pd_gpio_str, LowFlag, HighFlag);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(rf_pd_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"pd\" type=\"number\" value=\"%d\" /> Active:<input type=\"radio\" name=\"pd_active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"pd_active\" value=\"1\" %s/>HIGH </td>\n", GPIO_NUM_MAX, config.rf_pd_gpio, LowFlag, HighFlag);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		sprintf(LowFlag, "");
@@ -4889,16 +4729,8 @@ void handle_mod(AsyncWebServerRequest *request)
 			strcpy(LowFlag, "checked=\"checked\"");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>H/L GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *rf_pwr_gpio_str = StringToCharPtr(String(config.rf_pwr_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\"  name=\"pwr\" type=\"number\" value=\"\" /> Active:<input type=\"radio\" name=\"pwr_active\" value=\"0\"  />LOW <input type=\"radio\" name=\"pwr_active\" value=\"1\"  />HIGH </td>\n") + strlen(gpio_max_str) + strlen(rf_pwr_gpio_str) + strlen(LowFlag) + strlen(HighFlag) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\"  name=\"pwr\" type=\"number\" value=\"%s\" /> Active:<input type=\"radio\" name=\"pwr_active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"pwr_active\" value=\"1\" %s/>HIGH </td>\n", gpio_max_str, rf_pwr_gpio_str, LowFlag, HighFlag);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(rf_pwr_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"pwr\" type=\"number\" value=\"%d\" /> Active:<input type=\"radio\" name=\"pwr_active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"pwr_active\" value=\"1\" %s/>HIGH </td>\n", GPIO_NUM_MAX, config.rf_pwr_gpio, LowFlag, HighFlag);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		sprintf(LowFlag, "");
@@ -4909,16 +4741,8 @@ void handle_mod(AsyncWebServerRequest *request)
 			strcpy(LowFlag, "checked=\"checked\"");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>SQL GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *rf_sql_gpio_str = StringToCharPtr(String(config.rf_sql_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\"  name=\"sql\" type=\"number\" value=\"\" /> Active:<input type=\"radio\" name=\"sql_active\" value=\"0\"  />LOW <input type=\"radio\" name=\"sql_active\" value=\"1\"  />HIGH </td>\n") + strlen(gpio_max_str) + strlen(rf_sql_gpio_str) + strlen(LowFlag) + strlen(HighFlag) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\"  name=\"sql\" type=\"number\" value=\"%s\" /> Active:<input type=\"radio\" name=\"sql_active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"sql_active\" value=\"1\" %s/>HIGH </td>\n", gpio_max_str, rf_sql_gpio_str, LowFlag, HighFlag);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(rf_sql_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"sql\" type=\"number\" value=\"%d\" /> Active:<input type=\"radio\" name=\"sql_active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"sql_active\" value=\"1\" %s/>HIGH </td>\n", GPIO_NUM_MAX, config.rf_sql_gpio, LowFlag, HighFlag);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		sprintf(LowFlag, "");
@@ -4929,16 +4753,8 @@ void handle_mod(AsyncWebServerRequest *request)
 			strcpy(LowFlag, "checked=\"checked\"");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>PTT GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *rf_ptt_gpio_str = StringToCharPtr(String(config.rf_ptt_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\"  name=\"ptt\" type=\"number\" value=\"\" /> Active:<input type=\"radio\" name=\"ptt_active\" value=\"0\"  />LOW <input type=\"radio\" name=\"ptt_active\" value=\"1\"  />HIGH </td>\n") + strlen(gpio_max_str) + strlen(rf_ptt_gpio_str) + strlen(LowFlag) + strlen(HighFlag) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\"  name=\"ptt\" type=\"number\" value=\"%s\" /> Active:<input type=\"radio\" name=\"ptt_active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"ptt_active\" value=\"1\" %s/>HIGH </td>\n", gpio_max_str, rf_ptt_gpio_str, LowFlag, HighFlag);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(rf_ptt_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"ptt\" type=\"number\" value=\"%d\" /> Active:<input type=\"radio\" name=\"ptt_active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"ptt_active\" value=\"1\" %s/>HIGH </td>\n", GPIO_NUM_MAX, config.rf_ptt_gpio, LowFlag, HighFlag);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr><td colspan=\"2\" align=\"right\">\n");
@@ -4959,52 +4775,26 @@ void handle_mod(AsyncWebServerRequest *request)
 		if (config.i2c_enable)
 			syncFlage = "checked";
 		strcat(html, "<td align=\"right\"><b>Enable</b></td>\n");
-		{
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" ") + strlen(syncFlage.c_str()) + strlen("\"><span class=\"slider round\"></span></label></td>\n") + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", syncFlage.c_str());
-			strcat(html, temp_html);
-			free(temp_html);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", syncFlage.c_str());
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>SDA GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *i2c_sda_pin_str = StringToCharPtr(String(config.i2c_sda_pin));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"sda\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(i2c_sda_pin_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"sda\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, i2c_sda_pin_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(i2c_sda_pin_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"sda\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.i2c_sda_pin);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>SCK GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *i2c_sck_pin_str = StringToCharPtr(String(config.i2c_sck_pin));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"sck\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(i2c_sck_pin_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"sck\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, i2c_sck_pin_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(i2c_sck_pin_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"sck\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.i2c_sck_pin);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>Frequency:</b></td>\n");
-		{
-			char *freq_str = StringToCharPtr(String(config.i2c_freq));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"1000\" max=\"800000\" name=\"freq\" type=\"number\" value=\"\" /></td>\n") + strlen(freq_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"1000\" max=\"800000\" name=\"freq\" type=\"number\" value=\"%s\" /></td>\n", freq_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(freq_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"1000\" max=\"800000\" name=\"freq\" type=\"number\" value=\"%d\" /></td>\n", config.i2c_freq);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr><td colspan=\"2\" align=\"right\">\n");
@@ -5023,26 +4813,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		if (config.counter0_enable)
 			syncFlage = "checked";
 		strcat(html, "<td align=\"right\"><b>Enable</b></td>\n");
-		{
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" ") + strlen(syncFlage.c_str()) + strlen("\"><span class=\"slider round\"></span></label></td>\n") + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", syncFlage.c_str());
-			strcat(html, temp_html);
-			free(temp_html);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", syncFlage.c_str());
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>INPUT GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *counter0_gpio_str = StringToCharPtr(String(config.counter0_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"gpio\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(counter0_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"gpio\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, counter0_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(counter0_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"gpio\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.counter0_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		sprintf(LowFlag, "");
@@ -5053,12 +4831,8 @@ void handle_mod(AsyncWebServerRequest *request)
 			strcpy(LowFlag, "checked=\"checked\"");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\">Active</td>\n");
-		{
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input type=\"radio\" name=\"active\" value=\"0\"  />LOW <input type=\"radio\" name=\"active\" value=\"1\"  />HIGH </td>\n") + strlen(LowFlag) + strlen(HighFlag) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input type=\"radio\" name=\"active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"active\" value=\"1\" %s/>HIGH </td>\n", LowFlag, HighFlag);
-			strcat(html, temp_html);
-			free(temp_html);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input type=\"radio\" name=\"active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"active\" value=\"1\" %s/>HIGH </td>\n", LowFlag, HighFlag);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr><td colspan=\"2\" align=\"right\">\n");
@@ -5078,52 +4852,26 @@ void handle_mod(AsyncWebServerRequest *request)
 		if (config.i2c1_enable)
 			syncFlage = "checked";
 		strcat(html, "<td align=\"right\"><b>Enable</b></td>\n");
-		{
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" ") + strlen(syncFlage.c_str()) + strlen("\"><span class=\"slider round\"></span></label></td>\n") + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", syncFlage.c_str());
-			strcat(html, temp_html);
-			free(temp_html);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", syncFlage.c_str());
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>SDA GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *i2c1_sda_pin_str = StringToCharPtr(String(config.i2c1_sda_pin));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"sda\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(i2c1_sda_pin_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"sda\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, i2c1_sda_pin_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(i2c1_sda_pin_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"sda\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.i2c1_sda_pin);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>SCK GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *i2c1_sck_pin_str = StringToCharPtr(String(config.i2c1_sck_pin));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"sck\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(i2c1_sck_pin_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"sck\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, i2c1_sck_pin_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(i2c1_sck_pin_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"sck\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.i2c1_sck_pin);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>Frequency:</b></td>\n");
-		{
-			char *freq_str = StringToCharPtr(String(config.i2c1_freq));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"1000\" max=\"800000\" name=\"freq\" type=\"number\" value=\"\" /></td>\n") + strlen(freq_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"1000\" max=\"800000\" name=\"freq\" type=\"number\" value=\"%s\" /></td>\n", freq_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(freq_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"1000\" max=\"800000\" name=\"freq\" type=\"number\" value=\"%d\" /></td>\n", config.i2c1_freq);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr><td colspan=\"2\" align=\"right\">\n");
@@ -5142,26 +4890,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		if (config.counter1_enable)
 			syncFlage = "checked";
 		strcat(html, "<td align=\"right\"><b>Enable</b></td>\n");
-		{
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" ") + strlen(syncFlage.c_str()) + strlen("\"><span class=\"slider round\"></span></label></td>\n") + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", syncFlage.c_str());
-			strcat(html, temp_html);
-			free(temp_html);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", syncFlage.c_str());
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>INPUT GPIO:</b></td>\n");
-		{
-			char *gpio_max_str = StringToCharPtr(String(GPIO_NUM_MAX));
-			char *counter1_gpio_str = StringToCharPtr(String(config.counter1_gpio));
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input min=\"-1\" max=\"\" name=\"gpio\" type=\"number\" value=\"\" /></td>\n") + strlen(gpio_max_str) + strlen(counter1_gpio_str) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%s\" name=\"gpio\" type=\"number\" value=\"%s\" /></td>\n", gpio_max_str, counter1_gpio_str);
-			strcat(html, temp_html);
-			free(temp_html);
-			free(gpio_max_str);
-			free(counter1_gpio_str);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"gpio\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.counter1_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		sprintf(LowFlag, "");
@@ -5172,12 +4908,8 @@ void handle_mod(AsyncWebServerRequest *request)
 			strcpy(LowFlag, "checked=\"checked\"");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\">Active</td>\n");
-		{
-			char *temp_html = allocateStringMemory(strlen("<td style=\"text-align: left;\"><input type=\"radio\" name=\"active\" value=\"0\"  />LOW <input type=\"radio\" name=\"active\" value=\"1\"  />HIGH </td>\n") + strlen(LowFlag) + strlen(HighFlag) + 1);
-			sprintf(temp_html, "<td style=\"text-align: left;\"><input type=\"radio\" name=\"active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"active\" value=\"1\" %s/>HIGH </td>\n", LowFlag, HighFlag);
-			strcat(html, temp_html);
-			free(temp_html);
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input type=\"radio\" name=\"active\" value=\"0\" %s/>LOW <input type=\"radio\" name=\"active\" value=\"1\" %s/>HIGH </td>\n", LowFlag, HighFlag);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr><td colspan=\"2\" align=\"right\">\n");
@@ -5212,24 +4944,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"channel\" id=\"channel\">\n");
 		for (int i = 0; i < 5; i++)
 		{
-			strcat(html, "<option value=\"");
-			char *iStr2 = intToString(i);
-			strcat(html, iStr2);
-			strcat(html, "\" ");
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
+			strcat(html, temp_buffer);
 			if (config.gnss_channel == i)
 			{
-				strcat(html, "selected>");
-				strcat(html, GNSS_PORT[i]);
-				strcat(html, " </option>\n");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-				strcat(html, GNSS_PORT[i]);
-				strcat(html, " </option>\n");
-			}
-			// Free temporary string
-			free(iStr2);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", GNSS_PORT[i]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select>\n");
 		strcat(html, "</td>\n");
@@ -5247,12 +4969,8 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>TCP Port:</b></td>\n");
-		strcat(html, "<td style=\"text-align: left;\"><input min=\"1024\" max=\"65535\"  id=\"Port\" name=\"Port\" type=\"number\" value=\"");
-		char *gnssTcpPortStr = intToString(config.gnss_tcp_port);
-		strcat(html, gnssTcpPortStr);
-		// Free temporary string
-		free(gnssTcpPortStr);
-		strcat(html, "\" /></td>\n");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"1024\" max=\"65535\"  id=\"Port\" name=\"Port\" type=\"number\" value=\"%d\" /></td>\n", config.gnss_tcp_port);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr><td colspan=\"2\" align=\"right\">\n");
@@ -5285,24 +5003,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"channel\" id=\"channel\">\n");
 		for (int i = 0; i < 5; i++)
 		{
-			strcat(html, "<option value=\"");
-			char *iStr3 = intToString(i);
-			strcat(html, iStr3);
-			strcat(html, "\" ");
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
+			strcat(html, temp_buffer);
 			if (config.modbus_channel == i)
 			{
-				strcat(html, "selected>");
-				strcat(html, GNSS_PORT[i]);
-				strcat(html, " </option>\n");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-				strcat(html, GNSS_PORT[i]);
-				strcat(html, " </option>\n");
-			}
-			// Free temporary string
-			free(iStr3);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", GNSS_PORT[i]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select>\n");
 		strcat(html, "</td>\n");
@@ -5310,32 +5018,14 @@ void handle_mod(AsyncWebServerRequest *request)
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>Address:</b></td>\n");
-		strcat(html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"");
-		char *gpioMaxStr20 = intToString(GPIO_NUM_MAX);
-		strcat(html, gpioMaxStr20);
-		// Free temporary string
-		free(gpioMaxStr20);
-		strcat(html, "\" name=\"address\" type=\"number\" value=\"");
-		char *modbusAddrStr = intToString(config.modbus_address);
-		strcat(html, modbusAddrStr);
-		// Free temporary string
-		free(modbusAddrStr);
-		strcat(html, "\" /></td>\n");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"address\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.modbus_address);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>DE:</b></td>\n");
-		strcat(html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"");
-		char *gpioMaxStr21 = intToString(GPIO_NUM_MAX);
-		strcat(html, gpioMaxStr21);
-		// Free temporary string
-		free(gpioMaxStr21);
-		strcat(html, "\" name=\"de\" type=\"number\" value=\"");
-		char *modbusDeStr = intToString(config.modbus_de_gpio);
-		strcat(html, modbusDeStr);
-		// Free temporary string
-		free(modbusDeStr);
-		strcat(html, "\" /></td>\n");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"%d\" name=\"de\" type=\"number\" value=\"%d\" /></td>\n", GPIO_NUM_MAX, config.modbus_de_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr><td colspan=\"2\" align=\"right\">\n");
@@ -5367,24 +5057,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"channel\" id=\"channel\">\n");
 		for (int i = 0; i < 5; i++)
 		{
-			strcat(html, "<option value=\"");
-			char *iStr4 = intToString(i);
-			strcat(html, iStr4);
-			strcat(html, "\" ");
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
+			strcat(html, temp_buffer);
 			if (config.ext_tnc_channel == i)
 			{
-				strcat(html, "selected>");
-				strcat(html, TNC_PORT[i]);
-				strcat(html, " </option>\n");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-				strcat(html, TNC_PORT[i]);
-				strcat(html, " </option>\n");
-			}
-			// Free temporary string
-			free(iStr4);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", TNC_PORT[i]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select>\n");
 		strcat(html, "</td>\n");
@@ -5396,24 +5076,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"mode\" id=\"mode\">\n");
 		for (int i = 0; i < 4; i++)
 		{
-			strcat(html, "<option value=\"");
-			char *iStr5 = intToString(i);
-			strcat(html, iStr5);
-			strcat(html, "\" ");
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
+			strcat(html, temp_buffer);
 			if (config.ext_tnc_mode == i)
 			{
-				strcat(html, "selected>");
-				strcat(html, TNC_MODE[i]);
-				strcat(html, " </option>\n");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-				strcat(html, TNC_MODE[i]);
-				strcat(html, " </option>\n");
-			}
-			// Free temporary string
-			free(iStr5);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", TNC_MODE[i]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select>\n");
 		strcat(html, "</td>\n");
@@ -5467,24 +5137,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"uart\" id=\"cmdUart\">\n");
 		for (int i = 0; i < 5; i++)
 		{
-			strcat(html, "<option value=\"");
-			char *iStr6 = intToString(i);
-			strcat(html, iStr6);
-			strcat(html, "\" ");
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
+			strcat(html, temp_buffer);
 			if (config.at_cmd_uart == i)
 			{
-				strcat(html, "selected>");
-				strcat(html, TNC_PORT[i]);
-				strcat(html, " </option>\n");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-				strcat(html, TNC_PORT[i]);
-				strcat(html, " </option>\n");
-			}
-			// Free temporary string
-			free(iStr6);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", TNC_PORT[i]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select>\n");
 		strcat(html, "</td>\n");
@@ -5541,32 +5201,20 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<tr>\n");
 
 		strcat(html, "<td align=\"right\"><b>PIN:</b></td>\n");
-		strcat(html, "<td style=\"text-align: left;\"><input min=\"0\" max=\"999999\" name=\"pppPin\" type=\"number\" value=\"");
-		char *pppPinStr = intToString(atoi(config.ppp_pin));
-		strcat(html, pppPinStr);
-		// Free temporary string
-		free(pppPinStr);
-		strcat(html, "\" /> <i>*PIN of SIM</i></td>\n");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"0\" max=\"999999\" name=\"pppPin\" type=\"number\" value=\"%d\" /> <i>*PIN of SIM</i></td>\n", atoi(config.ppp_pin));
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 
 		strcat(html, "<td align=\"right\"><b>RX GPIO:</b></td>\n");
-		strcat(html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"50\" name=\"rx\" type=\"number\" value=\"");
-		char *pppRxStr = intToString(config.ppp_rx_gpio);
-		strcat(html, pppRxStr);
-		// Free temporary string
-		free(pppRxStr);
-		strcat(html, "\" /></td>\n");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"50\" name=\"rx\" type=\"number\" value=\"%d\" /></td>\n", config.ppp_rx_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>TX GPIO:</b></td>\n");
-		strcat(html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"50\" name=\"tx\" type=\"number\" value=\"");
-		char *pppTxStr = intToString(config.ppp_tx_gpio);
-		strcat(html, pppTxStr);
-		// Free temporary string
-		free(pppTxStr);
-		strcat(html, "\" /></td>\n");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"50\" name=\"tx\" type=\"number\" value=\"%d\" /></td>\n", config.ppp_tx_gpio);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
 		strcpy(LowFlag, "");
@@ -5577,12 +5225,9 @@ void handle_mod(AsyncWebServerRequest *request)
 			strcpy(LowFlag, "checked=\"checked\"");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>RESET GPIO:</b></td>\n");
-		strcat(html, "<td style=\"text-align: left;\"><input min=\"-1\" max=\"50\"  name=\"rst\" type=\"number\" value=\"");
-		char *pppRstStr = intToString(config.ppp_rst_gpio);
-		strcat(html, pppRstStr);
-		// Free temporary string
-		free(pppRstStr);
-		strcat(html, "\" /> Active:<input type=\"radio\" name=\"rst_active\" value=\"0\" ");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"-1\" max=\"50\"  name=\"rst\" type=\"number\" value=\"%d\" /> ", config.ppp_rst_gpio);
+		strcat(html, temp_buffer);
+		strcat(html, "Active:<input type=\"radio\" name=\"rst_active\" value=\"0\" ");
 		strcat(html, LowFlag);
 		strcat(html, "/>LOW <input type=\"radio\" name=\"rst_active\" value=\"1\" ");
 		strcat(html, HighFlag);
@@ -5590,12 +5235,8 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "</tr>\n");
 
 		strcat(html, "<td align=\"right\"><b>RESET DELAY:</b></td>\n");
-		strcat(html, "<td style=\"text-align: left;\"><input min=\"0\" max=\"999999\" name=\"rstDly\" type=\"number\" value=\"");
-		char *pppRstDelayStr = intToString(config.ppp_rst_delay);
-		strcat(html, pppRstDelayStr);
-		// Free temporary string
-		free(pppRstDelayStr);
-		strcat(html, "\" /> mSec.</td>\n");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><input min=\"0\" max=\"999999\" name=\"rstDly\" type=\"number\" value=\"%d\" /> mSec.</td>\n", config.ppp_rst_delay);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 
@@ -5605,24 +5246,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"port\" id=\"port\">\n");
 		for (int i = 0; i < 2; i++)
 		{
-			strcat(html, "<option value=\"");
-			char *iStr7 = intToString(i);
-			strcat(html, iStr7);
-			strcat(html, "\" ");
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
+			strcat(html, temp_buffer);
 			if (config.ppp_serial == i)
 			{
-				strcat(html, "selected>");
-				strcat(html, GNSS_PORT[i + 1]);
-				strcat(html, " </option>\n");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-				strcat(html, GNSS_PORT[i + 1]);
-				strcat(html, " </option>\n");
-			}
-			// Free temporary string
-			free(iStr7);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", GNSS_PORT[i + 1]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select>\n");
 		strcat(html, "</td>\n");
@@ -5634,24 +5265,14 @@ void handle_mod(AsyncWebServerRequest *request)
 		strcat(html, "<select name=\"baudrate\" id=\"baudrate\">\n");
 		for (int i = 0; i < 13; i++)
 		{
-			strcat(html, "<option value=\"");
-			char *baudrateStr3 = intToString(baudrate[i]);
-			strcat(html, baudrateStr3);
-			strcat(html, "\" ");
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", baudrate[i]);
+			strcat(html, temp_buffer);
 			if (config.ppp_serial_baudrate == baudrate[i])
 			{
-				strcat(html, "selected>");
-				strcat(html, baudrateStr3);
-				strcat(html, " </option>\n");
+				strcat(html, "selected");
 			}
-			else
-			{
-				strcat(html, ">");
-				strcat(html, baudrateStr3);
-				strcat(html, " </option>\n");
-			}
-			// Free temporary string
-			free(baudrateStr3);
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%d</option>\n", baudrate[i]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select> bps\n");
 		strcat(html, "</td>\n");
@@ -9269,6 +8890,7 @@ void handle_tlm(AsyncWebServerRequest *request)
 	else
 	{
 		// Allocate initial memory for HTML content
+		char temp_buffer[512];
 		char *html = allocateStringMemory(18000); // Start with 8KB buffer
 		if (!html)
 		{
@@ -9305,47 +8927,29 @@ void handle_tlm(AsyncWebServerRequest *request)
 		char EnFlag[10] = "";
 		if (config.tlm0_en)
 			strcpy(EnFlag, "checked");
-		{
-			char *temp_flag = allocateStringMemory(512);
-			if (temp_flag)
-			{
-				snprintf(temp_flag, 512, "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", EnFlag);
-				strcat(html, temp_flag);
-				free(temp_flag);
-			}
-		}
+
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\"><label class=\"switch\"><input type=\"checkbox\" name=\"Enable\" value=\"OK\" %s><span class=\"slider round\"></span></label></td>\n", EnFlag);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
-		{
-			char *temp_callsign = allocateStringMemory(512);
-			if (temp_callsign)
-			{
-				snprintf(temp_callsign, 512, "<td align=\"right\"><b>Station Callsign:</b></td>\n<td style=\"text-align: left;\"><input maxlength=\"7\" size=\"6\" id=\"myCall\" name=\"myCall\" type=\"text\" value=\"%s\" /></td>\n", config.tlm0_mycall);
-				strcat(html, temp_callsign);
-				free(temp_callsign);
-			}
-		}
+		strcat(html, "<tr>\n");
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td align=\"right\"><b>Station Callsign:</b></td>\n<td style=\"text-align: left;\"><input maxlength=\"7\" size=\"6\" id=\"myCall\" name=\"myCall\" type=\"text\" value=\"%s\" /></td>\n", config.tlm0_mycall);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
 		strcat(html, "<td align=\"right\"><b>Station SSID:</b></td>\n");
 		strcat(html, "<td style=\"text-align: left;\">\n");
 		strcat(html, "<select name=\"mySSID\" id=\"mySSID\">\n");
-		for (uint8_t ssid = 0; ssid <= 15; ssid++)
+		for (uint8_t i = 0; i <= 15; i++)
 		{
-			char *temp_option = allocateStringMemory(256);
-			if (temp_option)
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
+			strcat(html, temp_buffer);
+			if (config.tlm0_ssid == i)
 			{
-				if (config.tlm0_ssid == ssid)
-				{
-					snprintf(temp_option, 256, "<option value=\"%d\" selected>%d</option>\n", ssid, ssid);
-				}
-				else
-				{
-					snprintf(temp_option, 256, "<option value=\"%d\">%d</option>\n", ssid, ssid);
-				}
-				strcat(html, temp_option);
-				free(temp_option);
+				strcat(html, "selected");
 			}
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", i);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select></td>\n");
 		strcat(html, "</tr>\n");
@@ -9354,51 +8958,30 @@ void handle_tlm(AsyncWebServerRequest *request)
 		strcat(html, "<td align=\"right\"><b>PATH:</b></td>\n");
 		strcat(html, "<td style=\"text-align: left;\">\n");
 		strcat(html, "<select name=\"Path\" id=\"Path\">\n");
-		for (uint8_t pthIdx = 0; pthIdx < PATH_LEN; pthIdx++)
+		for (uint8_t i = 0; i < PATH_LEN; i++)
 		{
+			snprintf(temp_buffer, sizeof(temp_buffer), "<option value=\"%d\" ", i);
+			strcat(html, temp_buffer);
+			if (config.tlm0_path == i)
 			{
-				char *temp_path = allocateStringMemory(256);
-				if (temp_path)
-				{
-					if (config.tlm0_path == pthIdx)
-					{
-						snprintf(temp_path, 256, "<option value=\"%d\" selected>%s</option>\n", pthIdx, PATH_NAME[pthIdx]);
-					}
-					else
-					{
-						snprintf(temp_path, 256, "<option value=\"%d\">%s</option>\n", pthIdx, PATH_NAME[pthIdx]);
-					}
-					strcat(html, temp_path);
-					free(temp_path);
-				}
+				strcat(html, "selected");
 			}
+			snprintf(temp_buffer, sizeof(temp_buffer), ">%s</option>\n", PATH_NAME[i]);
+			strcat(html, temp_buffer);
 		}
 		strcat(html, "</select></td>\n");
 		// strcat(html, "<td style=\"text-align: left;\"><input maxlength=\"72\" size=\"72\" name=\"Path\" type=\"text\" value=\"" + String(config.tlm0_path) + "\" /></td>\n");
 		strcat(html, "</tr>\n");
 		strcat(html, "<tr>\n");
-		{
-			char *temp_comment = allocateStringMemory(512);
-			if (temp_comment)
-			{
-				snprintf(temp_comment, 512, "<td align=\"right\"><b>Text Comment:</b></td>\n<td style=\"text-align: left;\"><input maxlength=\"50\" size=\"50\" name=\"Comment\" type=\"text\" value=\"%s\" /></td>\n", config.tlm0_comment);
-				strcat(html, temp_comment);
-				free(temp_comment);
-			}
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<td align=\"right\"><b>Text Comment:</b></td>\n<td style=\"text-align: left;\"><input maxlength=\"50\" size=\"50\" name=\"Comment\" type=\"text\" value=\"%s\" /></td>\n", config.tlm0_comment);
+		strcat(html, temp_buffer);
 		strcat(html, "</tr>\n");
 
-		{
-			char *temp_intervals = allocateStringMemory(1024);
-			if (temp_intervals)
-			{
-				snprintf(temp_intervals, 1024, "<tr><td style=\"text-align: right;\">Info Interval:</td><td style=\"text-align: left;\"><input min=\"0\" max=\"3600\" step=\"1\" name=\"infoInv\" type=\"number\" value=\"%d\" />Sec.</td></tr>", config.tlm0_info_interval);
-				strcat(html, temp_intervals);
-				snprintf(temp_intervals, 1024, "<tr><td style=\"text-align: right;\">Data Interval:</td><td style=\"text-align: left;\"><input min=\"0\" max=\"3600\" step=\"1\" name=\"dataInv\" type=\"number\" value=\"%d\" />Sec.</td></tr>", config.tlm0_data_interval);
-				strcat(html, temp_intervals);
-				free(temp_intervals);
-			}
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<tr><td style=\"text-align: right;\">Info Interval:</td><td style=\"text-align: left;\"><input min=\"0\" max=\"3600\" step=\"1\" name=\"infoInv\" type=\"number\" value=\"%d\" />Sec.</td></tr>\n", config.tlm0_info_interval);
+		strcat(html, temp_buffer);
+
+		snprintf(temp_buffer, sizeof(temp_buffer), "<tr><td style=\"text-align: right;\">Data Interval:</td><td style=\"text-align: left;\"><input min=\"0\" max=\"3600\" step=\"1\" name=\"dataInv\" type=\"number\" value=\"%d\" />Sec.</td></tr>\n", config.tlm0_data_interval);
+		strcat(html, temp_buffer);
 
 		char Pos2RFFlag[10] = "";
 		char Pos2INETFlag[10] = "";
@@ -9406,15 +8989,8 @@ void handle_tlm(AsyncWebServerRequest *request)
 			strcpy(Pos2RFFlag, "checked");
 		if (config.tlm0_2inet)
 			strcpy(Pos2INETFlag, "checked");
-		{
-			char *temp_channels = allocateStringMemory(1024);
-			if (temp_channels)
-			{
-				snprintf(temp_channels, 1024, "<tr><td style=\"text-align: right;\">TX Channel:</td><td style=\"text-align: left;\"><input type=\"checkbox\" name=\"Pos2RF\" value=\"OK\" %s/>RF <input type=\"checkbox\" name=\"Pos2INET\" value=\"OK\" %s/>Internet </td></tr>\n", Pos2RFFlag, Pos2INETFlag);
-				strcat(html, temp_channels);
-				free(temp_channels);
-			}
-		}
+		snprintf(temp_buffer, sizeof(temp_buffer), "<tr><td style=\"text-align: right;\">TX Channel:</td><td style=\"text-align: left;\"><input type=\"checkbox\" name=\"Pos2RF\" value=\"OK\" %s/>RF <input type=\"checkbox\" name=\"Pos2INET\" value=\"OK\" %s/>Internet </td></tr>\n", Pos2RFFlag, Pos2INETFlag);
+		strcat(html, temp_buffer);
 
 		// strcat(html, "<tr>\n");
 		// strcat(html, "<td align=\"right\"><b>Time Stamp:</b></td>\n");
@@ -9425,15 +9001,8 @@ void handle_tlm(AsyncWebServerRequest *request)
 		// strcat(html, "</tr>\n");
 		for (int ax = 0; ax < 5; ax++)
 		{
-			{
-				char *temp_channel_a = allocateStringMemory(512);
-				if (temp_channel_a)
-				{
-					snprintf(temp_channel_a, 512, "<tr><td align=\"right\"><b>Channel A%d:</b></td>\n", ax + 1);
-					strcat(html, temp_channel_a);
-					free(temp_channel_a);
-				}
-			}
+			snprintf(temp_buffer, sizeof(temp_buffer), "<tr><td align=\"right\"><b>Channel A%d:</b></td>\n", ax + 1);
+			strcat(html, temp_buffer);
 			strcat(html, "<td align=\"center\">\n");
 			strcat(html, "<table>");
 
@@ -9441,15 +9010,9 @@ void handle_tlm(AsyncWebServerRequest *request)
 
 			strcat(html, "<tr><td style=\"text-align: right;\">Type/Name:</td>\n");
 			strcat(html, "<td style=\"text-align: left;\">Sensor Type: ");
-			{
-				char *temp_select = allocateStringMemory(256);
-				if (temp_select)
-				{
-					snprintf(temp_select, 256, "<select name=\"sensorCH%d\" id=\"sensorCH%d\">\n", ax, ax);
-					strcat(html, temp_select);
-					free(temp_select);
-				}
-			}
+			snprintf(temp_buffer, sizeof(temp_buffer), "<select name=\"sensorCH%d\" id=\"sensorCH%d\">\n", ax, ax);
+			strcat(html, temp_buffer);
+
 			for (uint8_t idx = 0; idx < SYSTEM_LEN; idx++)
 			{
 				{
@@ -9471,35 +9034,17 @@ void handle_tlm(AsyncWebServerRequest *request)
 			}
 			strcat(html, "</select></td>\n");
 
-			{
-				char *temp_param = allocateStringMemory(512);
-				if (temp_param)
-				{
-					snprintf(temp_param, 512, "<td style=\"text-align: left;\">Parameter: <input maxlength=\"10\" size=\"8\" name=\"param%d\" type=\"text\" value=\"%s\" /></td>\n", ax, config.tlm0_PARM[ax]);
-					strcat(html, temp_param);
-					free(temp_param);
-				}
-			}
-			{
-				char *temp_unit = allocateStringMemory(512);
-				if (temp_unit)
-				{
-					snprintf(temp_unit, 512, "<td style=\"text-align: left;\">Unit: <input maxlength=\"8\" size=\"5\" name=\"unit%d\" type=\"text\" value=\"%s\" /></td>\n", ax, config.tlm0_UNIT[ax]);
-					strcat(html, temp_unit);
-					free(temp_unit);
-				}
-			}
+			snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\">Parameter: <input maxlength=\"10\" size=\"8\" name=\"param%d\" type=\"text\" value=\"%s\" /></td>\n", ax, config.tlm0_PARM[ax]);
+			strcat(html, temp_buffer);
+			snprintf(temp_buffer, sizeof(temp_buffer), "<td style=\"text-align: left;\">Unit: <input maxlength=\"8\" size=\"5\" name=\"unit%d\" type=\"text\" value=\"%s\" /></td>\n", ax, config.tlm0_UNIT[ax]);
+			strcat(html, temp_buffer);
 			strcat(html, "</tr>\n");
-			{
-				char *temp_eqns = allocateStringMemory(1024);
-				if (temp_eqns)
-				{
-					snprintf(temp_eqns, 1024, "<tr><td style=\"text-align: right;\">EQNS:</td><td colspan=\"3\" style=\"text-align: left;\">a:<input min=\"-9999\" max=\"9999\" step=\"0.0001\" name=\"eqns%da\" type=\"number\" value=\"%.3f\" />  b:<input min=\"-9999\" max=\"9999\" step=\"0.0001\" name=\"eqns%db\" type=\"number\" value=\"%.3f\" /> c:<input min=\"-9999\" max=\"9999\" step=\"0.0001\" name=\"eqns%dc\" type=\"number\" value=\"%.3f\" /> (av<sup>2</sup>+bv+c)</td></tr>\n",
+
+			strcat(html, "<tr><td style=\"text-align: right;\">EQNS:</td><td colspan=\"3\" style=\"text-align: left;\">a:<input min=\"-9999\" max=\"9999\" step=\"0.0001\" ");
+
+			snprintf(temp_buffer, sizeof(temp_buffer), "name=\"eqns%da\" type=\"number\" value=\"%.3f\" />  b:<input min=\"-9999\" max=\"9999\" step=\"0.0001\" name=\"eqns%db\" type=\"number\" value=\"%.3f\" /> c:<input min=\"-9999\" max=\"9999\" step=\"0.0001\" name=\"eqns%dc\" type=\"number\" value=\"%.3f\" /> (av<sup>2</sup>+bv+c)</td></tr>\n",
 							 ax, config.tlm0_EQNS[ax][0], ax, config.tlm0_EQNS[ax][1], ax, config.tlm0_EQNS[ax][2]);
-					strcat(html, temp_eqns);
-					free(temp_eqns);
-				}
-			}
+			strcat(html, temp_buffer);
 			strcat(html, "</table></td>");
 			strcat(html, "</tr>\n");
 		}
@@ -9507,15 +9052,8 @@ void handle_tlm(AsyncWebServerRequest *request)
 		uint8_t b = 1;
 		for (int ax = 0; ax < 8; ax++)
 		{
-			{
-				char *temp_channel_b = allocateStringMemory(512);
-				if (temp_channel_b)
-				{
-					snprintf(temp_channel_b, 512, "<tr><td align=\"right\"><b>Channel B%d:</b></td>\n", ax + 1);
-					strcat(html, temp_channel_b);
-					free(temp_channel_b);
-				}
-			}
+			snprintf(temp_buffer, sizeof(temp_buffer), "<tr><td align=\"right\"><b>Channel B%d:</b></td>\n", ax + 1);
+			strcat(html, temp_buffer);
 			strcat(html, "<td align=\"center\">\n");
 			strcat(html, "<table>");
 
