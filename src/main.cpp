@@ -153,6 +153,22 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 #endif
 
+#define BT_QUEUE_SIZE 32
+
+struct BtQueuedPkg {
+    uint8_t data[500];
+    size_t len;
+};
+
+static BtQueuedPkg *btQueue = nullptr;
+static volatile int btQueueHead = 0;   // nächster freier Platz zum Einfügen
+static volatile int btQueueTail = 0;   // nächstes zu sendendes Paket
+static volatile int btQueueCount = 0;  // aktuelle Anzahl gepufferter Pakete
+
+void bt_queue_flush();
+void bt_queue_push(uint8_t *pkg, int sz);
+
+
 #define FORMAT_LITTLEFS_IF_FAILED true
 extern fs::LITTLEFSFS LITTLEFS;
 
@@ -2472,14 +2488,15 @@ uint16_t pkgType(const char *raw)
     uint16_t type = 0;
     char packettype = 0;
     const char *body;
-    // int paclen = strlen(raw);
+    int paclen = strlen(raw);
     char *ptr;
 
-    if (*raw == 0)
+    if (paclen == 0)
         return 0;
 
     packettype = (char)raw[0];
     body = &raw[1];
+    size_t body_len = paclen - 1;
 
     switch (packettype)
     {
@@ -2494,7 +2511,7 @@ uint16_t pkgType(const char *raw)
     case '!':
     case '=':
         type |= FILTER_POSITION;
-        if (body[18] == '_' || body[10] == '_')
+        if ((body_len > 18 && body[18] == '_') || (body_len > 10 && body[10] == '_'))
         {
             type |= FILTER_WX;
             break;
@@ -2502,7 +2519,7 @@ uint16_t pkgType(const char *raw)
     case '/':
     case '@':
         type |= FILTER_POSITION;
-        if (body[25] == '_' || body[16] == '_')
+        if ((body_len > 25 && body[25] == '_') || (body_len > 16 && body[16] == '_'))
         {
             type |= FILTER_WX;
             break;
@@ -2522,7 +2539,7 @@ uint16_t pkgType(const char *raw)
         }
         break;
     case ':':
-        if (body[9] == ':' &&
+        if (body_len > 13 && body[9] == ':' &&
             (memcmp(body + 10, "PARM", 4) == 0 ||
              memcmp(body + 10, "UNIT", 4) == 0 ||
              memcmp(body + 10, "EQNS", 4) == 0 ||
@@ -2545,7 +2562,7 @@ uint16_t pkgType(const char *raw)
         break;
     case ';':
         type |= FILTER_OBJECT;
-        if (body[35] == '_')
+        if (body_len > 35 && body[35] == '_')
             type |= FILTER_WX;
         break;
     case ')':
@@ -3489,6 +3506,13 @@ void bluetooth_init()
 bool AFSKInitAct = false;
 void setup()
 {
+
+    btQueue = (BtQueuedPkg *)ps_malloc(sizeof(BtQueuedPkg) * BT_QUEUE_SIZE);
+    if (btQueue == nullptr)
+    {
+        log_e("Konnte btQueue nicht im PSRAM allozieren!");
+    }
+
     // byte *ptr;
     //  setCpuFrequencyMhz(160);
 #ifdef BOARD_HAS_PSRAM
@@ -5227,6 +5251,7 @@ void loop()
 {
     if (millis() > timeTask)
     {
+        bt_queue_flush();
         timeTask = millis() + 10000;
         unsigned long upT = (millis() / 1000) - upTimeStamp;
         convertSecondsToDHMS(nmea, upT);
@@ -6558,6 +6583,31 @@ void taskSerial(void *pvParameters)
     }
 }
 
+// Paket in die Queue legen (verwirft das neue Paket, wenn die Queue voll ist)
+void bt_queue_push(uint8_t *pkg, int sz)
+{
+    if (btQueueCount >= BT_QUEUE_SIZE || sz > (int)sizeof(btQueue[0].data))
+    {
+        log_w("[BT-KISS] Queue voll oder Paket zu groß, verwerfe Paket");
+        return;
+    }
+    memcpy(btQueue[btQueueHead].data, pkg, sz);
+    btQueue[btQueueHead].len = sz;
+    btQueueHead = (btQueueHead + 1) % BT_QUEUE_SIZE;
+    btQueueCount++;
+}
+
+// Alle gepufferten Pakete rausschicken, solange Verbindung besteht
+void bt_queue_flush()
+{
+    while (btQueueCount > 0 && NuSerial.isConnected())
+    {
+        NuSerial.write(btQueue[btQueueTail].data, btQueue[btQueueTail].len);
+        btQueueTail = (btQueueTail + 1) % BT_QUEUE_SIZE;
+        btQueueCount--;
+    }
+}
+
 long timeSlot;
 unsigned long iGatetickInterval;
 unsigned long WxInterval;
@@ -7189,13 +7239,18 @@ void taskAPRS(void *pvParameters)
                         else if (config.bt_mode == 2)
                         { // KISS
                             uint8_t pkg[500];
-                            int sz = kiss_wrapper(pkg);
+                            int sz = kiss_wrapper(pkg, buf, size);
 #if defined(CONFIG_IDF_TARGET_ESP32)
                             SerialBT.write(pkg, sz);
 #else
+                            bt_queue_flush(); // zuerst evtl. wartende alte Pakete rausschicken (Reihenfolge bleibt erhalten)
                             if (NuSerial.isConnected())
                             {
                                 NuSerial.write(pkg, sz);
+                            }
+                            else
+                            {
+                                bt_queue_push(pkg, sz);
                             }
 #endif
                         }

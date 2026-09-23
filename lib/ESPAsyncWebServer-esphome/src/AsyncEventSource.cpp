@@ -333,7 +333,14 @@ void AsyncEventSource::_addClient(AsyncEventSourceClient * client){
     free(temp);
   }*/
 
+#if defined(ESP32)
+  {
+    std::lock_guard<std::mutex> lock(_clients_mutex);
+    _clients.add(client);
+  }
+#else
   _clients.add(client);
+#endif // ESP32
   if(_connectcb)
     _connectcb(client);
   if(_connectcb2)
@@ -341,12 +348,22 @@ void AsyncEventSource::_addClient(AsyncEventSourceClient * client){
 }
 
 void AsyncEventSource::_handleDisconnect(AsyncEventSourceClient * client){
+#if defined(ESP32)
+  {
+    std::lock_guard<std::mutex> lock(_clients_mutex);
+    _clients.remove(client);
+  }
+#else
   _clients.remove(client);
+#endif // ESP32
   if(_disconnectcb)
     _disconnectcb(this, client);
 }
 
 void AsyncEventSource::close(){
+#if defined(ESP32)
+  std::lock_guard<std::mutex> lock(_clients_mutex);
+#endif // ESP32
   for(const auto &c: _clients){
     if(c->connected())
       c->close();
@@ -355,6 +372,9 @@ void AsyncEventSource::close(){
 
 // pmb fix
 size_t AsyncEventSource::avgPacketsWaiting() const {
+#if defined(ESP32)
+  std::lock_guard<std::mutex> lock(_clients_mutex);
+#endif // ESP32
   if(_clients.isEmpty())
     return 0;
 
@@ -378,6 +398,9 @@ void AsyncEventSource::send(const char *message, const char *event, uint32_t id,
 bool AsyncEventSource::try_send(const char *message, const char *event, uint32_t id, uint32_t reconnect){
   String ev = generateEventMessage(message, event, id, reconnect);
   bool succeeded = false;
+#if defined(ESP32)
+  std::lock_guard<std::mutex> lock(_clients_mutex);
+#endif // ESP32
   for(const auto &c: _clients){
     if(c->connected()) {
       if(c->try_write(ev.c_str(), ev.length()))
@@ -388,6 +411,9 @@ bool AsyncEventSource::try_send(const char *message, const char *event, uint32_t
 }
 
 size_t AsyncEventSource::count() const {
+#if defined(ESP32)
+  std::lock_guard<std::mutex> lock(_clients_mutex);
+#endif // ESP32
   return _clients.count_if([](AsyncEventSourceClient *c){
     return c->connected();
   });

@@ -120,6 +120,12 @@ class AsyncEventSource: public AsyncWebHandler {
     ArEventHandlerFunction _connectcb;
     ArEventHandlerFunction2 _connectcb2;
     ArEventHandlerFunction2 _disconnectcb;
+#if defined(ESP32)
+    // Schuetzt _clients: wird sowohl vom async_tcp-Task (_addClient/_handleDisconnect)
+    // als auch vom aufrufenden Task (send/count/close/avgPacketsWaiting) angefasst.
+    // "mutable", damit auch const-Methoden (count(), avgPacketsWaiting()) locken koennen.
+    mutable std::mutex _clients_mutex;
+#endif // ESP32
   public:
     AsyncEventSource(const String& url);
     ~AsyncEventSource();
