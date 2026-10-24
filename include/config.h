@@ -73,7 +73,7 @@ typedef struct wifi_struct
 {
 	bool enable;
 	char wifi_ssid[32];
-	char wifi_pass[63];
+	char wifi_pass[64];
 } wifiSTA;
 
 typedef struct Config_Struct
@@ -96,7 +96,7 @@ typedef struct Config_Struct
 	// bool wifi_ap;
 	uint8_t wifi_ap_ch;
 	char wifi_ap_ssid[32];
-	char wifi_ap_pass[63];
+	char wifi_ap_pass[64];
 
 		//--Blue Tooth
 		bool bt_slave;

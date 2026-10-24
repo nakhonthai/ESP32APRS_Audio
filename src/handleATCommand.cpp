@@ -255,7 +255,7 @@ String handleATCommand(String cmd)
     {
         cmd.remove(0, 13 + String(0).length());
         cmd.replace("\"", "");
-        strncpy(config.wifi_sta[0].wifi_pass, cmd.c_str(), sizeof(config.wifi_sta[0].wifi_pass));
+        strlcpy(config.wifi_sta[0].wifi_pass, cmd.c_str(), sizeof(config.wifi_sta[0].wifi_pass));
         return "OK";
     }
 
@@ -287,7 +287,7 @@ String handleATCommand(String cmd)
     {
         cmd.remove(0, 13 + String(1).length());
         cmd.replace("\"", "");
-        strncpy(config.wifi_sta[1].wifi_pass, cmd.c_str(), sizeof(config.wifi_sta[1].wifi_pass));
+        strlcpy(config.wifi_sta[1].wifi_pass, cmd.c_str(), sizeof(config.wifi_sta[1].wifi_pass));
         return "OK";
     }
 
@@ -319,7 +319,7 @@ String handleATCommand(String cmd)
     {
         cmd.remove(0, 13 + String(2).length());
         cmd.replace("\"", "");
-        strncpy(config.wifi_sta[2].wifi_pass, cmd.c_str(), sizeof(config.wifi_sta[2].wifi_pass));
+        strlcpy(config.wifi_sta[2].wifi_pass, cmd.c_str(), sizeof(config.wifi_sta[2].wifi_pass));
         return "OK";
     }
 
@@ -351,7 +351,7 @@ String handleATCommand(String cmd)
     {
         cmd.remove(0, 13 + String(3).length());
         cmd.replace("\"", "");
-        strncpy(config.wifi_sta[3].wifi_pass, cmd.c_str(), sizeof(config.wifi_sta[3].wifi_pass));
+        strlcpy(config.wifi_sta[3].wifi_pass, cmd.c_str(), sizeof(config.wifi_sta[3].wifi_pass));
         return "OK";
     }
 
@@ -383,7 +383,7 @@ String handleATCommand(String cmd)
     {
         cmd.remove(0, 13 + String(4).length());
         cmd.replace("\"", "");
-        strncpy(config.wifi_sta[4].wifi_pass, cmd.c_str(), sizeof(config.wifi_sta[4].wifi_pass));
+        strlcpy(config.wifi_sta[4].wifi_pass, cmd.c_str(), sizeof(config.wifi_sta[4].wifi_pass));
         return "OK";
     }
 
@@ -411,7 +411,7 @@ String handleATCommand(String cmd)
     {
         cmd.remove(0, 16);
         cmd.replace("\"", "");
-        strncpy(config.wifi_ap_pass, cmd.c_str(), sizeof(config.wifi_ap_pass));
+        strlcpy(config.wifi_ap_pass, cmd.c_str(), sizeof(config.wifi_ap_pass));
         return "OK";
     }
 
